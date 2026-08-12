@@ -1,0 +1,276 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-page: #E8EFEA;
+    --bg-surface: #FFFFFF;
+    --bg-surface-solid: #FFFFFF;
+    --border-solid: #C8D4CB;
+    --border-focus: #5B67CA;
+    --accent-lavender: #5B67CA;
+    --accent-lavender-hover: #4A55B8;
+    --accent-teal: #2D5C3E;
+    --text-primary: #14241B;
+    --text-secondary: #14241B;
+    --text-muted: #14241B;
+    --shadow-soft: 0 4px 15px rgba(0, 0, 0, 0.03);
+    --shadow-card-hover: 0 6px 20px rgba(0, 0, 0, 0.06);
+    --radius-card: 20px;
+  }
+
+  .dark {
+    --bg-page: #121915;
+    --bg-surface: #1B2520;
+    --bg-surface-solid: #212E27;
+    --border-solid: #2B3A31;
+    --border-focus: #9CA6DC;
+    --accent-lavender: #8B95C9;
+    --accent-lavender-hover: #7B85B9;
+    --accent-teal: #5A936C;
+    --text-primary: #EEF3EF;
+    --text-secondary: #D5E0D8;
+    --text-muted: #A7B6AC;
+    --shadow-soft: 0 4px 15px rgba(0, 0, 0, 0.3);
+    --shadow-card-hover: 0 6px 20px rgba(0, 0, 0, 0.45);
+  }
+
+  /* Page background override */
+  body {
+    background-color: #E8EFEA !important;
+    color: #14241B !important;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    min-height: 100vh;
+    min-height: 100dvh;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .dark body {
+    background-color: #121915 !important;
+    color: #EEF3EF !important;
+  }
+
+  /* Text color rules on light theme */
+  html:not(.dark) h1,
+  html:not(.dark) h2,
+  html:not(.dark) h3,
+  html:not(.dark) h4,
+  html:not(.dark) h5,
+  html:not(.dark) h6,
+  html:not(.dark) p,
+  html:not(.dark) span:not(.primary-btn *):not(.bg-\[\#5B67CA\] *):not(.badge-white *),
+  html:not(.dark) label,
+  html:not(.dark) div:not(.primary-btn) {
+    color: inherit;
+  }
+
+  /* Input and Native select reset */
+  input, textarea, select {
+    color: #14241B !important;
+    background-color: #FFFFFF !important;
+    border-color: #C8D4CB !important;
+  }
+
+  .dark input,
+  .dark textarea,
+  .dark select {
+    color: #EEF3EF !important;
+    background-color: #1B2520 !important;
+    border-color: #2B3A31 !important;
+  }
+
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    border-radius: 12px;
+    font-weight: 700;
+  }
+}
+
+/* Card and Container Styling */
+.glass-panel,
+.glass-panel-solid {
+  background-color: #FFFFFF !important;
+  border: 1px solid #C8D4CB !important;
+  border-radius: 20px;
+  box-shadow: var(--shadow-soft);
+}
+
+.dark .glass-panel,
+.dark .glass-panel-solid {
+  background-color: #1B2520 !important;
+  border: 1px solid #2B3A31 !important;
+}
+
+/* HEADER OVERRIDE */
+.glass-header,
+header {
+  background-color: #FFFFFF !important;
+  border-bottom: 1px solid #C8D4CB !important;
+}
+
+.dark .glass-header,
+.dark header {
+  background-color: #121915 !important;
+  border-bottom: 1px solid #2B3A31 !important;
+}
+
+.glass-header h1,
+header h1 {
+  color: #14241B !important;
+}
+
+.dark .glass-header h1,
+.dark header h1 {
+  color: #EEF3EF !important;
+}
+
+/* PRIMARY BUTTON OVERRIDE ("+ Nuova" / "Registra Prima Voce") */
+.btn-primary,
+button.btn-primary,
+.bg-\[\#5B67CA\],
+.bg-\[\#485696\] {
+  background-color: #5B67CA !important;
+  color: #FFFFFF !important;
+  font-weight: 600 !important;
+}
+
+.btn-primary:hover,
+.bg-\[\#5B67CA\]:hover,
+.bg-\[\#485696\]:hover {
+  background-color: #4A55B8 !important;
+}
+
+.btn-primary *,
+.bg-\[\#5B67CA\] *,
+.bg-\[\#485696\] * {
+  color: #FFFFFF !important;
+}
+
+/* BOTTOM NAVIGATION OVERRIDE */
+.glass-nav {
+  background-color: #FFFFFF !important;
+  border: 1px solid #C8D4CB !important;
+  box-shadow: 0 4px 20px rgba(20, 36, 27, 0.08);
+}
+
+.dark .glass-nav {
+  background-color: #1B2520 !important;
+  border: 1px solid #2B3A31 !important;
+}
+
+/* Inactive bottom nav item */
+.nav-item-inactive {
+  color: #526358 !important;
+}
+
+/* Active bottom nav item */
+.nav-item-active {
+  color: #5B67CA !important;
+  font-weight: 700 !important;
+}
+
+.nav-active-pill {
+  background-color: #E0E6FD !important;
+  border-radius: 9999px;
+}
+
+/* DROPDOWN OVERRIDE (ULTIMI 30 GIORNI, etc.) */
+.dropdown-trigger,
+.custom-dropdown-btn {
+  background-color: #FFFFFF !important;
+  border: 1px solid #C8D4CB !important;
+  color: #14241B !important;
+}
+
+.dropdown-menu {
+  background-color: #FFFFFF !important;
+  border: 1px solid #C8D4CB !important;
+  color: #14241B !important;
+}
+
+.dropdown-menu button {
+  color: #14241B !important;
+}
+
+.dropdown-menu button:hover {
+  background-color: #E0E6FD !important;
+}
+
+.dark .dropdown-trigger,
+.dark .custom-dropdown-btn,
+.dark .dropdown-menu {
+  background-color: #1B2520 !important;
+  border: 1px solid #2B3A31 !important;
+  color: #EEF3EF !important;
+}
+
+.dark .dropdown-menu button {
+  color: #EEF3EF !important;
+}
+
+/* Entrance Animation */
+@keyframes viewSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: viewSlideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(20, 36, 27, 0.2);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(91, 103, 202, 0.5);
+}
+
+/* Range input thumb styling */
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid #5B67CA;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.15s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(91, 103, 202, 0.4);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid #5B67CA;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
