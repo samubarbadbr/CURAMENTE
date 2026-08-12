@@ -44,14 +44,14 @@ export function CustomDropdown<T extends string = string>({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="custom-dropdown-btn w-full inline-flex items-center justify-between gap-2.5 px-3.5 py-2 text-xs font-black rounded-[12px] border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] text-[#14241B] dark:text-[#EEF3EF] shadow-sm hover:bg-[#E8EFEA] dark:hover:bg-[#212E27] focus:outline-none focus:ring-2 focus:ring-[#5B67CA] transition-all duration-150 cursor-pointer active:scale-98"
+        className="custom-dropdown-btn w-full inline-flex items-center justify-between gap-2.5 px-3.5 py-2 text-xs font-black rounded-[12px] border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] text-[#15251C] dark:text-[#EEF3EF] shadow-sm hover:bg-[#EBF0EC] dark:hover:bg-[#212E27] focus:outline-none focus:ring-2 focus:ring-[#5B67CA] transition-all duration-150 cursor-pointer active:scale-98"
       >
         <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
-        <ChevronDown className={`w-4 h-4 text-[#14241B] dark:text-[#EEF3EF] transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-[#15251C] dark:text-[#EEF3EF] transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="dropdown-menu absolute right-0 mt-1.5 w-full min-w-[170px] z-50 rounded-[12px] border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-xl p-1.5 animate-fade-in space-y-0.5">
+        <div className="dropdown-menu absolute right-0 mt-1.5 w-full min-w-[170px] z-50 rounded-[12px] border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-xl p-1.5 animate-fade-in space-y-0.5">
           {options.map((option) => {
             const isSelected = option.value === value;
             return (
@@ -64,8 +64,8 @@ export function CustomDropdown<T extends string = string>({
                 }}
                 className={`w-full flex items-center justify-between px-3 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer text-left ${
                   isSelected
-                    ? 'bg-[#E0E6FD] dark:bg-[#2B3A31] text-[#14241B] dark:text-[#EEF3EF] font-black'
-                    : 'text-[#14241B] dark:text-[#EEF3EF] hover:bg-[#E8EFEA] dark:hover:bg-[#212E27]'
+                    ? 'bg-[#E0E6FD] dark:bg-[#2B3A31] text-[#15251C] dark:text-[#EEF3EF] font-black'
+                    : 'text-[#15251C] dark:text-[#EEF3EF] hover:bg-[#EBF0EC] dark:hover:bg-[#212E27]'
                 }`}
               >
                 <span className="truncate">{option.label}</span>

@@ -2,17 +2,17 @@
 
 @layer base {
   :root {
-    --bg-page: #E8EFEA;
+    --bg-page: #EBF0EC;
     --bg-surface: #FFFFFF;
     --bg-surface-solid: #FFFFFF;
-    --border-solid: #C8D4CB;
+    --border-solid: #C8D5CB;
     --border-focus: #5B67CA;
     --accent-lavender: #5B67CA;
     --accent-lavender-hover: #4A55B8;
     --accent-teal: #2D5C3E;
-    --text-primary: #14241B;
-    --text-secondary: #14241B;
-    --text-muted: #14241B;
+    --text-primary: #15251C;
+    --text-secondary: #15251C;
+    --text-muted: #15251C;
     --shadow-soft: 0 4px 15px rgba(0, 0, 0, 0.03);
     --shadow-card-hover: 0 6px 20px rgba(0, 0, 0, 0.06);
     --radius-card: 20px;
@@ -34,10 +34,10 @@
     --shadow-card-hover: 0 6px 20px rgba(0, 0, 0, 0.45);
   }
 
-  /* Page background override */
+  /* Page background override - Uniform Sage Green (#EBF0EC) */
   body {
-    background-color: #E8EFEA !important;
-    color: #14241B !important;
+    background-color: #EBF0EC !important;
+    color: #15251C !important;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     min-height: 100vh;
     min-height: 100dvh;
@@ -52,7 +52,7 @@
     color: #EEF3EF !important;
   }
 
-  /* Text color rules on light theme */
+  /* Text color rules on light theme - Mandatory #15251C for text contrast */
   html:not(.dark) h1,
   html:not(.dark) h2,
   html:not(.dark) h3,
@@ -60,17 +60,15 @@
   html:not(.dark) h5,
   html:not(.dark) h6,
   html:not(.dark) p,
-  html:not(.dark) span:not(.primary-btn *):not(.bg-\[\#5B67CA\] *):not(.badge-white *),
-  html:not(.dark) label,
-  html:not(.dark) div:not(.primary-btn) {
-    color: inherit;
+  html:not(.dark) label {
+    color: #15251C;
   }
 
   /* Input and Native select reset */
   input, textarea, select {
-    color: #14241B !important;
+    color: #15251C !important;
     background-color: #FFFFFF !important;
-    border-color: #C8D4CB !important;
+    border-color: #C8D5CB !important;
   }
 
   .dark input,
@@ -90,11 +88,11 @@
   }
 }
 
-/* Card and Container Styling */
+/* Card and Container Styling - Pure Solid White (#FFFFFF) with gentle border (#C8D5CB) */
 .glass-panel,
 .glass-panel-solid {
   background-color: #FFFFFF !important;
-  border: 1px solid #C8D4CB !important;
+  border: 1px solid #C8D5CB !important;
   border-radius: 20px;
   box-shadow: var(--shadow-soft);
 }
@@ -109,7 +107,7 @@
 .glass-header,
 header {
   background-color: #FFFFFF !important;
-  border-bottom: 1px solid #C8D4CB !important;
+  border-bottom: 1px solid #C8D5CB !important;
 }
 
 .dark .glass-header,
@@ -120,7 +118,7 @@ header {
 
 .glass-header h1,
 header h1 {
-  color: #14241B !important;
+  color: #15251C !important;
 }
 
 .dark .glass-header h1,
@@ -128,33 +126,30 @@ header h1 {
   color: #EEF3EF !important;
 }
 
-/* PRIMARY BUTTON OVERRIDE ("+ Nuova" / "Registra Prima Voce") */
+/* PRIMARY BUTTON OVERRIDE ("+ Nuova" / "Registra Prima Voce" / "Salva") */
 .btn-primary,
 button.btn-primary,
-.bg-\[\#5B67CA\],
-.bg-\[\#485696\] {
+.bg-\[\#5B67CA\] {
   background-color: #5B67CA !important;
   color: #FFFFFF !important;
   font-weight: 600 !important;
 }
 
 .btn-primary:hover,
-.bg-\[\#5B67CA\]:hover,
-.bg-\[\#485696\]:hover {
+.bg-\[\#5B67CA\]:hover {
   background-color: #4A55B8 !important;
 }
 
 .btn-primary *,
-.bg-\[\#5B67CA\] *,
-.bg-\[\#485696\] * {
+.bg-\[\#5B67CA\] * {
   color: #FFFFFF !important;
 }
 
 /* BOTTOM NAVIGATION OVERRIDE */
 .glass-nav {
   background-color: #FFFFFF !important;
-  border: 1px solid #C8D4CB !important;
-  box-shadow: 0 4px 20px rgba(20, 36, 27, 0.08);
+  border: 1px solid #C8D5CB !important;
+  box-shadow: 0 4px 20px rgba(21, 37, 28, 0.08);
 }
 
 .dark .glass-nav {
@@ -182,18 +177,18 @@ button.btn-primary,
 .dropdown-trigger,
 .custom-dropdown-btn {
   background-color: #FFFFFF !important;
-  border: 1px solid #C8D4CB !important;
-  color: #14241B !important;
+  border: 1px solid #C8D5CB !important;
+  color: #15251C !important;
 }
 
 .dropdown-menu {
   background-color: #FFFFFF !important;
-  border: 1px solid #C8D4CB !important;
-  color: #14241B !important;
+  border: 1px solid #C8D5CB !important;
+  color: #15251C !important;
 }
 
 .dropdown-menu button {
-  color: #14241B !important;
+  color: #15251C !important;
 }
 
 .dropdown-menu button:hover {

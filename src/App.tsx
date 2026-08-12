@@ -438,17 +438,17 @@ export default function App() {
 
   if (!isDbReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#E8EFEA] dark:bg-[#121915] text-[#14241B] dark:text-[#EEF3EF]">
+      <div className="min-h-screen flex items-center justify-center bg-[#EBF0EC] dark:bg-[#121915] text-[#15251C] dark:text-[#EEF3EF]">
         <div className="text-center space-y-3">
           <div className="w-10 h-10 border-4 border-[#5B67CA] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-bold tracking-wider uppercase text-[#14241B] dark:text-[#A7B6AC]">Inizializzazione Diario Mente...</p>
+          <p className="text-xs font-bold tracking-wider uppercase text-[#15251C] dark:text-[#A7B6AC]">Inizializzazione Diario Mente...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#E8EFEA] dark:bg-[#121915] text-[#14241B] dark:text-[#EEF3EF] flex flex-col font-sans transition-colors duration-200">
+    <div className="min-h-screen bg-[#EBF0EC] dark:bg-[#121915] text-[#15251C] dark:text-[#EEF3EF] flex flex-col font-sans transition-colors duration-200">
       {/* Lock screen overlay if PIN lock is enabled */}
       {isLocked && (
         <LockScreen

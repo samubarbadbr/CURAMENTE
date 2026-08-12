@@ -16,7 +16,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentView, onSelectView 
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 max-w-lg mx-auto px-4 pb-4 pt-2">
-      <div className="glass-nav rounded-full px-3 py-2 flex items-center justify-around shadow-lg border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
+      <div className="glass-nav rounded-full px-3 py-2 flex items-center justify-around shadow-lg border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentView === item.id;
@@ -28,7 +28,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentView, onSelectView 
               className={`flex-1 flex flex-col items-center py-1.5 px-3 rounded-full text-xs transition-all duration-150 active:scale-95 relative ${
                 isActive
                   ? 'nav-item-active text-[#5B67CA] dark:text-[#9CA6DC] font-black'
-                  : 'nav-item-inactive text-[#526358] dark:text-[#A7B6AC] hover:text-[#14241B] dark:hover:text-[#EEF3EF] font-bold'
+                  : 'nav-item-inactive text-[#526358] dark:text-[#A7B6AC] hover:text-[#15251C] dark:hover:text-[#EEF3EF] font-bold'
               }`}
             >
               {isActive && (
