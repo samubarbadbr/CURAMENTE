@@ -25,10 +25,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentView, onSelectView 
               key={item.id}
               type="button"
               onClick={() => onSelectView(item.id)}
-              className={`flex-1 flex flex-col items-center py-1.5 px-3 rounded-full text-xs transition-all duration-150 active:scale-95 relative ${
+              className={`flex-1 flex flex-col items-center py-2 px-3 min-h-[48px] justify-center rounded-full text-xs transition-all duration-150 active:scale-95 relative cursor-pointer ${
                 isActive
                   ? 'nav-item-active text-[#5B67CA] dark:text-[#9CA6DC] font-black'
-                  : 'nav-item-inactive text-[#526358] dark:text-[#A7B6AC] hover:text-[#15251C] dark:hover:text-[#EEF3EF] font-bold'
+                  : 'nav-item-inactive text-[#37493D] dark:text-[#A7B6AC] hover:text-[#15251C] dark:hover:text-[#EEF3EF] font-bold'
               }`}
             >
               {isActive && (

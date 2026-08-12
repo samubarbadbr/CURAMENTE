@@ -271,10 +271,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   return (
     <div className="space-y-5 pb-28 animate-fade-in">
       {/* Intro Header */}
-      <div className="flex items-center justify-between pt-1">
-        <div>
-          <h2 className="text-xl font-black text-[#14241B] dark:text-[#EEF3EF]">Dashboard Seduta</h2>
-          <p className="text-xs font-bold text-[#14241B] dark:text-[#D5E0D8] mt-0.5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 pb-1">
+        <div className="space-y-0.5">
+          <h2 className="text-2xl font-black text-[#15251C] dark:text-[#EEF3EF]">Dashboard Seduta</h2>
+          <p className="text-xs font-bold text-[#2C3E35] dark:text-[#D5E0D8]">
             Sintesi dei progressi e dati per la terapia
           </p>
         </div>
@@ -282,79 +282,81 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <button
           type="button"
           onClick={onExportReport}
-          className="btn-primary inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-full bg-[#5B67CA] text-white border border-[#5B67CA] text-xs font-semibold shadow-sm hover:bg-[#4A55B8] transition-all duration-150 active:scale-95 cursor-pointer"
+          className="btn-primary inline-flex items-center space-x-1.5 px-4 py-2.5 min-h-[44px] rounded-full bg-[#5B67CA] text-white border border-[#5B67CA] text-xs font-bold shadow-sm hover:bg-[#4A55B8] transition-all duration-150 active:scale-95 cursor-pointer shrink-0"
         >
           <FileSpreadsheet className="w-4 h-4 stroke-[2.5] text-white" />
-          <span className="text-white font-semibold">Esporta Report</span>
+          <span className="text-white font-bold">Esporta Report</span>
         </button>
       </div>
 
       {/* Filter Period Row */}
-      <div className="glass-panel rounded-[20px] p-3 flex items-center justify-between border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
-        <span className="text-xs font-black text-[#14241B] dark:text-[#EEF3EF]">Periodo di Analisi:</span>
-        <CustomDropdown
-          value={dashPeriod}
-          onChange={onPeriodChange}
-          options={periodOptions}
-        />
+      <div className="glass-panel rounded-[20px] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-sm">
+        <span className="text-xs font-black text-[#15251C] dark:text-[#EEF3EF]">Periodo di Analisi:</span>
+        <div className="w-full sm:w-auto">
+          <CustomDropdown
+            value={dashPeriod}
+            onChange={onPeriodChange}
+            options={periodOptions}
+          />
+        </div>
       </div>
 
       {/* Key Metric Cards Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <div className="glass-panel rounded-[20px] p-4 text-center space-y-1.5 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
+        <div className="glass-panel rounded-[20px] p-4 text-center space-y-1.5 border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-sm">
           <Activity className="w-5 h-5 text-[#5B67CA] dark:text-[#9CA6DC] mx-auto stroke-[2.5]" />
-          <span className="block text-3xl font-black text-[#14241B] dark:text-[#EEF3EF] leading-tight">{totalEntries}</span>
-          <span className="block text-xs font-black text-[#14241B] dark:text-[#EEF3EF]">Voci Registrate</span>
+          <span className="block text-3xl font-black text-[#15251C] dark:text-[#EEF3EF] leading-tight">{totalEntries}</span>
+          <span className="block text-xs font-black text-[#15251C] dark:text-[#EEF3EF]">Voci Registrate</span>
         </div>
 
-        <div className="glass-panel rounded-[20px] p-4 text-center space-y-1.5 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
+        <div className="glass-panel rounded-[20px] p-4 text-center space-y-1.5 border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-sm">
           <TrendingUp className="w-5 h-5 text-rose-600 dark:text-rose-400 mx-auto stroke-[2.5]" />
-          <span className="block text-3xl font-black text-[#14241B] dark:text-[#EEF3EF] leading-tight">{avgAnxiety}</span>
-          <span className="block text-xs font-black text-[#14241B] dark:text-[#EEF3EF]">Ansia Media</span>
+          <span className="block text-3xl font-black text-[#15251C] dark:text-[#EEF3EF] leading-tight">{avgAnxiety}</span>
+          <span className="block text-xs font-black text-[#15251C] dark:text-[#EEF3EF]">Ansia Media</span>
         </div>
 
-        <div className="glass-panel rounded-[20px] p-4 text-center space-y-1.5 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
+        <div className="glass-panel rounded-[20px] p-4 text-center space-y-1.5 border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-sm">
           <ShieldAlert className="w-5 h-5 text-[#5B67CA] dark:text-[#9CA6DC] mx-auto stroke-[2.5]" />
-          <span className="block text-3xl font-black text-[#14241B] dark:text-[#EEF3EF] leading-tight">{totalControl}</span>
-          <span className="block text-xs font-black text-[#14241B] dark:text-[#EEF3EF]">Check Controllo</span>
+          <span className="block text-3xl font-black text-[#15251C] dark:text-[#EEF3EF] leading-tight">{totalControl}</span>
+          <span className="block text-xs font-black text-[#15251C] dark:text-[#EEF3EF]">Check Controllo</span>
         </div>
 
-        <div className="glass-panel rounded-[20px] p-4 text-center space-y-1.5 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
+        <div className="glass-panel rounded-[20px] p-4 text-center space-y-1.5 border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-sm">
           <HeartHandshake className="w-5 h-5 text-amber-600 dark:text-amber-400 mx-auto stroke-[2.5]" />
-          <span className="block text-3xl font-black text-[#14241B] dark:text-[#EEF3EF] leading-tight">{totalReassurance}</span>
-          <span className="block text-xs font-black text-[#14241B] dark:text-[#EEF3EF]">Rassicurazioni</span>
+          <span className="block text-3xl font-black text-[#15251C] dark:text-[#EEF3EF] leading-tight">{totalReassurance}</span>
+          <span className="block text-xs font-black text-[#15251C] dark:text-[#EEF3EF]">Rassicurazioni</span>
         </div>
 
-        <div className="glass-panel rounded-[20px] p-4 text-center space-y-1.5 col-span-2 sm:col-span-1 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
+        <div className="glass-panel rounded-[20px] p-4 text-center space-y-1.5 col-span-2 sm:col-span-1 border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-sm">
           <Ban className="w-5 h-5 text-rose-600 dark:text-rose-400 mx-auto stroke-[2.5]" />
-          <span className="block text-3xl font-black text-[#14241B] dark:text-[#EEF3EF] leading-tight">{totalAvoidance}</span>
-          <span className="block text-xs font-black text-[#14241B] dark:text-[#EEF3EF]">Evitamenti Totali</span>
+          <span className="block text-3xl font-black text-[#15251C] dark:text-[#EEF3EF] leading-tight">{totalAvoidance}</span>
+          <span className="block text-xs font-black text-[#15251C] dark:text-[#EEF3EF]">Evitamenti Totali</span>
         </div>
       </div>
 
       {/* Chart 1: Overall Anxiety Trend */}
-      <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
+      <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-sm">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-black uppercase tracking-wider text-[#14241B] dark:text-[#EEF3EF] flex items-center space-x-2">
-            <BarChart3 className="w-4 h-4 text-[#5B67CA] dark:text-[#9CA6DC]" />
+          <h3 className="text-xs font-black uppercase tracking-wider text-[#15251C] dark:text-[#EEF3EF] flex items-center space-x-2">
+            <BarChart3 className="w-4 h-4 text-[#5B67CA] dark:text-[#9CA6DC] stroke-[2.5]" />
             <span>Andamento Ansia Complessiva</span>
           </h3>
-          <span className="text-[10px] font-extrabold text-[#14241B] dark:text-[#D5E0D8]">Scala 0-100</span>
+          <span className="text-[10px] font-extrabold text-[#2C3E35] dark:text-[#D5E0D8]">Scala 0-100</span>
         </div>
         {renderAnxietyChart()}
       </div>
 
       {/* Chart 2: Control Check vs Reassurance Requests */}
-      <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
-        <h3 className="text-xs font-black uppercase tracking-wider text-[#14241B] dark:text-[#EEF3EF]">
+      <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-sm">
+        <h3 className="text-xs font-black uppercase tracking-wider text-[#15251C] dark:text-[#EEF3EF]">
           Frequenza Controllo & Rassicurazioni
         </h3>
         {renderBehaviorsChart()}
       </div>
 
       {/* Chart 3: Avoidance Frequency List */}
-      <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
-        <h3 className="text-xs font-black uppercase tracking-wider text-[#14241B] dark:text-[#EEF3EF]">
+      <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-sm">
+        <h3 className="text-xs font-black uppercase tracking-wider text-[#15251C] dark:text-[#EEF3EF]">
           Evitamenti per Tipologia
         </h3>
         {renderAvoidanceList()}

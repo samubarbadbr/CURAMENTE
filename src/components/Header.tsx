@@ -20,7 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="sticky top-0 z-30 w-full glass-header bg-white dark:bg-[#121915] px-5 py-3.5 flex items-center justify-between border-b border-[#C8D5CB] dark:border-[#2B3A31]">
       <div className="flex items-center space-x-2.5">
         <div className="p-2.5 rounded-2xl bg-[#5B67CA]/15 text-[#5B67CA] dark:text-[#9CA6DC] border border-[#5B67CA]/30 shadow-sm">
-          <Brain className="w-5 h-5" />
+          <Brain className="w-5 h-5 stroke-[2.5]" />
         </div>
         <div>
           <div className="flex items-center space-x-2">
@@ -34,7 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             )}
           </div>
-          <p className="text-[11px] text-[#15251C] dark:text-[#D5E0D8] font-bold mt-0.5">
+          <p className="text-[11px] text-[#2C3E35] dark:text-[#D5E0D8] font-extrabold mt-0.5">
             Monitoraggio CBT
           </p>
         </div>
@@ -44,23 +44,23 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           type="button"
           onClick={onToggleTheme}
-          className="p-2.5 rounded-full text-[#15251C] dark:text-[#EEF3EF] bg-white dark:bg-[#1B2520] hover:bg-[#EBF0EC] dark:hover:bg-[#2B3A31] active:scale-95 transition-all duration-150 border border-[#C8D5CB] dark:border-[#2B3A31] shadow-sm cursor-pointer"
+          className="p-2.5 min-h-[44px] min-w-[44px] rounded-full text-[#15251C] dark:text-[#EEF3EF] bg-[#F7FAFC] dark:bg-[#1B2520] hover:bg-[#EBF0EC] dark:hover:bg-[#2B3A31] active:scale-95 transition-all duration-150 border border-[#C8D5CB] dark:border-[#2B3A31] shadow-sm cursor-pointer flex items-center justify-center"
           aria-label="Cambia tema"
         >
           {themeMode === 'dark' ? (
             <Sun className="w-4 h-4 text-amber-400" />
           ) : (
-            <Moon className="w-4 h-4 text-[#2D5C3E]" />
+            <Moon className="w-4 h-4 text-[#5B67CA]" />
           )}
         </button>
 
         <button
           type="button"
           onClick={onNewEntry}
-          className="btn-primary inline-flex items-center space-x-1.5 px-4 py-2 rounded-full bg-[#5B67CA] hover:bg-[#4A55B8] text-white text-xs font-semibold shadow-md shadow-[#5B67CA]/20 active:scale-95 transition-all duration-150 cursor-pointer"
+          className="btn-primary inline-flex items-center space-x-1.5 px-4 py-2.5 min-h-[44px] rounded-full bg-[#5B67CA] hover:bg-[#4A55B8] text-white text-xs font-bold shadow-md shadow-[#5B67CA]/20 active:scale-95 transition-all duration-150 cursor-pointer"
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span className="text-white font-semibold">Nuova</span>
+          <span className="text-white font-bold">Nuova</span>
         </button>
       </div>
     </header>

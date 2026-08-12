@@ -26,7 +26,7 @@ export default function App() {
   // Filters & Theme
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('30');
   const [dashPeriod, setDashPeriod] = useState<PeriodFilter>('30');
-  const [themeMode, setThemeMode] = useState<ThemeMode>('auto');
+  const [themeMode, setThemeMode] = useState<ThemeMode>('light');
 
   // Security & Lock
   const [pinEnabled, setPinEnabled] = useState(false);
@@ -59,16 +59,22 @@ export default function App() {
 
   // Apply Theme
   const applyTheme = useCallback((mode: ThemeMode) => {
-    document.documentElement.classList.remove('dark', 'theme-light', 'theme-dark');
-    if (mode === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else if (mode === 'light') {
-      // light mode default
+    const root = document.documentElement;
+    root.classList.remove('dark', 'theme-light', 'theme-dark', 'theme-lavender', 'theme-ocean');
+
+    let effectiveMode = mode;
+    if (mode === 'auto') {
+      effectiveMode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+
+    if (effectiveMode === 'dark') {
+      root.classList.add('dark', 'theme-dark');
+    } else if (effectiveMode === 'lavender') {
+      root.classList.add('theme-lavender');
+    } else if (effectiveMode === 'ocean') {
+      root.classList.add('dark', 'theme-ocean');
     } else {
-      // Auto: follow system preference
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.documentElement.classList.add('dark');
-      }
+      root.classList.add('theme-light');
     }
   }, []);
 
@@ -104,12 +110,12 @@ export default function App() {
         const tags = await seedDefaultTagsIfNeeded();
         if (isMounted) setAllTags(tags);
 
-        // Load saved theme
-        const savedThemeRow = await DB.get<{ key: string; value: ThemeMode }>('settings', 'theme_mode');
-        const theme = savedThemeRow ? savedThemeRow.value : 'auto';
+        // Load saved theme or default to light
+        const themeRow = await DB.get<{ key: string; value: ThemeMode }>('settings', 'theme_mode');
+        const initialTheme: ThemeMode = themeRow?.value || 'light';
         if (isMounted) {
-          setThemeMode(theme);
-          applyTheme(theme);
+          setThemeMode(initialTheme);
+          applyTheme(initialTheme);
         }
 
         // Load saved PIN settings
@@ -157,11 +163,22 @@ export default function App() {
 
   // Toggle theme mode
   const handleToggleThemeMode = async () => {
-    const nextTheme: ThemeMode = themeMode === 'dark' ? 'light' : 'dark';
+    const cycle: ThemeMode[] = ['light', 'dark', 'lavender', 'ocean'];
+    const currentIndex = cycle.indexOf(themeMode);
+    const nextTheme = cycle[(currentIndex + 1) % cycle.length] || 'light';
+
     setThemeMode(nextTheme);
     applyTheme(nextTheme);
     await DB.put('settings', { key: 'theme_mode', value: nextTheme });
-    showToast(`Tema impostato: ${nextTheme === 'dark' ? 'Scuro' : 'Chiaro'}`);
+
+    const labels: Record<ThemeMode, string> = {
+      light: 'Verde Salvia',
+      dark: 'Scuro Notte',
+      lavender: 'Lilla Mente',
+      ocean: 'Oceano Profondo',
+      auto: 'Automatico',
+    };
+    showToast(`Tema: ${labels[nextTheme]}`);
   };
 
   // Open New Entry form
@@ -275,6 +292,147 @@ export default function App() {
     a.remove();
     URL.revokeObjectURL(url);
     showToast('Backup JSON scaricato');
+  };
+
+  // Export Plain Text (.TXT)
+  const handleExportTxt = async () => {
+    const allEntries = await DB.getAll<CbtEntry>('entries');
+    allEntries.sort((a, b) => new Date(b.eventDatetime).getTime() - new Date(a.eventDatetime).getTime());
+
+    if (allEntries.length === 0) {
+      showToast('Nessuna registrazione da esportare');
+      return;
+    }
+
+    const tagMap = new Map(allTags.map((t) => [t.id, t.label]));
+
+    let txtContent = `==================================================\n`;
+    txtContent += `DIARIO MENTE - REGISTRO DOMANDE & RISPOSTE CBT\n`;
+    txtContent += `Data Esportazione: ${new Date().toLocaleString('it-IT')}\n`;
+    txtContent += `Totale Registrazioni: ${allEntries.length}\n`;
+    txtContent += `==================================================\n\n`;
+
+    allEntries.forEach((entry, idx) => {
+      const dateStr = new Date(entry.eventDatetime).toLocaleString('it-IT', {
+        dateStyle: 'full',
+        timeStyle: 'short',
+      });
+      const emotions = entry.emotionTagIds.map((id) => tagMap.get(id) || id).join(', ');
+      const symptoms = entry.physicalSymptomTagIds.map((id) => tagMap.get(id) || id).join(', ');
+
+      txtContent += `--------------------------------------------------\n`;
+      txtContent += `REGISTRAZIONE #${allEntries.length - idx}\n`;
+      txtContent += `Data e Ora Evento: ${dateStr}\n`;
+      txtContent += `Situazione: ${entry.situation || 'N/D'}\n`;
+      txtContent += `Fattori Scatenanti: ${entry.triggerFactors || 'N/D'}\n`;
+      txtContent += `Pensiero Automatico Negativo: ${entry.negativeThought || 'N/D'}\n`;
+      txtContent += `Livello Credenza Iniziale: ${entry.thoughtBeliefLevel}%\n`;
+      txtContent += `Intensità del Pensiero: ${entry.negativeThoughtsIntensity}%\n`;
+      txtContent += `Emozioni Provate: ${emotions || 'Nessuna'}\n`;
+      txtContent += `Sintomi Fisici: ${symptoms || 'Nessuno'}\n`;
+      if (entry.physicalSymptomsText) txtContent += `Dettaglio Sintomi Fisici: ${entry.physicalSymptomsText}\n`;
+      txtContent += `Attenzione sul Corpo: ${entry.bodyFocusedAttentionLevel}%\n`;
+      txtContent += `Sintomi Controllati: ${entry.symptomControlDescription || 'Nessuno'}\n`;
+      txtContent += `Check di Controllo: ${entry.symptomControlCount} volte\n`;
+      txtContent += `Rassicurazioni Cercate: ${entry.reassuranceSeekingType || 'Nessuna'} (${entry.reassuranceSeekingCount} volte)\n`;
+      txtContent += `Evitamenti Messi in Atto: ${entry.avoidanceType || 'Nessuno'} (${entry.avoidanceCount} volte)\n`;
+      txtContent += `Ansia Complessiva: ${entry.overallAnxietyLevel} / 100\n`;
+      if (entry.notes) txtContent += `Note & Riflessioni: ${entry.notes}\n`;
+      txtContent += `--------------------------------------------------\n\n`;
+    });
+
+    const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `diario-mente-registrazioni-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('File TXT scaricato con successo');
+  };
+
+  // Export Spreadsheet (.CSV)
+  const handleExportCsv = async () => {
+    const allEntries = await DB.getAll<CbtEntry>('entries');
+    allEntries.sort((a, b) => new Date(b.eventDatetime).getTime() - new Date(a.eventDatetime).getTime());
+
+    if (allEntries.length === 0) {
+      showToast('Nessuna registrazione da esportare');
+      return;
+    }
+
+    const tagMap = new Map(allTags.map((t) => [t.id, t.label]));
+
+    const headers = [
+      'Data e Ora',
+      'Situazione',
+      'Fattori Scatenanti',
+      'Pensiero Negativo Automatico',
+      'Credenza (%)',
+      'Intensita Pensiero (%)',
+      'Emozioni',
+      'Sintomi Fisici',
+      'Dettaglio Sintomi Fisici',
+      'Attenzione Corpo (%)',
+      'Sintomi Controllati',
+      'Check Controllo (n)',
+      'Rassicurazioni Tipo',
+      'Rassicurazioni (n)',
+      'Evitamento Tipo',
+      'Evitamenti (n)',
+      'Ansia Complessiva (%)',
+      'Note e Riflessioni',
+    ];
+
+    const escapeCsv = (str: string | number | undefined | null) => {
+      if (str === undefined || str === null) return '""';
+      const val = String(str).replace(/"/g, '""');
+      return `"${val}"`;
+    };
+
+    let csvContent = '\uFEFF'; // UTF-8 BOM
+    csvContent += headers.map(escapeCsv).join(',') + '\n';
+
+    allEntries.forEach((e) => {
+      const emotions = e.emotionTagIds.map((id) => tagMap.get(id) || id).join('; ');
+      const symptoms = e.physicalSymptomTagIds.map((id) => tagMap.get(id) || id).join('; ');
+
+      const row = [
+        e.eventDatetime,
+        e.situation,
+        e.triggerFactors,
+        e.negativeThought,
+        e.thoughtBeliefLevel,
+        e.negativeThoughtsIntensity,
+        emotions,
+        symptoms,
+        e.physicalSymptomsText,
+        e.bodyFocusedAttentionLevel,
+        e.symptomControlDescription,
+        e.symptomControlCount,
+        e.reassuranceSeekingType,
+        e.reassuranceSeekingCount,
+        e.avoidanceType,
+        e.avoidanceCount,
+        e.overallAnxietyLevel,
+        e.notes,
+      ];
+
+      csvContent += row.map(escapeCsv).join(',') + '\n';
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `diario-mente-dati-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('File CSV scaricato con successo');
   };
 
   // Import JSON Backup
@@ -526,6 +684,8 @@ export default function App() {
                 DB.put('settings', { key: 'theme_mode', value: m });
               }}
               onExportJson={handleExportJson}
+              onExportTxt={handleExportTxt}
+              onExportCsv={handleExportCsv}
               onImportJson={handleImportJson}
               allTags={allTags}
               onDeleteCustomTag={handleDeleteCustomTag}

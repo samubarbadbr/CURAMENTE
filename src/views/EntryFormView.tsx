@@ -359,10 +359,10 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
             <button
               type="submit"
               disabled={isSaving}
-              className="btn-primary w-full py-3.5 rounded-full bg-[#5B67CA] hover:bg-[#4A55B8] text-white text-sm font-semibold shadow-md active:scale-98 transition-all duration-150 flex items-center justify-center space-x-2 cursor-pointer"
+              className="btn-primary w-full py-3.5 min-h-[48px] rounded-full bg-[#5B67CA] hover:bg-[#4A55B8] text-white text-sm font-bold shadow-md active:scale-98 transition-all duration-150 flex items-center justify-center space-x-2 cursor-pointer"
             >
               <Save className="w-4 h-4 stroke-[2.5] text-white" />
-              <span className="text-white font-semibold">Salva Registrazione</span>
+              <span className="text-white font-bold">Salva Registrazione</span>
             </button>
           </div>
         </div>

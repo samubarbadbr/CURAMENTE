@@ -44,7 +44,7 @@ export function CustomDropdown<T extends string = string>({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="custom-dropdown-btn w-full inline-flex items-center justify-between gap-2.5 px-3.5 py-2 text-xs font-black rounded-[12px] border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] text-[#15251C] dark:text-[#EEF3EF] shadow-sm hover:bg-[#EBF0EC] dark:hover:bg-[#212E27] focus:outline-none focus:ring-2 focus:ring-[#5B67CA] transition-all duration-150 cursor-pointer active:scale-98"
+        className="custom-dropdown-btn w-full inline-flex items-center justify-between gap-2.5 px-4 py-2.5 min-h-[44px] text-xs font-black rounded-[12px] border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] text-[#15251C] dark:text-[#EEF3EF] shadow-sm hover:bg-[#EBF0EC] dark:hover:bg-[#212E27] focus:outline-none focus:ring-2 focus:ring-[#5B67CA] transition-all duration-150 cursor-pointer active:scale-98"
       >
         <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
         <ChevronDown className={`w-4 h-4 text-[#15251C] dark:text-[#EEF3EF] transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />

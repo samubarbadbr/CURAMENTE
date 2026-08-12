@@ -37,4 +37,4 @@ export interface AppSettings {
 export type ViewType = 'timeline' | 'entry' | 'detail' | 'dashboard' | 'settings';
 export type FormTab = 'section_a' | 'section_b';
 export type PeriodFilter = '7' | '14' | '30' | '90' | 'all';
-export type ThemeMode = 'auto' | 'light' | 'dark';
+export type ThemeMode = 'light' | 'dark' | 'lavender' | 'ocean' | 'auto';
