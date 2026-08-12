@@ -448,7 +448,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#EBF0EC] dark:bg-[#121915] text-[#15251C] dark:text-[#EEF3EF] flex flex-col font-sans transition-colors duration-200">
+    <div className="min-h-screen w-full bg-[#EBF0EC] dark:bg-[#121915] text-[#15251C] dark:text-[#EEF3EF] flex flex-col font-sans transition-colors duration-200">
       {/* Lock screen overlay if PIN lock is enabled */}
       {isLocked && (
         <LockScreen
@@ -458,7 +458,7 @@ export default function App() {
       )}
 
       {/* Main App Container */}
-      <div className="flex-1 max-w-lg w-full mx-auto flex flex-col relative">
+      <div className="flex-1 w-full max-w-2xl lg:max-w-3xl mx-auto flex flex-col relative">
         <Header
           currentView={currentView}
           themeMode={themeMode}
@@ -467,7 +467,7 @@ export default function App() {
           isOnline={isOnline}
         />
 
-        <main className="flex-1 px-4 pt-3 pb-24">
+        <main className="flex-1 px-4 sm:px-6 pt-3 pb-24">
           {currentView === 'timeline' && (
             <TimelineView
               entries={entries}

@@ -15,7 +15,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentView, onSelectView 
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 max-w-lg mx-auto px-4 pb-4 pt-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-30 w-full max-w-2xl lg:max-w-3xl mx-auto px-4 sm:px-6 pb-4 pt-2">
       <div className="glass-nav rounded-full px-3 py-2 flex items-center justify-around shadow-lg border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
         {navItems.map((item) => {
           const Icon = item.icon;

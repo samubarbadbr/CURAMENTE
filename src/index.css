@@ -35,19 +35,24 @@
   }
 
   /* Page background override - Uniform Sage Green (#EBF0EC) */
-  body {
+  html,
+  body,
+  #root {
     background-color: #EBF0EC !important;
     color: #15251C !important;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     min-height: 100vh;
     min-height: 100dvh;
+    width: 100%;
     margin: 0;
     padding: 0;
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
   }
 
-  .dark body {
+  .dark html,
+  .dark body,
+  .dark #root {
     background-color: #121915 !important;
     color: #EEF3EF !important;
   }

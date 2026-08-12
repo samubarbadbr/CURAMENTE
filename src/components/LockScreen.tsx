@@ -36,15 +36,15 @@ export const LockScreen: React.FC<LockScreenProps> = ({ correctPin, onUnlock }) 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-[#E8EFEA] dark:bg-[#121915] text-[#14241B] dark:text-[#EEF3EF]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-[#EBF0EC] dark:bg-[#121915] text-[#15251C] dark:text-[#EEF3EF]">
       <div className="w-full max-w-sm text-center space-y-6 animate-fade-in">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#5B67CA]/15 text-[#5B67CA] dark:text-[#9CA6DC] border border-[#5B67CA]/30 shadow-md">
           <Lock className="w-8 h-8" />
         </div>
 
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-[#14241B] dark:text-[#EEF3EF]">Diario Mente</h1>
-          <p className="text-sm font-bold text-[#14241B] dark:text-[#A7B6AC] mt-1">Inserisci il PIN a 4 cifre per accedere</p>
+          <h1 className="text-2xl font-black tracking-tight text-[#15251C] dark:text-[#EEF3EF]">Diario Mente</h1>
+          <p className="text-sm font-bold text-[#15251C] dark:text-[#A7B6AC] mt-1">Inserisci il PIN a 4 cifre per accedere</p>
         </div>
 
         {/* PIN Dot Indicators */}
