@@ -8,6 +8,24 @@ export interface SyncDataPayload {
   updatedAt?: string;
 }
 
+export async function syncDataWithPin(pin: string, payload: any) {
+  try {
+    const cleanPin = pin.trim().toLowerCase();
+    const { data, error } = await supabase
+      .from('user_data')
+      .upsert(
+        { pin: cleanPin, data: payload, payload: payload, updated_at: new Date().toISOString() },
+        { onConflict: 'pin' }
+      );
+
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    console.error("Errore Supabase:", err);
+    return { success: false, error: err.message || err };
+  }
+}
+
 export const SyncService = {
   // Push local entries & tags to Supabase under PIN
   async push(pin: string, payload: SyncDataPayload): Promise<{ success: boolean; updatedAt?: string; error?: string }> {
@@ -31,50 +49,12 @@ export const SyncService = {
         console.warn('localStorage sync warning:', e);
       }
 
-      // 2. Upsert JSON payload into Supabase user_data table
-      let sbSuccess = false;
-      let lastError = '';
-
-      try {
-        const { error } = await supabase
-          .from('user_data')
-          .upsert(
-            {
-              pin: cleanPin,
-              data: syncPayload,
-              payload: syncPayload,
-              updated_at: updatedAt,
-            },
-            { onConflict: 'pin' }
-          );
-
-        if (!error) {
-          sbSuccess = true;
-        } else {
-          lastError = error.message;
-          console.warn('Primary Supabase upsert error:', error.message);
-          
-          // Fallback: simple upsert with just pin and data
-          const { error: err2 } = await supabase
-            .from('user_data')
-            .upsert({ pin: cleanPin, data: syncPayload }, { onConflict: 'pin' });
-          
-          if (!err2) {
-            sbSuccess = true;
-          } else {
-            lastError = err2.message || lastError;
-            console.warn('Fallback Supabase upsert error:', err2.message);
-          }
-        }
-      } catch (sbErr: any) {
-        lastError = sbErr?.message || String(sbErr);
-        console.warn('Supabase push exception:', sbErr);
-      }
-
-      if (!sbSuccess) {
+      // 2. Upsert JSON payload into Supabase user_data table using SDK
+      const res = await syncDataWithPin(cleanPin, syncPayload);
+      if (!res.success) {
         return {
           success: false,
-          error: lastError ? `Errore Supabase: ${lastError}` : 'Impossibile connettersi a Supabase',
+          error: typeof res.error === 'string' ? `Errore Supabase: ${res.error}` : 'Impossibile connettersi a Supabase',
         };
       }
 
