@@ -105,6 +105,9 @@ export const SyncService = {
   // Test Supabase connection via REST API
   async testConnection(): Promise<{ success: boolean; error?: string }> {
     try {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        return { success: false, error: 'Dispositivo offline' };
+      }
       const res = await fetch(`${SUPABASE_URL}/rest/v1/user_data?select=pin&limit=1`, {
         method: 'GET',
         headers: {
@@ -119,8 +122,8 @@ export const SyncService = {
       }
       return { success: true };
     } catch (err: any) {
-      console.error('Supabase test connection exception:', err);
-      return { success: false, error: err?.message || 'Impossibile contattare Supabase (Failed to fetch)' };
+      console.warn('Supabase test connection warning:', err?.message || err);
+      return { success: false, error: err?.message || 'Impossibile contattare Supabase (offline o rete non disponibile)' };
     }
   },
 };
