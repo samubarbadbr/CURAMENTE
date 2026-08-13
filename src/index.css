@@ -118,6 +118,7 @@ html.theme-ocean .glass-panel {
 .glass-header, header {
   background-color: #FFFFFF;
   border-bottom: 1px solid #C8D5CB;
+  padding-top: calc(0.875rem + env(safe-area-inset-top, 0px));
 }
 
 html.dark .glass-header, html.dark header {

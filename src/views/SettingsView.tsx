@@ -1,6 +1,24 @@
 import React, { useRef, useState } from 'react';
 import { Tag, ThemeMode } from '../types';
-import { Lock, Palette, Download, Upload, Tags, Trash2, ShieldCheck, ChevronRight, FileText, Table, Cloud, RefreshCw, KeyRound, CheckCircle2, Smartphone, Monitor } from 'lucide-react';
+import {
+  Lock,
+  Palette,
+  Download,
+  Upload,
+  Tags,
+  Trash2,
+  ShieldCheck,
+  ChevronRight,
+  FileText,
+  Table,
+  Smartphone,
+  Monitor,
+  ArrowLeftRight,
+  CheckCircle2,
+  Cloud,
+  RefreshCw,
+  KeyRound
+} from 'lucide-react';
 import { CustomDropdown } from '../components/CustomDropdown';
 
 interface SettingsViewProps {
@@ -8,12 +26,12 @@ interface SettingsViewProps {
   onTogglePin: (enabled: boolean) => void;
   themeMode: ThemeMode;
   onThemeChange: (mode: ThemeMode) => void;
-  syncPin: string;
-  syncStatus: 'idle' | 'syncing' | 'synced' | 'error';
-  lastSyncedAt: string | null;
-  onSaveSyncPin: (pin: string) => Promise<void>;
-  onManualSyncPush: () => Promise<void>;
-  onManualSyncPull: () => Promise<void>;
+  syncPin?: string;
+  syncStatus?: 'idle' | 'syncing' | 'synced' | 'error';
+  lastSyncedAt?: string | null;
+  onSaveSyncPin?: (pin: string) => Promise<void>;
+  onManualSyncPush?: () => Promise<void>;
+  onManualSyncPull?: () => Promise<void>;
   onExportJson: () => void;
   onExportTxt: () => void;
   onExportCsv: () => void;
@@ -28,8 +46,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onTogglePin,
   themeMode,
   onThemeChange,
-  syncPin,
-  syncStatus,
+  syncPin = '',
+  syncStatus = 'idle',
   lastSyncedAt,
   onSaveSyncPin,
   onManualSyncPush,
@@ -43,7 +61,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onDeleteAllData,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [pinInput, setPinInput] = useState(syncPin || '');
+  const [pinInput, setPinInput] = useState(syncPin);
   const [isEditingPin, setIsEditingPin] = useState(!syncPin);
 
   const customTags = allTags.filter((t) => t.isCustom === 1);
@@ -59,7 +77,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const handlePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pinInput.trim() || pinInput.trim().length < 3) return;
-    await onSaveSyncPin(pinInput.trim());
+    if (onSaveSyncPin) {
+      await onSaveSyncPin(pinInput.trim());
+    }
     setIsEditingPin(false);
   };
 
@@ -73,16 +93,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   return (
     <div className="space-y-5 pb-28 animate-fade-in">
-      {/* Header */}
+      {/* Page Header */}
       <div className="pt-1">
         <h2 className="text-2xl font-black text-[#15251C] dark:text-[#EEF3EF]">Impostazioni</h2>
         <p className="text-xs font-bold text-[#2C3E35] dark:text-[#D5E0D8] mt-0.5">
-          Sincronizzazione Cloud PC/Mobile, temi e sicurezza dati
+          Gestione sincronizzazione cloud, backup dati, temi, tag e sicurezza
         </p>
       </div>
 
-      {/* CLOUD SYNC SECTION (PC <-> MOBILE) */}
-      <div className="glass-panel rounded-[20px] p-5 space-y-4 border-2 border-[#5B67CA]/50 bg-white dark:bg-[#1B2520] shadow-md relative overflow-hidden">
+      {/* SUPABASE CLOUD SYNC SECTION */}
+      <div className="glass-panel rounded-[22px] p-5 space-y-4 border-2 border-[#5B67CA]/40 bg-white dark:bg-[#1B2520] shadow-md relative overflow-hidden">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center space-x-3">
             <div className="p-2.5 rounded-2xl bg-[#5B67CA] text-white shadow-sm shrink-0">
@@ -90,35 +110,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
             <div>
               <span className="block text-base font-black text-[#15251C] dark:text-[#EEF3EF]">
-                Sincronizzazione Dispositivi
+                Sincronizzazione Cloud Supabase
               </span>
               <span className="block text-xs font-bold text-[#2C3E35] dark:text-[#D5E0D8]">
-                Condividi il tuo diario tra PC e Smartphone in tempo reale
+                Condividi in automatico il diario tra PC e Smartphone via PIN
               </span>
             </div>
           </div>
 
-          <div className="flex items-center space-x-1 shrink-0 bg-[#EBF0EC] dark:bg-[#212E27] px-2.5 py-1 rounded-xl border border-[#C8D5CB] dark:border-[#2B3A31]">
+          <div className="flex items-center space-x-1 shrink-0 bg-[#EBF0EC] dark:bg-[#212E27] px-2.5 py-1.5 rounded-xl border border-[#C8D5CB] dark:border-[#2B3A31]">
             <Monitor className="w-4 h-4 text-[#5B67CA] dark:text-[#9CA6DC]" />
-            <span className="text-[10px] font-black text-[#15251C] dark:text-[#EEF3EF]">↔</span>
+            <span className="text-[11px] font-black text-[#15251C] dark:text-[#EEF3EF]">↔</span>
             <Smartphone className="w-4 h-4 text-[#5B67CA] dark:text-[#9CA6DC]" />
           </div>
         </div>
 
-        {/* Clear Instructions Banner */}
-        <div className="p-3.5 rounded-xl bg-[#5B67CA]/10 border border-[#5B67CA]/30 text-xs font-bold text-[#15251C] dark:text-[#EEF3EF] leading-relaxed">
-          <p>
-            💡 <strong>Istruzioni:</strong> Per vedere gli stessi dati su un altro dispositivo (es. da PC a Telefono), apri l'app sull'altro dispositivo, vai in <strong>Impostazioni &gt; Sincronizzazione Dispositivi</strong> e inserisci questo stesso PIN.
-          </p>
-        </div>
-
-        {/* PIN Personal Box */}
+        {/* PIN Box */}
         <div className="p-4 rounded-2xl bg-[#EBF0EC] dark:bg-[#212E27] border border-[#C8D5CB] dark:border-[#2B3A31] space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <KeyRound className="w-4 h-4 text-[#5B67CA] dark:text-[#9CA6DC]" />
               <span className="text-xs font-black uppercase tracking-wider text-[#15251C] dark:text-[#EEF3EF]">
-                Il Tuo PIN Personale di Sincronizzazione:
+                PIN Personale Sincronizzazione Cloud:
               </span>
             </div>
             {syncPin && !isEditingPin && (
@@ -139,8 +152,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   type="text"
                   value={pinInput}
                   onChange={(e) => setPinInput(e.target.value)}
-                  placeholder="Es. 4 cifre (es. 4829)"
-                  maxLength={10}
+                  placeholder="Inserisci PIN (es. 4829)"
+                  maxLength={12}
                   className="flex-1 px-3.5 py-2.5 text-sm font-black tracking-widest rounded-xl border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] text-[#15251C] dark:text-[#EEF3EF] focus:outline-none focus:ring-2 focus:ring-[#5B67CA]"
                 />
                 <button
@@ -169,7 +182,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   {syncPin}
                 </span>
                 <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                  <CheckCircle2 className="w-4 h-4" /> Collegato
+                  <CheckCircle2 className="w-4 h-4" /> Collegato a Supabase
                 </span>
               </div>
 
@@ -182,14 +195,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           )}
         </div>
 
-        {/* Prominent Sincronizza Ora Button */}
+        {/* Sync Now Button */}
         {syncPin && (
           <div className="pt-1">
             <button
               type="button"
               onClick={async () => {
-                await onManualSyncPull();
-                await onManualSyncPush();
+                if (onManualSyncPull) await onManualSyncPull();
+                if (onManualSyncPush) await onManualSyncPush();
               }}
               disabled={syncStatus === 'syncing'}
               className="w-full flex items-center justify-center space-x-2 py-3 px-4 rounded-xl bg-[#5B67CA] hover:bg-[#4A55B8] text-white text-sm font-black transition-all active:scale-98 shadow-md cursor-pointer disabled:opacity-50"
@@ -201,7 +214,131 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         )}
       </div>
 
-      {/* Security Section */}
+      {/* BACKUP & DATA TRANSFER SECTION */}
+      <div className="glass-panel rounded-[22px] p-5 space-y-4 border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-sm relative overflow-hidden">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 rounded-2xl bg-[#5B67CA]/15 text-[#5B67CA] dark:text-[#9CA6DC] border border-[#5B67CA]/30 shrink-0">
+              <ArrowLeftRight className="w-5 h-5 stroke-[2.5]" />
+            </div>
+            <div>
+              <span className="block text-base font-black text-[#15251C] dark:text-[#EEF3EF]">
+                Backup e Trasferimento File JSON
+              </span>
+              <span className="block text-xs font-bold text-[#2C3E35] dark:text-[#D5E0D8]">
+                Esporta o carica un file di backup per salvare i tuoi dati offline
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* TWO PRIMARY ACTION BUTTONS */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          {/* Button 1: Download JSON Backup */}
+          <button
+            type="button"
+            onClick={onExportJson}
+            className="flex flex-col items-start justify-between p-4 rounded-2xl bg-[#5B67CA] hover:bg-[#4A55B8] text-white transition-all active:scale-98 shadow-md cursor-pointer text-left border border-[#5B67CA]/50 group"
+          >
+            <div className="flex items-center justify-between w-full mb-2">
+              <div className="p-2 rounded-xl bg-white/20 text-white">
+                <Download className="w-5 h-5 stroke-[2.5]" />
+              </div>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full text-white">
+                Consigliato
+              </span>
+            </div>
+            <div>
+              <span className="block text-sm font-black text-white leading-tight">
+                Scarica File di Backup (.json)
+              </span>
+              <span className="block text-[11px] font-semibold text-white/80 mt-1">
+                Salva subito tutti i dati del diario in un file ripristinabile.
+              </span>
+            </div>
+          </button>
+
+          {/* Button 2: Upload JSON Backup */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex flex-col items-start justify-between p-4 rounded-2xl bg-[#EBF0EC] dark:bg-[#212E27] hover:bg-[#DCE5DE] dark:hover:bg-[#2B3A31] text-[#15251C] dark:text-[#EEF3EF] border-2 border-[#5B67CA]/40 transition-all active:scale-98 shadow-sm cursor-pointer text-left group"
+          >
+            <div className="flex items-center justify-between w-full mb-2">
+              <div className="p-2 rounded-xl bg-[#5B67CA]/15 text-[#5B67CA] dark:text-[#9CA6DC]">
+                <Upload className="w-5 h-5 stroke-[2.5]" />
+              </div>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider bg-[#5B67CA]/15 text-[#5B67CA] dark:text-[#9CA6DC] px-2 py-0.5 rounded-full">
+                Ripristino
+              </span>
+            </div>
+            <div>
+              <span className="block text-sm font-black text-[#15251C] dark:text-[#EEF3EF] leading-tight">
+                Carica File di Backup
+              </span>
+              <span className="block text-[11px] font-bold text-[#2C3E35] dark:text-[#D5E0D8] mt-1">
+                Seleziona il file .json per ripristinare o sincronizzare in 1 sec.
+              </span>
+            </div>
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="application/json"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+        </div>
+
+        {/* Additional Formats Header */}
+        <div className="pt-2 border-t border-[#C8D5CB] dark:border-[#2B3A31]">
+          <span className="text-[11px] font-black uppercase tracking-wider text-[#2C3E35] dark:text-[#D5E0D8] block mb-2">
+            Altri Formati di Esportazione
+          </span>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={onExportTxt}
+              className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-[#1B2520] hover:bg-[#EBF0EC] dark:hover:bg-[#2B3A31] border border-[#C8D5CB] dark:border-[#2B3A31] text-left transition-all cursor-pointer"
+            >
+              <div className="flex items-center space-x-2.5">
+                <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400 stroke-[2.5] shrink-0" />
+                <div>
+                  <span className="block text-xs font-black text-[#15251C] dark:text-[#EEF3EF]">
+                    Registro Leggibile (.TXT)
+                  </span>
+                  <span className="block text-[10px] font-bold text-[#2C3E35] dark:text-[#D5E0D8]">
+                    Testo per lettura e stampa
+                  </span>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-[#15251C] dark:text-[#EEF3EF]" />
+            </button>
+
+            <button
+              type="button"
+              onClick={onExportCsv}
+              className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-[#1B2520] hover:bg-[#EBF0EC] dark:hover:bg-[#2B3A31] border border-[#C8D5CB] dark:border-[#2B3A31] text-left transition-all cursor-pointer"
+            >
+              <div className="flex items-center space-x-2.5">
+                <Table className="w-4 h-4 text-amber-600 dark:text-amber-400 stroke-[2.5] shrink-0" />
+                <div>
+                  <span className="block text-xs font-black text-[#15251C] dark:text-[#EEF3EF]">
+                    Fogli di Calcolo (.CSV)
+                  </span>
+                  <span className="block text-[10px] font-bold text-[#2C3E35] dark:text-[#D5E0D8]">
+                    Compatibile con Excel e Google
+                  </span>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-[#15251C] dark:text-[#EEF3EF]" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* SECURITY SECTION */}
       <div className="glass-panel rounded-[20px] p-5 space-y-4 border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -210,10 +347,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
             <div>
               <span className="block text-sm font-black text-[#15251C] dark:text-[#EEF3EF]">
-                Protezione con PIN di Sicurezza
+                Protezione con PIN dell'App
               </span>
               <span className="block text-xs font-bold text-[#2C3E35] dark:text-[#D5E0D8]">
-                Richiedi PIN a 4 cifre all'avvio dell'app
+                Richiedi PIN a 4 cifre all'avvio dell'applicazione
               </span>
             </div>
           </div>
@@ -230,7 +367,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
-      {/* Theme Section */}
+      {/* THEME SECTION */}
       <div className="glass-panel rounded-[20px] p-5 space-y-4 border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center space-x-3">
@@ -258,93 +395,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
-      {/* Backup & Data Import/Export */}
-      <div className="glass-panel rounded-[20px] p-2 border border-[#C8D5CB] dark:border-[#2B3A31] divide-y divide-[#C8D5CB] dark:divide-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-sm">
-        <button
-          type="button"
-          onClick={onExportJson}
-          className="w-full flex items-center justify-between p-3.5 text-left hover:bg-[#EBF0EC] dark:hover:bg-[#2B3A31]/50 active:scale-98 rounded-2xl transition-all duration-150 cursor-pointer"
-        >
-          <div className="flex items-center space-x-3">
-            <Download className="w-4 h-4 text-[#5B67CA] dark:text-[#9CA6DC] stroke-[2.5] shrink-0" />
-            <div>
-              <span className="block text-xs font-black text-[#15251C] dark:text-[#EEF3EF]">
-                Esporta Backup Completo (JSON)
-              </span>
-              <span className="block text-[10px] font-bold text-[#2C3E35] dark:text-[#D5E0D8]">
-                File di backup per ripristino sicuro dei dati
-              </span>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-[#15251C] dark:text-[#EEF3EF] shrink-0" />
-        </button>
-
-        <button
-          type="button"
-          onClick={onExportTxt}
-          className="w-full flex items-center justify-between p-3.5 text-left hover:bg-[#EBF0EC] dark:hover:bg-[#2B3A31]/50 active:scale-98 rounded-2xl transition-all duration-150 cursor-pointer"
-        >
-          <div className="flex items-center space-x-3">
-            <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400 stroke-[2.5] shrink-0" />
-            <div>
-              <span className="block text-xs font-black text-[#15251C] dark:text-[#EEF3EF]">
-                Esporta Registro Domande (.TXT)
-              </span>
-              <span className="block text-[10px] font-bold text-[#2C3E35] dark:text-[#D5E0D8]">
-                Documento di testo leggibile con tutte le risposte
-              </span>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-[#15251C] dark:text-[#EEF3EF] shrink-0" />
-        </button>
-
-        <button
-          type="button"
-          onClick={onExportCsv}
-          className="w-full flex items-center justify-between p-3.5 text-left hover:bg-[#EBF0EC] dark:hover:bg-[#2B3A31]/50 active:scale-98 rounded-2xl transition-all duration-150 cursor-pointer"
-        >
-          <div className="flex items-center space-x-3">
-            <Table className="w-4 h-4 text-amber-600 dark:text-amber-400 stroke-[2.5] shrink-0" />
-            <div>
-              <span className="block text-xs font-black text-[#15251C] dark:text-[#EEF3EF]">
-                Esporta Fogli di Calcolo (.CSV)
-              </span>
-              <span className="block text-[10px] font-bold text-[#2C3E35] dark:text-[#D5E0D8]">
-                Tabella compatibile con Excel e Fogli Google
-              </span>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-[#15251C] dark:text-[#EEF3EF] shrink-0" />
-        </button>
-
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="w-full flex items-center justify-between p-3.5 text-left hover:bg-[#EBF0EC] dark:hover:bg-[#2B3A31]/50 active:scale-98 rounded-2xl transition-all duration-150 cursor-pointer"
-        >
-          <div className="flex items-center space-x-3">
-            <Upload className="w-4 h-4 text-[#5B67CA] dark:text-[#9CA6DC] stroke-[2.5] shrink-0" />
-            <div>
-              <span className="block text-xs font-black text-[#15251C] dark:text-[#EEF3EF]">
-                Importa Backup (JSON)
-              </span>
-              <span className="block text-[10px] font-bold text-[#2C3E35] dark:text-[#D5E0D8]">
-                Carica un file di backup salvato in precedenza
-              </span>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-[#15251C] dark:text-[#EEF3EF] shrink-0" />
-        </button>
-        <input
-          type="file"
-          ref={fileInputRef}
-          accept="application/json"
-          onChange={handleFileChange}
-          className="hidden"
-        />
-      </div>
-
-      {/* Custom Tag Management */}
+      {/* CUSTOM TAG MANAGEMENT */}
       <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-sm">
         <div className="flex items-center space-x-2">
           <Tags className="w-4 h-4 text-[#5B67CA] dark:text-[#9CA6DC] stroke-[2.5]" />
@@ -377,7 +428,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         )}
       </div>
 
-      {/* Danger Zone */}
+      {/* DANGER ZONE */}
       <div className="glass-panel rounded-[20px] p-2 border border-rose-500/40 bg-white dark:bg-[#1B2520] shadow-sm">
         <button
           type="button"
@@ -392,13 +443,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </button>
       </div>
 
-      {/* Footnote */}
+      {/* FOOTNOTE */}
       <div className="flex items-start space-x-2 p-4 text-xs text-[#15251C] dark:text-[#EEF3EF] leading-relaxed rounded-[20px] bg-[#EBF0EC] dark:bg-[#2B3A31]/80 border border-[#C8D5CB] dark:border-[#2B3A31]">
         <ShieldCheck className="w-4 h-4 text-[#2D5C3E] dark:text-[#6A9C78] shrink-0 mt-0.5 stroke-[2.5]" />
         <span>
-          <strong className="font-black text-[#15251C] dark:text-[#EEF3EF]">100% Sincronizzato & Sicuro:</strong> I tuoi dati restano memorizzati in IndexedDB sul tuo dispositivo e sincronizzati in modo sicuro col tuo PIN personale.
+          <strong className="font-black text-[#15251C] dark:text-[#EEF3EF]">100% Client-Side &amp; Privato:</strong> I tuoi dati restano esclusivamente sul tuo dispositivo in memoria locale e sono trasferibili in sicurezza tramite file di backup `.json`.
         </span>
       </div>
     </div>
   );
 };
+
