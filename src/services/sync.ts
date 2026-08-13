@@ -8,7 +8,7 @@ export interface SyncDataPayload {
 }
 
 export const SyncService = {
-  // Push local entries & tags using 100% client-side storage (localStorage) + optional server backup
+  // Push local entries & tags using 100% client-side storage (localStorage)
   async push(pin: string, payload: SyncDataPayload): Promise<{ success: boolean; updatedAt?: string; error?: string }> {
     try {
       const cleanPin = pin.trim().toLowerCase();
@@ -22,30 +22,12 @@ export const SyncService = {
         updatedAt,
       };
 
-      // 100% Client-side persistence in localStorage for local profile/pin sync
+      // 100% Client-side persistence in localStorage
       try {
         localStorage.setItem(`diariomente_sync_${cleanPin}`, JSON.stringify(syncPayload));
       } catch (e) {
         console.warn('localStorage sync warning:', e);
-      }
-
-      // Optional attempt to push to Express backend API if running on node server
-      if (typeof window !== 'undefined' && window.location.protocol.startsWith('http')) {
-        try {
-          const res = await fetch(`/api/sync/${encodeURIComponent(cleanPin)}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(syncPayload),
-          });
-          if (res.ok) {
-            const json = await res.json().catch(() => null);
-            if (json && json.updatedAt) {
-              return { success: true, updatedAt: json.updatedAt };
-            }
-          }
-        } catch {
-          // Ignore server errors on static hosts like GitHub Pages
-        }
+        return { success: false, error: 'Memoria locale piena o non accessibile' };
       }
 
       return { success: true, updatedAt };
@@ -55,7 +37,7 @@ export const SyncService = {
     }
   },
 
-  // Pull data using 100% client-side storage (localStorage) + optional server pull
+  // Pull data using 100% client-side storage (localStorage)
   async pull(pin: string): Promise<{ success: boolean; data?: SyncDataPayload; error?: string }> {
     try {
       const cleanPin = pin.trim().toLowerCase();
@@ -73,36 +55,16 @@ export const SyncService = {
         // ignore parse errors
       }
 
-      // Optional attempt to pull from Express backend API if available
-      if (typeof window !== 'undefined' && window.location.protocol.startsWith('http')) {
-        try {
-          const res = await fetch(`/api/sync/${encodeURIComponent(cleanPin)}`);
-          if (res.ok) {
-            const json = await res.json().catch(() => null);
-            if (json && json.success && json.data) {
-              // Update localStorage with cloud copy
-              try {
-                localStorage.setItem(`diariomente_sync_${cleanPin}`, JSON.stringify(json.data));
-              } catch {
-                // ignore
-              }
-              return { success: true, data: json.data };
-            }
-          }
-        } catch {
-          // Ignore server errors on static hosts like GitHub Pages
-        }
-      }
-
       if (localData && Array.isArray(localData.entries)) {
         return { success: true, data: localData };
       }
 
-      return { success: false, error: 'Nessun dato trovato per questo PIN' };
+      return { success: false, error: 'Nessun dato trovato in locale per questo PIN' };
     } catch (err) {
       console.error('Sync pull error:', err);
       return { success: false, error: 'Errore nel caricamento dati' };
     }
   },
 };
+
 
