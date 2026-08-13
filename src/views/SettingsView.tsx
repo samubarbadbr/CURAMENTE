@@ -195,21 +195,34 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           )}
         </div>
 
-        {/* Sync Now Button */}
+        {/* Sync Buttons */}
         {syncPin && (
-          <div className="pt-1">
-            <button
-              type="button"
-              onClick={async () => {
-                if (onManualSyncPull) await onManualSyncPull();
-                if (onManualSyncPush) await onManualSyncPush();
-              }}
-              disabled={syncStatus === 'syncing'}
-              className="w-full flex items-center justify-center space-x-2 py-3 px-4 rounded-xl bg-[#5B67CA] hover:bg-[#4A55B8] text-white text-sm font-black transition-all active:scale-98 shadow-md cursor-pointer disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
-              <span>{syncStatus === 'syncing' ? 'Sincronizzazione in corso...' : '🔄 Sincronizza Ora'}</span>
-            </button>
+          <div className="pt-1 space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (onManualSyncPush) await onManualSyncPush();
+                }}
+                disabled={syncStatus === 'syncing'}
+                className="flex items-center justify-center space-x-2 py-3 px-4 rounded-xl bg-[#5B67CA] hover:bg-[#4A55B8] text-white text-sm font-black transition-all active:scale-98 shadow-md cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
+                <span>{syncStatus === 'syncing' ? 'Invio...' : '⬆️ Invia Dati a Supabase'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  if (onManualSyncPull) await onManualSyncPull();
+                }}
+                disabled={syncStatus === 'syncing'}
+                className="flex items-center justify-center space-x-2 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-black transition-all active:scale-98 shadow-md cursor-pointer disabled:opacity-50"
+              >
+                <Download className={`w-4 h-4 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
+                <span>{syncStatus === 'syncing' ? 'Scaricamento...' : '⬇️ Scarica Dati dal Cloud'}</span>
+              </button>
+            </div>
           </div>
         )}
       </div>

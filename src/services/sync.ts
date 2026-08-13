@@ -26,11 +26,15 @@ export const SyncService = {
       // 1. Client-side persistence in localStorage as cache
       try {
         localStorage.setItem(`diariomente_sync_${cleanPin}`, JSON.stringify(syncPayload));
+        localStorage.setItem('diariomente_sync_pin', cleanPin);
       } catch (e) {
         console.warn('localStorage sync warning:', e);
       }
 
       // 2. Upsert JSON payload into Supabase user_data table
+      let sbSuccess = false;
+      let lastError = '';
+
       try {
         const { error } = await supabase
           .from('user_data')
@@ -44,23 +48,40 @@ export const SyncService = {
             { onConflict: 'pin' }
           );
 
-        if (error) {
-          console.warn('Supabase upsert error:', error.message);
+        if (!error) {
+          sbSuccess = true;
+        } else {
+          lastError = error.message;
+          console.warn('Primary Supabase upsert error:', error.message);
+          
+          // Fallback: simple upsert with just pin and data
           const { error: err2 } = await supabase
             .from('user_data')
-            .upsert({ pin: cleanPin, data: syncPayload });
-          if (err2) {
-            console.warn('Supabase fallback upsert error:', err2.message);
+            .upsert({ pin: cleanPin, data: syncPayload }, { onConflict: 'pin' });
+          
+          if (!err2) {
+            sbSuccess = true;
+          } else {
+            lastError = err2.message || lastError;
+            console.warn('Fallback Supabase upsert error:', err2.message);
           }
         }
-      } catch (sbErr) {
+      } catch (sbErr: any) {
+        lastError = sbErr?.message || String(sbErr);
         console.warn('Supabase push exception:', sbErr);
       }
 
+      if (!sbSuccess) {
+        return {
+          success: false,
+          error: lastError ? `Errore Supabase: ${lastError}` : 'Impossibile connettersi a Supabase',
+        };
+      }
+
       return { success: true, updatedAt };
-    } catch (err) {
+    } catch (err: any) {
       console.error('Sync push error:', err);
-      return { success: false, error: 'Errore durante il salvataggio' };
+      return { success: false, error: err?.message || 'Errore durante il salvataggio' };
     }
   },
 
@@ -72,6 +93,9 @@ export const SyncService = {
         return { success: false, error: 'PIN non valido (minimo 3 caratteri)' };
       }
 
+      let remoteData: SyncDataPayload | null = null;
+      let sbErrorMsg = '';
+
       // 1. Attempt to fetch row from Supabase user_data table
       try {
         const { data, error } = await supabase
@@ -80,19 +104,28 @@ export const SyncService = {
           .eq('pin', cleanPin)
           .maybeSingle();
 
-        if (!error && data) {
-          const remoteData: SyncDataPayload = data.data || data.payload || (data.entries ? data : null);
-          if (remoteData && Array.isArray(remoteData.entries)) {
-            try {
-              localStorage.setItem(`diariomente_sync_${cleanPin}`, JSON.stringify(remoteData));
-            } catch (e) {
-              console.warn('localStorage save cache error:', e);
-            }
-            return { success: true, data: remoteData };
+        if (error) {
+          sbErrorMsg = error.message;
+          console.warn('Supabase select error:', error.message);
+        } else if (data) {
+          const parsed = data.data || data.payload || (data.entries ? data : null);
+          if (parsed && Array.isArray(parsed.entries)) {
+            remoteData = parsed;
           }
         }
-      } catch (sbErr) {
+      } catch (sbErr: any) {
+        sbErrorMsg = sbErr?.message || String(sbErr);
         console.warn('Supabase pull exception:', sbErr);
+      }
+
+      if (remoteData) {
+        try {
+          localStorage.setItem(`diariomente_sync_${cleanPin}`, JSON.stringify(remoteData));
+          localStorage.setItem('diariomente_sync_pin', cleanPin);
+        } catch (e) {
+          console.warn('localStorage save cache error:', e);
+        }
+        return { success: true, data: remoteData };
       }
 
       // 2. Fallback to localStorage cache
@@ -108,13 +141,19 @@ export const SyncService = {
         // ignore
       }
 
-      return { success: false, error: 'Nessun dato trovato per questo PIN' };
-    } catch (err) {
+      return {
+        success: false,
+        error: sbErrorMsg
+          ? `Errore Supabase: ${sbErrorMsg}`
+          : 'Nessun dato trovato su Supabase per questo PIN',
+      };
+    } catch (err: any) {
       console.error('Sync pull error:', err);
-      return { success: false, error: 'Errore nel caricamento dati' };
+      return { success: false, error: err?.message || 'Errore nel caricamento dati' };
     }
   },
 };
+
 
 
 

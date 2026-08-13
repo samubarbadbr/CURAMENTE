@@ -107,9 +107,12 @@ export default function App() {
   }, []);
 
   // Sync Push function
-  const handleSyncPush = useCallback(async (pinToUse?: string) => {
+  const handleSyncPush = useCallback(async (pinToUse?: string, silent = false) => {
     const pin = pinToUse || syncPin;
-    if (!pin) return;
+    if (!pin) {
+      if (!silent) showToast('Errore Sincronizzazione: PIN non impostato');
+      return false;
+    }
 
     setSyncStatus('syncing');
     try {
@@ -120,19 +123,28 @@ export default function App() {
       if (res.success) {
         setSyncStatus('synced');
         setLastSyncedAt(res.updatedAt || new Date().toISOString());
+        if (!silent) showToast('Dati salvati su Supabase con successo!');
+        return true;
       } else {
         setSyncStatus('error');
+        if (!silent) showToast(res.error || 'Errore Sincronizzazione Supabase');
+        return false;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Sync push failed:', err);
       setSyncStatus('error');
+      if (!silent) showToast(`Errore Sincronizzazione: ${err?.message || 'Connessione fallita'}`);
+      return false;
     }
   }, [syncPin]);
 
   // Sync Pull function
-  const handleSyncPull = useCallback(async (pinToUse?: string) => {
+  const handleSyncPull = useCallback(async (pinToUse?: string, forceReload = false) => {
     const pin = pinToUse || syncPin;
-    if (!pin) return;
+    if (!pin) {
+      showToast('Errore Sincronizzazione: Inserisci un PIN valido');
+      return false;
+    }
 
     setSyncStatus('syncing');
     try {
@@ -156,12 +168,24 @@ export default function App() {
 
         setSyncStatus('synced');
         setLastSyncedAt(res.data.updatedAt || new Date().toISOString());
+        showToast('Dati scaricati da Supabase con successo!');
+
+        if (forceReload) {
+          setTimeout(() => {
+            window.location.reload();
+          }, 600);
+        }
+        return true;
       } else {
-        setSyncStatus('idle');
+        setSyncStatus('error');
+        showToast(res.error || 'Errore Sincronizzazione: Nessun dato trovato');
+        return false;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Sync pull failed:', err);
       setSyncStatus('error');
+      showToast(`Errore Sincronizzazione: ${err?.message || 'Connessione fallita'}`);
+      return false;
     }
   }, [syncPin, loadEntries, periodFilter]);
 
@@ -170,9 +194,14 @@ export default function App() {
     const cleanPin = newPin.trim().toLowerCase();
     setSyncPin(cleanPin);
     await DB.put('settings', { key: 'sync_pin', value: cleanPin });
-    showToast(`PIN Cloud impostato: ${cleanPin}`);
+    try {
+      localStorage.setItem('diariomente_sync_pin', cleanPin);
+    } catch (e) {
+      console.warn(e);
+    }
 
     // Try pulling from cloud first for existing data on this PIN
+    setSyncStatus('syncing');
     const pullRes = await SyncService.pull(cleanPin);
     if (pullRes.success && pullRes.data && pullRes.data.entries?.length) {
       if (pullRes.data.entries && Array.isArray(pullRes.data.entries)) {
@@ -190,11 +219,20 @@ export default function App() {
       await loadEntries(periodFilter);
       setSyncStatus('synced');
       setLastSyncedAt(pullRes.data.updatedAt || new Date().toISOString());
-      showToast('Dati scaricati dal Cloud');
+      showToast('Dati salvati e scaricati da Supabase con successo!');
     } else {
       // If no data on cloud, push local data up to cloud
-      await handleSyncPush(cleanPin);
-      showToast('Dati sincronizzati sul Cloud');
+      const allEntries = await DB.getAll<CbtEntry>('entries');
+      const tags = await DB.getAll<Tag>('tags');
+      const pushRes = await SyncService.push(cleanPin, { entries: allEntries, tags });
+      if (pushRes.success) {
+        setSyncStatus('synced');
+        setLastSyncedAt(pushRes.updatedAt || new Date().toISOString());
+        showToast('Dati salvati su Supabase con successo!');
+      } else {
+        setSyncStatus('error');
+        showToast(pushRes.error || 'Errore Sincronizzazione PIN');
+      }
     }
   };
 
@@ -228,12 +266,20 @@ export default function App() {
           }
         }
 
-        // Load saved Cloud Sync PIN
+        // Load saved Cloud Sync PIN (check DB and localStorage)
         const syncPinRow = await DB.get<{ key: string; value: string }>('settings', 'sync_pin');
-        if (syncPinRow?.value && isMounted) {
-          setSyncPin(syncPinRow.value);
-          // Initial background sync pull
-          SyncService.pull(syncPinRow.value).then(async (res) => {
+        let activeSyncPin = syncPinRow?.value;
+        if (!activeSyncPin) {
+          try {
+            activeSyncPin = localStorage.getItem('diariomente_sync_pin') || '';
+          } catch {}
+        }
+
+        if (activeSyncPin && isMounted) {
+          setSyncPin(activeSyncPin);
+          setSyncStatus('syncing');
+          // Auto-fetch from Supabase when app opens
+          SyncService.pull(activeSyncPin).then(async (res) => {
             if (res.success && res.data) {
               if (res.data.entries && Array.isArray(res.data.entries)) {
                 for (const entry of res.data.entries) {
@@ -246,12 +292,19 @@ export default function App() {
                 }
               }
               const updatedTags = await DB.getAll<Tag>('tags');
-              setAllTags(updatedTags);
+              if (isMounted) {
+                setAllTags(updatedTags);
+                setSyncStatus('synced');
+                setLastSyncedAt(res.data.updatedAt || new Date().toISOString());
+              }
               await loadEntries('30');
-              setSyncStatus('synced');
-              setLastSyncedAt(res.data.updatedAt || new Date().toISOString());
+            } else {
+              if (isMounted) setSyncStatus('idle');
             }
-          }).catch(console.error);
+          }).catch((err) => {
+            console.warn('Auto fetch cloud error on startup:', err);
+            if (isMounted) setSyncStatus('error');
+          });
         }
 
         if (isMounted) {
@@ -835,7 +888,7 @@ export default function App() {
               lastSyncedAt={lastSyncedAt}
               onSaveSyncPin={handleSaveSyncPin}
               onManualSyncPush={() => handleSyncPush(syncPin)}
-              onManualSyncPull={() => handleSyncPull(syncPin)}
+              onManualSyncPull={() => handleSyncPull(syncPin, true)}
               onExportJson={handleExportJson}
               onExportTxt={handleExportTxt}
               onExportCsv={handleExportCsv}
