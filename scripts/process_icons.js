@@ -23,12 +23,13 @@ try {
 
 if (!processed && fs.existsSync(srcImg)) {
   fs.copyFileSync(srcImg, path.join(pubDir, 'icon.png'));
+  fs.copyFileSync(srcImg, path.join(pubDir, 'apple-touch-icon.png'));
   fs.copyFileSync(srcImg, path.join(pubDir, 'icon-192.png'));
   fs.copyFileSync(srcImg, path.join(pubDir, 'icon-512.png'));
-  console.log('Copied generated brain image to icon.png, icon-192.png, icon-512.png in public dir!');
+  console.log('Copied generated brain image to icon.png, apple-touch-icon.png, icon-192.png, icon-512.png in public dir!');
 }
 
-// Generate crisp SVG brain favicon
+// Generate crisp SVG brain icon
 const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <rect width="512" height="512" rx="120" fill="#EBF0EC"/>
   <rect width="470" height="470" x="21" y="21" rx="100" fill="#5B67CA"/>
@@ -57,4 +58,5 @@ const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512
 </svg>`;
 
 fs.writeFileSync(path.join(pubDir, 'favicon.svg'), svgContent, 'utf-8');
-console.log('favicon.svg generated successfully!');
+fs.writeFileSync(path.join(pubDir, 'icon.svg'), svgContent, 'utf-8');
+console.log('favicon.svg and icon.svg generated successfully!');
