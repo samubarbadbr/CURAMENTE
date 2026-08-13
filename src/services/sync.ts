@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { saveDataToCloud, loadDataFromCloud, SUPABASE_URL, SUPABASE_KEY } from '../lib/supabase';
 import { CbtEntry, Tag } from '../types';
 
 export interface SyncDataPayload {
@@ -8,23 +8,7 @@ export interface SyncDataPayload {
   updatedAt?: string;
 }
 
-export async function syncDataWithPin(pin: string, payload: any) {
-  try {
-    const cleanPin = pin.trim().toLowerCase();
-    const { data, error } = await supabase
-      .from('user_data')
-      .upsert(
-        { pin: cleanPin, data: payload, payload: payload, updated_at: new Date().toISOString() },
-        { onConflict: 'pin' }
-      );
-
-    if (error) throw error;
-    return { success: true };
-  } catch (err: any) {
-    console.error("Errore Supabase:", err);
-    return { success: false, error: err.message || err };
-  }
-}
+export { saveDataToCloud, loadDataFromCloud };
 
 export const SyncService = {
   // Push local entries & tags to Supabase under PIN
@@ -49,8 +33,8 @@ export const SyncService = {
         console.warn('localStorage sync warning:', e);
       }
 
-      // 2. Upsert JSON payload into Supabase user_data table using SDK
-      const res = await syncDataWithPin(cleanPin, syncPayload);
+      // 2. Upsert JSON payload into Supabase user_data table via REST API
+      const res = await saveDataToCloud(cleanPin, syncPayload);
       if (!res.success) {
         return {
           success: false,
@@ -74,27 +58,14 @@ export const SyncService = {
       }
 
       let remoteData: SyncDataPayload | null = null;
-      let sbErrorMsg = '';
 
-      // 1. Attempt to fetch row from Supabase user_data table
+      // 1. Fetch row from Supabase user_data table via REST API
       try {
-        const { data, error } = await supabase
-          .from('user_data')
-          .select('*')
-          .eq('pin', cleanPin)
-          .maybeSingle();
-
-        if (error) {
-          sbErrorMsg = error.message;
-          console.warn('Supabase select error:', error.message);
-        } else if (data) {
-          const parsed = data.data || data.payload || (data.entries ? data : null);
-          if (parsed && Array.isArray(parsed.entries)) {
-            remoteData = parsed;
-          }
+        const fetchedData = await loadDataFromCloud(cleanPin);
+        if (fetchedData && Array.isArray(fetchedData.entries)) {
+          remoteData = fetchedData as SyncDataPayload;
         }
       } catch (sbErr: any) {
-        sbErrorMsg = sbErr?.message || String(sbErr);
         console.warn('Supabase pull exception:', sbErr);
       }
 
@@ -123,9 +94,7 @@ export const SyncService = {
 
       return {
         success: false,
-        error: sbErrorMsg
-          ? `Errore Supabase: ${sbErrorMsg}`
-          : 'Nessun dato trovato su Supabase per questo PIN',
+        error: 'Nessun dato trovato su Supabase per questo PIN',
       };
     } catch (err: any) {
       console.error('Sync pull error:', err);
@@ -133,16 +102,20 @@ export const SyncService = {
     }
   },
 
-  // Test Supabase connection
+  // Test Supabase connection via REST API
   async testConnection(): Promise<{ success: boolean; error?: string }> {
     try {
-      const { data, error } = await supabase
-        .from('user_data')
-        .select('pin')
-        .limit(1);
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/user_data?select=pin&limit=1`, {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`
+        }
+      });
 
-      if (error) {
-        return { success: false, error: error.message };
+      if (!res.ok) {
+        const errText = await res.text();
+        return { success: false, error: errText };
       }
       return { success: true };
     } catch (err: any) {
@@ -151,6 +124,7 @@ export const SyncService = {
     }
   },
 };
+
 
 
 
