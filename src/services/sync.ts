@@ -27,8 +27,8 @@ export const SyncService = {
 
       // 1. Client-side persistence in localStorage as cache
       try {
-        localStorage.setItem(`diariomente_sync_${cleanPin}`, JSON.stringify(syncPayload));
-        localStorage.setItem('diariomente_sync_pin', cleanPin);
+        localStorage.setItem(`diariamente_sync_${cleanPin}`, JSON.stringify(syncPayload));
+        localStorage.setItem('diariamente_sync_pin', cleanPin);
       } catch (e) {
         console.warn('localStorage sync warning:', e);
       }
@@ -71,8 +71,8 @@ export const SyncService = {
 
       if (remoteData) {
         try {
-          localStorage.setItem(`diariomente_sync_${cleanPin}`, JSON.stringify(remoteData));
-          localStorage.setItem('diariomente_sync_pin', cleanPin);
+          localStorage.setItem(`diariamente_sync_${cleanPin}`, JSON.stringify(remoteData));
+          localStorage.setItem('diariamente_sync_pin', cleanPin);
         } catch (e) {
           console.warn('localStorage save cache error:', e);
         }
@@ -81,7 +81,7 @@ export const SyncService = {
 
       // 2. Fallback to localStorage cache
       try {
-        const raw = localStorage.getItem(`diariomente_sync_${cleanPin}`);
+        const raw = localStorage.getItem(`diariamente_sync_${cleanPin}`) || localStorage.getItem(`diariomente_sync_${cleanPin}`);
         if (raw) {
           const localData: SyncDataPayload = JSON.parse(raw);
           if (localData && Array.isArray(localData.entries)) {

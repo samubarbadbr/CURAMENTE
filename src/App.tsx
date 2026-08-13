@@ -207,6 +207,7 @@ export default function App() {
     setSyncPin(cleanPin);
     await DB.put('settings', { key: 'sync_pin', value: cleanPin });
     try {
+      localStorage.setItem('diariamente_sync_pin', cleanPin);
       localStorage.setItem('diariomente_sync_pin', cleanPin);
     } catch (e) {
       console.warn(e);
@@ -283,7 +284,7 @@ export default function App() {
         let activeSyncPin = syncPinRow?.value;
         if (!activeSyncPin) {
           try {
-            activeSyncPin = localStorage.getItem('diariomente_sync_pin') || '';
+            activeSyncPin = localStorage.getItem('diariamente_sync_pin') || localStorage.getItem('diariomente_sync_pin') || '';
           } catch {}
         }
 
