@@ -18,7 +18,10 @@ import {
   Cloud,
   RefreshCw,
   KeyRound,
-  Wifi
+  Wifi,
+  Database,
+  Copy,
+  Check
 } from 'lucide-react';
 import { CustomDropdown } from '../components/CustomDropdown';
 
@@ -67,8 +70,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pinInput, setPinInput] = useState(syncPin);
   const [isEditingPin, setIsEditingPin] = useState(!syncPin);
+  const [showSqlGuide, setShowSqlGuide] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
 
   const customTags = allTags.filter((t) => t.isCustom === 1);
+
+  const sqlScript = `-- 1. Crea la tabella 'user_data' nel tuo progetto Supabase
+CREATE TABLE IF NOT EXISTS public.user_data (
+  pin TEXT PRIMARY KEY,
+  data JSONB,
+  payload JSONB,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. Abilita la sicurezza RLS
+ALTER TABLE public.user_data ENABLE ROW LEVEL SECURITY;
+
+-- 3. Crea la policy per consentire la sincronizzazione anonima via PIN
+CREATE POLICY "Accesso completo anonimo" ON public.user_data
+  FOR ALL USING (true) WITH CHECK (true);`;
+
+  const handleCopySql = () => {
+    navigator.clipboard.writeText(sqlScript);
+    setCopiedSql(true);
+    setTimeout(() => setCopiedSql(false), 2000);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -241,6 +267,47 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <span>📡 Test Connessione Cloud</span>
             </button>
           )}
+
+          {/* SQL Setup Helper Toggle */}
+          <div className="pt-2 border-t border-[#C8D5CB] dark:border-[#2B3A31]">
+            <button
+              type="button"
+              onClick={() => setShowSqlGuide(!showSqlGuide)}
+              className="w-full flex items-center justify-between text-left py-2 px-3 rounded-xl bg-[#EBF0EC] dark:bg-[#212E27] text-[#15251C] dark:text-[#EEF3EF] hover:bg-[#DCE5DE] dark:hover:bg-[#2B3A31] transition-all cursor-pointer"
+            >
+              <div className="flex items-center space-x-2">
+                <Database className="w-4 h-4 text-[#5B67CA] dark:text-[#9CA6DC]" />
+                <span className="text-xs font-black">🛠️ Istruzioni Setup Tabella Supabase SQL</span>
+              </div>
+              <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${showSqlGuide ? 'rotate-90' : ''}`} />
+            </button>
+
+            {showSqlGuide && (
+              <div className="mt-3 p-4 rounded-2xl bg-[#15251C] text-[#EEF3EF] space-y-3 text-xs animate-fade-in border border-[#2B3A31]">
+                <p className="font-bold text-emerald-400">
+                  Se ricevi l'errore <code className="bg-black/40 px-1.5 py-0.5 rounded text-amber-300">PGRST205 / user_data not found</code>, segui questi 2 passaggi nel tuo account Supabase:
+                </p>
+                <ol className="list-decimal list-inside space-y-1 font-semibold text-gray-200">
+                  <li>Apri il progetto su <strong>supabase.com</strong> e vai su <strong>SQL Editor</strong> nel menu laterale.</li>
+                  <li>Incolla ed esegui (premi <strong>Run</strong>) il seguente script SQL:</li>
+                </ol>
+
+                <div className="relative mt-2">
+                  <pre className="p-3 rounded-xl bg-black/60 text-emerald-300 font-mono text-[11px] overflow-x-auto leading-relaxed border border-white/10 select-all">
+                    {sqlScript}
+                  </pre>
+                  <button
+                    type="button"
+                    onClick={handleCopySql}
+                    className="absolute top-2 right-2 flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-[#5B67CA] hover:bg-[#4A55B8] text-white text-[10px] font-black cursor-pointer shadow"
+                  >
+                    {copiedSql ? <Check className="w-3 h-3 text-emerald-300" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedSql ? 'Copiato!' : 'Copia SQL'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

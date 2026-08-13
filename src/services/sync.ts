@@ -1,4 +1,4 @@
-import { saveDataToCloud, loadDataFromCloud, SUPABASE_URL, SUPABASE_KEY } from '../lib/supabase';
+import { saveDataToCloud, loadDataFromCloud, SUPABASE_URL, SUPABASE_KEY, formatSupabaseErrorMessage } from '../lib/supabase';
 import { CbtEntry, Tag } from '../types';
 
 export interface SyncDataPayload {
@@ -38,7 +38,7 @@ export const SyncService = {
       if (!res.success) {
         return {
           success: false,
-          error: typeof res.error === 'string' ? `Errore Supabase: ${res.error}` : 'Impossibile connettersi a Supabase',
+          error: res.error || 'Impossibile salvare i dati su Supabase',
         };
       }
 
@@ -118,7 +118,7 @@ export const SyncService = {
 
       if (!res.ok) {
         const errText = await res.text();
-        return { success: false, error: errText };
+        return { success: false, error: formatSupabaseErrorMessage(errText) };
       }
       return { success: true };
     } catch (err: any) {

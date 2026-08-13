@@ -7,6 +7,28 @@ const SUPABASE_KEY = (env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_KEY).trim()
 
 export { SUPABASE_URL, SUPABASE_KEY };
 
+export function formatSupabaseErrorMessage(errText: string): string {
+  if (!errText) return 'Connessione Supabase non disponibile';
+  try {
+    const parsed = JSON.parse(errText);
+    if (parsed.code === 'PGRST205' || (parsed.message && parsed.message.includes("Could not find the table"))) {
+      return "Tabella 'user_data' non trovata su Supabase. Crea la tabella nell'SQL Editor di Supabase (vedi le istruzioni nelle Impostazioni).";
+    }
+    if (parsed.code === '42501' || (parsed.message && (parsed.message.includes("permission denied") || parsed.message.includes("row-level security")))) {
+      return "Permessi insufficienti su Supabase (RLS). Attiva la policy di accesso per la tabella 'user_data'.";
+    }
+    if (parsed.message) {
+      return parsed.message;
+    }
+  } catch (e) {
+    // string is not JSON
+  }
+  if (errText.includes('PGRST205') || errText.includes('public.user_data')) {
+    return "Tabella 'user_data' non trovata su Supabase. Crea la tabella nell'SQL Editor di Supabase (vedi le istruzioni nelle Impostazioni).";
+  }
+  return errText;
+}
+
 export async function saveDataToCloud(pin: string, payloadData: any) {
   if (!pin) return { success: false, error: 'PIN mancante' };
   const cleanPin = pin.trim().toLowerCase();
@@ -35,8 +57,9 @@ export async function saveDataToCloud(pin: string, payloadData: any) {
       return { success: true };
     } else {
       const errText = await res.text();
-      console.warn("Errore risposta sync:", errText);
-      return { success: false, error: errText };
+      const formatted = formatSupabaseErrorMessage(errText);
+      console.warn("Errore risposta sync:", formatted);
+      return { success: false, error: formatted };
     }
   } catch (err: any) {
     console.warn("Avviso sync cloud:", err?.message || err);

@@ -110,7 +110,7 @@ export default function App() {
   const handleSyncPush = useCallback(async (pinToUse?: string, silent = false) => {
     const pin = pinToUse || syncPin;
     if (!pin) {
-      if (!silent) showToast('Errore salvataggio: PIN non impostato');
+      if (!silent) showToast('PIN non impostato nelle impostazioni');
       return false;
     }
 
@@ -123,17 +123,17 @@ export default function App() {
       if (res.success) {
         setSyncStatus('synced');
         setLastSyncedAt(res.updatedAt || new Date().toISOString());
-        if (!silent) showToast(`Dati salvati sul Cloud per il PIN ${pin}!`);
+        if (!silent) showToast(`Dati inviati al Cloud per il PIN ${pin}!`);
         return true;
       } else {
         setSyncStatus('error');
-        if (!silent) showToast(`Errore salvataggio: ${res.error || 'Connessione fallita'}`);
+        if (!silent) showToast(`Errore invio cloud: ${res.error || 'Connessione fallita'}`);
         return false;
       }
     } catch (err: any) {
       console.error('Sync push failed:', err);
       setSyncStatus('error');
-      if (!silent) showToast(`Errore salvataggio: ${err?.message || 'Connessione fallita'}`);
+      if (!silent) showToast(`Errore invio cloud: ${err?.message || 'Connessione fallita'}`);
       return false;
     }
   }, [syncPin]);
@@ -142,7 +142,7 @@ export default function App() {
   const handleSyncPull = useCallback(async (pinToUse?: string, forceReload = false) => {
     const pin = pinToUse || syncPin;
     if (!pin) {
-      showToast('Errore salvataggio: PIN non impostato');
+      showToast('PIN non impostato per il caricamento cloud');
       return false;
     }
 
@@ -178,13 +178,13 @@ export default function App() {
         return true;
       } else {
         setSyncStatus('error');
-        showToast(`Errore salvataggio: ${res.error || 'Nessun dato trovato per questo PIN'}`);
+        showToast(`Errore scaricamento: ${res.error || 'Nessun dato trovato per questo PIN'}`);
         return false;
       }
     } catch (err: any) {
       console.error('Sync pull failed:', err);
       setSyncStatus('error');
-      showToast(`Errore salvataggio: ${err?.message || 'Connessione fallita'}`);
+      showToast(`Errore scaricamento: ${err?.message || 'Connessione fallita'}`);
       return false;
     }
   }, [syncPin, loadEntries, periodFilter]);
@@ -196,7 +196,7 @@ export default function App() {
     if (res.success) {
       showToast('Connessione Supabase OK!');
     } else {
-      showToast(`Errore salvataggio: ${res.error || 'Connessione fallita'}`);
+      showToast(`Errore connessione: ${res.error || 'Connessione fallita'}`);
     }
   }, []);
 
@@ -243,7 +243,7 @@ export default function App() {
         showToast(`Dati salvati sul Cloud per il PIN ${cleanPin}!`);
       } else {
         setSyncStatus('error');
-        showToast(`Errore salvataggio: ${pushRes.error || 'Impossibile connettersi'}`);
+        showToast(`Errore sincronizzazione: ${pushRes.error || 'Impossibile connettersi'}`);
       }
     }
   };
