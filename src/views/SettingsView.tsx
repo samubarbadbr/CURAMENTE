@@ -17,7 +17,8 @@ import {
   CheckCircle2,
   Cloud,
   RefreshCw,
-  KeyRound
+  KeyRound,
+  Wifi
 } from 'lucide-react';
 import { CustomDropdown } from '../components/CustomDropdown';
 
@@ -32,6 +33,7 @@ interface SettingsViewProps {
   onSaveSyncPin?: (pin: string) => Promise<void>;
   onManualSyncPush?: () => Promise<void>;
   onManualSyncPull?: () => Promise<void>;
+  onTestConnection?: () => Promise<void>;
   onExportJson: () => void;
   onExportTxt: () => void;
   onExportCsv: () => void;
@@ -52,6 +54,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onSaveSyncPin,
   onManualSyncPush,
   onManualSyncPull,
+  onTestConnection,
   onExportJson,
   onExportTxt,
   onExportCsv,
@@ -60,6 +63,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onDeleteCustomTag,
   onDeleteAllData,
 }) => {
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pinInput, setPinInput] = useState(syncPin);
   const [isEditingPin, setIsEditingPin] = useState(!syncPin);
@@ -196,8 +200,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
 
         {/* Sync Buttons */}
-        {syncPin && (
-          <div className="pt-1 space-y-2">
+        <div className="pt-1 space-y-2">
+          {syncPin && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button
                 type="button"
@@ -223,9 +227,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <span>{syncStatus === 'syncing' ? 'Scaricamento...' : '⬇️ Scarica Dati dal Cloud'}</span>
               </button>
             </div>
-          </div>
-        )}
+          )}
+
+          {onTestConnection && (
+            <button
+              type="button"
+              onClick={async () => {
+                await onTestConnection();
+              }}
+              className="w-full flex items-center justify-center space-x-2 py-2.5 px-4 rounded-xl border-2 border-[#5B67CA]/40 bg-white dark:bg-[#212E27] text-[#5B67CA] dark:text-[#9CA6DC] hover:bg-[#5B67CA]/10 text-xs font-black transition-all cursor-pointer"
+            >
+              <Wifi className="w-4 h-4" />
+              <span>📡 Test Connessione Cloud</span>
+            </button>
+          )}
+        </div>
       </div>
+
 
       {/* BACKUP & DATA TRANSFER SECTION */}
       <div className="glass-panel rounded-[22px] p-5 space-y-4 border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-sm relative overflow-hidden">

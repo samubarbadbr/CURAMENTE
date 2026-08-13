@@ -152,7 +152,26 @@ export const SyncService = {
       return { success: false, error: err?.message || 'Errore nel caricamento dati' };
     }
   },
+
+  // Test Supabase connection
+  async testConnection(): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { data, error } = await supabase
+        .from('user_data')
+        .select('pin')
+        .limit(1);
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch (err: any) {
+      console.error('Supabase test connection exception:', err);
+      return { success: false, error: err?.message || 'Impossibile contattare Supabase (Failed to fetch)' };
+    }
+  },
 };
+
 
 
 

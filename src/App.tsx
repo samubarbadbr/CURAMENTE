@@ -189,7 +189,19 @@ export default function App() {
     }
   }, [syncPin, loadEntries, periodFilter]);
 
+  // Test Supabase Connection
+  const handleTestConnection = useCallback(async () => {
+    showToast('Testing connessione Supabase...');
+    const res = await SyncService.testConnection();
+    if (res.success) {
+      showToast('Connessione Supabase OK!');
+    } else {
+      showToast(`Errore salvataggio: ${res.error || 'Connessione fallita'}`);
+    }
+  }, []);
+
   // Save Sync PIN
+
   const handleSaveSyncPin = async (newPin: string) => {
     const cleanPin = newPin.trim().toLowerCase();
     setSyncPin(cleanPin);
@@ -889,6 +901,7 @@ export default function App() {
               onSaveSyncPin={handleSaveSyncPin}
               onManualSyncPush={() => handleSyncPush(syncPin)}
               onManualSyncPull={() => handleSyncPull(syncPin, true)}
+              onTestConnection={handleTestConnection}
               onExportJson={handleExportJson}
               onExportTxt={handleExportTxt}
               onExportCsv={handleExportCsv}
