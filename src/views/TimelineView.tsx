@@ -1,6 +1,6 @@
 import React from 'react';
 import { CbtEntry, Tag, PeriodFilter } from '../types';
-import { Calendar, Sparkles, ChevronRight, Activity } from 'lucide-react';
+import { Calendar, Sparkles, ChevronRight, Activity, Pencil } from 'lucide-react';
 import { CustomDropdown } from '../components/CustomDropdown';
 
 interface TimelineViewProps {
@@ -9,6 +9,7 @@ interface TimelineViewProps {
   periodFilter: PeriodFilter;
   onFilterChange: (period: PeriodFilter) => void;
   onSelectEntry: (entryId: string) => void;
+  onEditEntry?: (entryId: string) => void;
   onNewEntry: () => void;
 }
 
@@ -18,6 +19,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   periodFilter,
   onFilterChange,
   onSelectEntry,
+  onEditEntry,
   onNewEntry,
 }) => {
   const getTagLabels = (tagIds: string[]) => {
@@ -145,19 +147,36 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                       onClick={() => onSelectEntry(entry.id)}
                       className="glass-panel rounded-[20px] p-4 sm:p-5 transition-all duration-150 hover:shadow-md hover:-translate-y-0.5 active:scale-98 cursor-pointer border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] group space-y-3"
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-black text-[#15251C] dark:text-[#EEF3EF]">
                           {formatTime(entry.eventDatetime)}
                         </span>
 
-                        <div className={`inline-flex items-center space-x-2 px-2.5 py-1 rounded-full text-xs font-black border ${anxietyBadgeStyle}`}>
-                          <Activity className="w-3.5 h-3.5 shrink-0 stroke-[2.5]" />
-                          <span>Ansia {anxiety}</span>
-                          <div className="w-10 h-1.5 rounded-full bg-[#EBF0EC] dark:bg-[#2B3A31] overflow-hidden ml-1">
-                            <div
-                              className={`h-full rounded-full ${barColor}`}
-                              style={{ width: `${anxiety}%` }}
-                            />
+                        <div className="flex items-center space-x-2">
+                          {onEditEntry && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditEntry(entry.id);
+                              }}
+                              className="p-1.5 rounded-lg bg-[#5B67CA]/10 hover:bg-[#5B67CA] text-[#5B67CA] hover:text-white dark:text-[#9CA6DC] transition-all duration-150 cursor-pointer"
+                              title="Modifica scheda"
+                              aria-label="Modifica scheda"
+                            >
+                              <Pencil className="w-3.5 h-3.5 stroke-[2.5]" />
+                            </button>
+                          )}
+
+                          <div className={`inline-flex items-center space-x-2 px-2.5 py-1 rounded-full text-xs font-black border ${anxietyBadgeStyle}`}>
+                            <Activity className="w-3.5 h-3.5 shrink-0 stroke-[2.5]" />
+                            <span>Ansia {anxiety}</span>
+                            <div className="w-10 h-1.5 rounded-full bg-[#EBF0EC] dark:bg-[#2B3A31] overflow-hidden ml-1">
+                              <div
+                                className={`h-full rounded-full ${barColor}`}
+                                style={{ width: `${anxiety}%` }}
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -169,9 +188,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                       <div className="flex items-center justify-between pt-1">
                         <div className="flex flex-wrap gap-1.5">
                           {emotionLabels.length > 0 ? (
-                            emotionLabels.map((lbl) => (
+                            emotionLabels.map((lbl, idx) => (
                               <span
-                                key={lbl}
+                                key={`t-lbl-${lbl}-${idx}`}
                                 className="px-2.5 py-1 rounded-full text-xs font-bold bg-[#EBF0EC] dark:bg-[#212E27] text-[#15251C] dark:text-[#EEF3EF] border border-[#C8D5CB] dark:border-[#2B3A31]"
                               >
                                 {lbl}

@@ -121,9 +121,9 @@ export const DetailView: React.FC<DetailViewProps> = ({
           </span>
           <div className="flex flex-wrap gap-1.5">
             {emotionLabels.length > 0 ? (
-              emotionLabels.map((lbl) => (
+              emotionLabels.map((lbl, idx) => (
                 <span
-                  key={lbl}
+                  key={`emo-${lbl}-${idx}`}
                   className="px-3 py-1 rounded-full text-xs font-bold bg-[#E8EFEA] dark:bg-[#212E27] text-[#14241B] dark:text-[#EEF3EF] border border-[#C8D4CB] dark:border-[#2B3A31]"
                 >
                   {lbl}
@@ -166,9 +166,9 @@ export const DetailView: React.FC<DetailViewProps> = ({
           </div>
           <div className="flex flex-wrap gap-1.5">
             {physicalLabels.length > 0 ? (
-              physicalLabels.map((lbl) => (
+              physicalLabels.map((lbl, idx) => (
                 <span
-                  key={lbl}
+                  key={`phys-${lbl}-${idx}`}
                   className="px-3 py-1 rounded-full text-xs font-bold bg-[#2D5C3E]/15 text-[#14241B] dark:text-[#EEF3EF] border border-[#2D5C3E]/30"
                 >
                   {lbl}

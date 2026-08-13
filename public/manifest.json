@@ -1,0 +1,24 @@
+{
+  "short_name": "Curamente",
+  "name": "Diario Mente - Curamente CBT",
+  "description": "Diario e monitoraggio CBT clinico per la salute mentale",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "./",
+  "background_color": "#EBF0EC",
+  "theme_color": "#EBF0EC",
+  "display": "standalone",
+  "orientation": "portrait"
+}

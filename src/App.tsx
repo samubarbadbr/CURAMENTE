@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CbtEntry, Tag, ViewType, PeriodFilter, ThemeMode } from './types';
 import { DB, seedDefaultTagsIfNeeded, createBlankEntry, openDatabase } from './services/db';
+import { SyncService } from './services/sync';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { LockScreen } from './components/LockScreen';
@@ -32,6 +33,11 @@ export default function App() {
   const [pinEnabled, setPinEnabled] = useState(false);
   const [pinCode, setPinCode] = useState<string>('');
   const [isLocked, setIsLocked] = useState(false);
+
+  // Cloud Sync state
+  const [syncPin, setSyncPin] = useState<string>('');
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
 
   // Network & UI Feedback
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -100,6 +106,98 @@ export default function App() {
     }
   }, []);
 
+  // Sync Push function
+  const handleSyncPush = useCallback(async (pinToUse?: string) => {
+    const pin = pinToUse || syncPin;
+    if (!pin) return;
+
+    setSyncStatus('syncing');
+    try {
+      const allEntries = await DB.getAll<CbtEntry>('entries');
+      const tags = await DB.getAll<Tag>('tags');
+
+      const res = await SyncService.push(pin, { entries: allEntries, tags });
+      if (res.success) {
+        setSyncStatus('synced');
+        setLastSyncedAt(res.updatedAt || new Date().toISOString());
+      } else {
+        setSyncStatus('error');
+      }
+    } catch (err) {
+      console.error('Sync push failed:', err);
+      setSyncStatus('error');
+    }
+  }, [syncPin]);
+
+  // Sync Pull function
+  const handleSyncPull = useCallback(async (pinToUse?: string) => {
+    const pin = pinToUse || syncPin;
+    if (!pin) return;
+
+    setSyncStatus('syncing');
+    try {
+      const res = await SyncService.pull(pin);
+      if (res.success && res.data) {
+        // Merge cloud entries into local IndexedDB
+        if (res.data.entries && Array.isArray(res.data.entries)) {
+          for (const entry of res.data.entries) {
+            await DB.put('entries', entry);
+          }
+        }
+        if (res.data.tags && Array.isArray(res.data.tags)) {
+          for (const tag of res.data.tags) {
+            await DB.put('tags', tag);
+          }
+        }
+
+        const updatedTags = await DB.getAll<Tag>('tags');
+        setAllTags(updatedTags);
+        await loadEntries(periodFilter);
+
+        setSyncStatus('synced');
+        setLastSyncedAt(res.data.updatedAt || new Date().toISOString());
+      } else {
+        setSyncStatus('idle');
+      }
+    } catch (err) {
+      console.error('Sync pull failed:', err);
+      setSyncStatus('error');
+    }
+  }, [syncPin, loadEntries, periodFilter]);
+
+  // Save Sync PIN
+  const handleSaveSyncPin = async (newPin: string) => {
+    const cleanPin = newPin.trim().toLowerCase();
+    setSyncPin(cleanPin);
+    await DB.put('settings', { key: 'sync_pin', value: cleanPin });
+    showToast(`PIN Cloud impostato: ${cleanPin}`);
+
+    // Try pulling from cloud first for existing data on this PIN
+    const pullRes = await SyncService.pull(cleanPin);
+    if (pullRes.success && pullRes.data && pullRes.data.entries?.length) {
+      if (pullRes.data.entries && Array.isArray(pullRes.data.entries)) {
+        for (const entry of pullRes.data.entries) {
+          await DB.put('entries', entry);
+        }
+      }
+      if (pullRes.data.tags && Array.isArray(pullRes.data.tags)) {
+        for (const tag of pullRes.data.tags) {
+          await DB.put('tags', tag);
+        }
+      }
+      const updatedTags = await DB.getAll<Tag>('tags');
+      setAllTags(updatedTags);
+      await loadEntries(periodFilter);
+      setSyncStatus('synced');
+      setLastSyncedAt(pullRes.data.updatedAt || new Date().toISOString());
+      showToast('Dati scaricati dal Cloud');
+    } else {
+      // If no data on cloud, push local data up to cloud
+      await handleSyncPush(cleanPin);
+      showToast('Dati sincronizzati sul Cloud');
+    }
+  };
+
   // Bootstrap app data
   useEffect(() => {
     let isMounted = true;
@@ -128,6 +226,32 @@ export default function App() {
             setPinCode(pinCodeRow.value);
             setIsLocked(true);
           }
+        }
+
+        // Load saved Cloud Sync PIN
+        const syncPinRow = await DB.get<{ key: string; value: string }>('settings', 'sync_pin');
+        if (syncPinRow?.value && isMounted) {
+          setSyncPin(syncPinRow.value);
+          // Initial background sync pull
+          SyncService.pull(syncPinRow.value).then(async (res) => {
+            if (res.success && res.data) {
+              if (res.data.entries && Array.isArray(res.data.entries)) {
+                for (const entry of res.data.entries) {
+                  await DB.put('entries', entry);
+                }
+              }
+              if (res.data.tags && Array.isArray(res.data.tags)) {
+                for (const tag of res.data.tags) {
+                  await DB.put('tags', tag);
+                }
+              }
+              const updatedTags = await DB.getAll<Tag>('tags');
+              setAllTags(updatedTags);
+              await loadEntries('30');
+              setSyncStatus('synced');
+              setLastSyncedAt(res.data.updatedAt || new Date().toISOString());
+            }
+          }).catch(console.error);
         }
 
         if (isMounted) {
@@ -205,6 +329,11 @@ export default function App() {
       await loadEntries(periodFilter);
       setCurrentView('timeline');
       setEntryDraft(null);
+
+      // Auto cloud sync
+      if (syncPin) {
+        handleSyncPush(syncPin);
+      }
     } catch (err) {
       console.error(err);
       showToast('Errore durante il salvataggio');
@@ -224,6 +353,11 @@ export default function App() {
         showToast('Voce eliminata');
         await loadEntries(periodFilter);
         setCurrentView('timeline');
+
+        // Auto cloud sync
+        if (syncPin) {
+          handleSyncPush(syncPin);
+        }
       },
     });
   };
@@ -240,6 +374,10 @@ export default function App() {
     const updatedTags = await DB.getAll<Tag>('tags');
     setAllTags(updatedTags);
     showToast(`Tag "${label}" aggiunto`);
+
+    if (syncPin) {
+      handleSyncPush(syncPin);
+    }
   };
 
   // Delete custom tag
@@ -248,6 +386,10 @@ export default function App() {
     const updatedTags = await DB.getAll<Tag>('tags');
     setAllTags(updatedTags);
     showToast('Tag eliminato');
+
+    if (syncPin) {
+      handleSyncPush(syncPin);
+    }
   };
 
   // PIN settings toggle
@@ -277,7 +419,7 @@ export default function App() {
     const tags = await DB.getAll<Tag>('tags');
     const payload = {
       exportedAt: new Date().toISOString(),
-      appName: 'Diario Mente',
+      appName: 'Curamente',
       entries: allEntries,
       tags,
     };
@@ -286,7 +428,7 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `diario-mente-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `curamente-backup-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -307,7 +449,7 @@ export default function App() {
     const tagMap = new Map(allTags.map((t) => [t.id, t.label]));
 
     let txtContent = `==================================================\n`;
-    txtContent += `DIARIO MENTE - REGISTRO DOMANDE & RISPOSTE CBT\n`;
+    txtContent += `CURAMENTE - REGISTRO DOMANDE & RISPOSTE CBT\n`;
     txtContent += `Data Esportazione: ${new Date().toLocaleString('it-IT')}\n`;
     txtContent += `Totale Registrazioni: ${allEntries.length}\n`;
     txtContent += `==================================================\n\n`;
@@ -345,7 +487,7 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `diario-mente-registrazioni-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.download = `curamente-registrazioni-${new Date().toISOString().slice(0, 10)}.txt`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -427,7 +569,7 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `diario-mente-dati-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `curamente-dati-${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -466,6 +608,10 @@ export default function App() {
             setAllTags(updatedTags);
             await loadEntries(periodFilter);
             showToast('Backup importato con successo');
+
+            if (syncPin) {
+              handleSyncPush(syncPin);
+            }
           },
         });
       } catch {
@@ -543,7 +689,7 @@ export default function App() {
       <html lang="it">
       <head>
         <meta charset="UTF-8">
-        <title>Report Seduta Terapeutica CBT - Diario Mente</title>
+        <title>Report Seduta Terapeutica CBT - Curamente</title>
         <style>
           body { font-family: system-ui, -apple-system, sans-serif; color: #1a201c; padding: 32px; background: #fff; }
           .header { border-bottom: 2px solid #7B8CDE; padding-bottom: 16px; margin-bottom: 24px; }
@@ -558,7 +704,7 @@ export default function App() {
       </head>
       <body>
         <div class="header">
-          <h1>Diario Mente — Report Consultazione CBT</h1>
+          <h1>Curamente — Report Consultazione CBT</h1>
           <p class="subtitle">Generato il ${new Date().toLocaleDateString('it-IT')} — Totale voci registrate: ${reportEntries.length}</p>
         </div>
         <table>
@@ -579,7 +725,7 @@ export default function App() {
           </tbody>
         </table>
         <div class="footer">
-          Documento riservato generato da Diario Mente PWA. Tutti i dati sono rimasti privati ed elaborati offline nel browser del paziente.
+          Documento riservato generato da Curamente PWA. Tutti i dati sono elaborati in modo sicuro.
         </div>
         <script>
           window.onload = function() {
@@ -599,7 +745,7 @@ export default function App() {
       <div className="min-h-screen flex items-center justify-center bg-[#EBF0EC] dark:bg-[#121915] text-[#15251C] dark:text-[#EEF3EF]">
         <div className="text-center space-y-3">
           <div className="w-10 h-10 border-4 border-[#5B67CA] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-bold tracking-wider uppercase text-[#15251C] dark:text-[#A7B6AC]">Inizializzazione Diario Mente...</p>
+          <p className="text-xs font-bold tracking-wider uppercase text-[#15251C] dark:text-[#A7B6AC]">Inizializzazione Curamente...</p>
         </div>
       </div>
     );
@@ -636,6 +782,7 @@ export default function App() {
                 setDetailEntryId(id);
                 setCurrentView('detail');
               }}
+              onEditEntry={handleOpenEditEntry}
               onNewEntry={handleOpenNewEntry}
             />
           )}
@@ -683,6 +830,12 @@ export default function App() {
                 applyTheme(m);
                 DB.put('settings', { key: 'theme_mode', value: m });
               }}
+              syncPin={syncPin}
+              syncStatus={syncStatus}
+              lastSyncedAt={lastSyncedAt}
+              onSaveSyncPin={handleSaveSyncPin}
+              onManualSyncPush={() => handleSyncPush(syncPin)}
+              onManualSyncPull={() => handleSyncPull(syncPin)}
               onExportJson={handleExportJson}
               onExportTxt={handleExportTxt}
               onExportCsv={handleExportCsv}
