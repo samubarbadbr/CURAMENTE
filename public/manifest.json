@@ -1,42 +1,16 @@
 {
-  "short_name": "Diario Mente",
-  "name": "Diario Mente - Curamente CBT",
-  "description": "Diario e monitoraggio CBT clinico per la salute mentale",
+  "short_name": "DiarioMente",
+  "name": "Diario Mente",
   "icons": [
     {
-      "src": "icon.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icon.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "apple-touch-icon.png",
-      "sizes": "180x180",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
+      "src": "./favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ],
   "start_url": "./",
   "background_color": "#EBF0EC",
   "theme_color": "#EBF0EC",
-  "display": "standalone",
-  "orientation": "portrait"
+  "display": "standalone"
 }
