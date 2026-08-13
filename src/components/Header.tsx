@@ -25,7 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div>
           <div className="flex items-center space-x-2">
             <h1 className="text-lg font-black tracking-tight text-[#15251C] dark:text-[#EEF3EF] leading-none">
-              Diariamente
+              Diario Mente
             </h1>
             {!isOnline && (
               <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/15 text-[#15251C] dark:text-[#EEF3EF] border border-amber-500/30">

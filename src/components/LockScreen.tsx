@@ -43,7 +43,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({ correctPin, onUnlock }) 
         </div>
 
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-[#15251C] dark:text-[#EEF3EF]">Diariamente</h1>
+          <h1 className="text-2xl font-black tracking-tight text-[#15251C] dark:text-[#EEF3EF]">Diario Mente</h1>
           <p className="text-sm font-bold text-[#37493D] dark:text-[#A7B6AC] mt-1">Inserisci il PIN a 4 cifre per accedere</p>
         </div>
 
