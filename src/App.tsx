@@ -326,6 +326,9 @@ export default function App() {
         }
       } catch (err) {
         console.error('Failed to bootstrap app:', err);
+        if (isMounted) {
+          setIsDbReady(true);
+        }
       }
     }
 
