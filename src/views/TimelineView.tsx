@@ -76,7 +76,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         <div className="space-y-0.5">
           <h2 className="text-2xl font-black text-[#15251C] dark:text-[#EEF3EF]">Timeline</h2>
           <p className="text-xs font-bold text-[#2C3E35] dark:text-[#D5E0D8]">
-            Le tue registrazioni CBT, dalla più recente
+            Le tue registrazioni quotidiane, dalla più recente
           </p>
         </div>
 
@@ -101,7 +101,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               Nessuna voce trovata
             </h3>
             <p className="text-xs font-bold text-[#2C3E35] dark:text-[#D5E0D8] max-w-xs mx-auto leading-relaxed">
-              Inizia a monitorare i tuoi pensieri e sintomi CBT premendo il pulsante "+".
+              Inizia a monitorare i tuoi pensieri e il tuo stato emotivo premendo il pulsante "+".
             </p>
           </div>
           <button

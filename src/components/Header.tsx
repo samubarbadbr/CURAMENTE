@@ -1,7 +1,6 @@
 import React from 'react';
-import { Plus, Sun, Moon, WifiOff } from 'lucide-react';
+import { Plus, Sun, Moon, WifiOff, Brain } from 'lucide-react';
 import { ViewType, ThemeMode } from '../types';
-import { APP_LOGO } from '../assets/logo';
 
 interface HeaderProps {
   currentView: ViewType;
@@ -20,12 +19,8 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-30 w-full glass-header px-5 py-3.5 flex items-center justify-between border-b transition-colors duration-200">
       <div className="flex items-center space-x-3">
-        <div className="w-10 h-10 rounded-2xl overflow-hidden shadow-md border border-[var(--border-solid)] bg-black flex items-center justify-center shrink-0">
-          <img
-            src={APP_LOGO}
-            alt="Diariamente Logo"
-            className="w-full h-full object-cover"
-          />
+        <div className="w-10 h-10 rounded-2xl overflow-hidden shadow-sm border border-[var(--border-solid)] bg-[var(--bg-surface)] flex items-center justify-center shrink-0">
+          <Brain className="w-6 h-6 text-[#3C4E43] dark:text-[#526E5C]" />
         </div>
         <div>
           <div className="flex items-center space-x-2">
@@ -40,7 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
           <p className="text-[11px] text-[var(--text-secondary)] font-extrabold mt-0.5 opacity-80">
-            Monitoraggio CBT
+            Monitoraggio Personale
           </p>
         </div>
       </div>

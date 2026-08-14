@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Delete, ShieldAlert } from 'lucide-react';
-import { APP_LOGO } from '../assets/logo';
+import { Delete, ShieldAlert, Brain } from 'lucide-react';
 
 interface LockScreenProps {
   correctPin: string;
@@ -39,12 +38,8 @@ export const LockScreen: React.FC<LockScreenProps> = ({ correctPin, onUnlock }) 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-[var(--bg-page)] text-[var(--text-primary)]">
       <div className="w-full max-w-sm text-center space-y-6 animate-fade-in">
-        <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl overflow-hidden shadow-2xl border-2 border-[var(--border-solid)] bg-black mx-auto">
-          <img
-            src={APP_LOGO}
-            alt="Diariamente Logo"
-            className="w-full h-full object-cover"
-          />
+        <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl shadow-xl border border-[var(--border-solid)] bg-[var(--bg-surface)] mx-auto">
+          <Brain className="w-10 h-10 text-[#3C4E43] dark:text-[#526E5C]" />
         </div>
 
         <div>

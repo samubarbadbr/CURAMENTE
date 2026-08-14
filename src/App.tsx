@@ -432,7 +432,7 @@ export default function App() {
     setConfirmModal({
       isOpen: true,
       title: 'Elimina Voce',
-      message: 'Sei sicuro di voler eliminare definitivamente questa registrazione CBT?',
+      message: 'Sei sicuro di voler eliminare definitivamente questa registrazione?',
       isDanger: true,
       onConfirm: async () => {
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
@@ -536,7 +536,7 @@ export default function App() {
     const tagMap = new Map(allTags.map((t) => [t.id, t.label]));
 
     let txtContent = `==================================================\n`;
-    txtContent += `CURAMENTE - REGISTRO DOMANDE & RISPOSTE CBT\n`;
+    txtContent += `DIARIAMENTE - REGISTRO E MONITORAGGIO PERSONALE\n`;
     txtContent += `Data Esportazione: ${new Date().toLocaleString('it-IT')}\n`;
     txtContent += `Totale Registrazioni: ${allEntries.length}\n`;
     txtContent += `==================================================\n\n`;
@@ -776,7 +776,7 @@ export default function App() {
       <html lang="it">
       <head>
         <meta charset="UTF-8">
-        <title>Report Seduta Terapeutica CBT - Curamente</title>
+        <title>Report Registrazioni - Diariamente</title>
         <style>
           body { font-family: system-ui, -apple-system, sans-serif; color: #1a201c; padding: 32px; background: #fff; }
           .header { border-bottom: 2px solid #7B8CDE; padding-bottom: 16px; margin-bottom: 24px; }
@@ -791,7 +791,7 @@ export default function App() {
       </head>
       <body>
         <div class="header">
-          <h1>Curamente — Report Consultazione CBT</h1>
+          <h1>Diariamente — Report Consultazione & Monitoraggio</h1>
           <p class="subtitle">Generato il ${new Date().toLocaleDateString('it-IT')} — Totale voci registrate: ${reportEntries.length}</p>
         </div>
         <table>

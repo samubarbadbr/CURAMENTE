@@ -64,7 +64,7 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
       <div className="flex items-center justify-between pt-1">
         <div>
           <h2 className="text-xl font-black text-[#14241B] dark:text-[#EEF3EF]">
-            {isEditing ? 'Modifica Voce CBT' : 'Nuova Voce CBT'}
+            {isEditing ? 'Modifica Registrazione' : 'Nuova Registrazione'}
           </h2>
           <p className="text-xs font-bold text-[#14241B] dark:text-[#D5E0D8] mt-0.5">
             Registra l'evento, i pensieri e i comportamenti

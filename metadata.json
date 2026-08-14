@@ -1,6 +1,6 @@
 {
   "name": "Diariamente",
-  "description": "Diario personale e monitoraggio terapeutico CBT con design premium multi-tema, 100% offline e privato.",
+  "description": "Diario personale e monitoraggio del benessere emotivo con design premium multi-tema, 100% offline e privato.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
