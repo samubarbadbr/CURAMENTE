@@ -14,6 +14,9 @@ export function formatSupabaseErrorMessage(errText: string): string {
     if (parsed.code === 'PGRST205' || (parsed.message && parsed.message.includes("Could not find the table"))) {
       return "Tabella 'user_sync_data' non trovata su Supabase. Esegui la query SQL fornita nell'SQL Editor di Supabase.";
     }
+    if (parsed.message && parsed.message.includes("in the schema cache")) {
+      return "Colonna mancante o cache schema da aggiornare su Supabase. Esegui lo script SQL di aggiornamento in Impostazioni.";
+    }
     if (parsed.code === '42501' || (parsed.message && (parsed.message.includes("permission denied") || parsed.message.includes("row-level security")))) {
       return "Permessi insufficienti su Supabase (RLS). Attiva la policy di accesso per la tabella 'user_sync_data'.";
     }
@@ -26,6 +29,9 @@ export function formatSupabaseErrorMessage(errText: string): string {
   if (errText.includes('PGRST205') || errText.includes('public.user_sync_data') || errText.includes('user_data')) {
     return "Tabella 'user_sync_data' non trovata su Supabase. Esegui la query SQL nell'SQL Editor di Supabase.";
   }
+  if (errText.includes('schema cache')) {
+    return "Struttura tabella Supabase non allineata. Esegui lo script SQL in Impostazioni per aggiungere le colonne.";
+  }
   return errText;
 }
 
@@ -36,32 +42,55 @@ export async function saveDataToCloud(pin: string, payloadData: any) {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       return { success: false, error: 'Dispositivo offline' };
     }
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/user_sync_data`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Prefer': 'resolution=merge-duplicates'
-      },
-      body: JSON.stringify({
-        user_id: cleanId,
-        pin: cleanId,
-        data: payloadData,
-        payload: payloadData,
-        updated_at: new Date().toISOString()
-      })
-    });
 
-    if (res.ok) {
-      console.log("Sincronizzazione riuscita su user_sync_data");
-      return { success: true };
-    } else {
-      const errText = await res.text();
-      const formatted = formatSupabaseErrorMessage(errText);
-      console.warn("Errore risposta sync:", formatted);
-      return { success: false, error: formatted };
+    const headers = {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Prefer': 'resolution=merge-duplicates'
+    };
+
+    // Try multiple column payload combinations to support any schema variation
+    const attempts = [
+      // Attempt 1: Full format with data & payload & pin
+      { user_id: cleanId, pin: cleanId, data: payloadData, payload: payloadData, updated_at: new Date().toISOString() },
+      // Attempt 2: payload column only (common Supabase format)
+      { user_id: cleanId, payload: payloadData, updated_at: new Date().toISOString() },
+      // Attempt 3: data column only
+      { user_id: cleanId, data: payloadData, updated_at: new Date().toISOString() },
+      // Attempt 4: pin as primary key with payload
+      { pin: cleanId, payload: payloadData, updated_at: new Date().toISOString() },
+      // Attempt 5: pin as primary key with data
+      { pin: cleanId, data: payloadData, updated_at: new Date().toISOString() }
+    ];
+
+    let lastError = '';
+
+    for (const bodyObj of attempts) {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/user_sync_data`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(bodyObj)
+        });
+
+        if (res.ok) {
+          console.log("Sincronizzazione riuscita su Supabase:", Object.keys(bodyObj));
+          return { success: true };
+        } else {
+          lastError = await res.text();
+          // If error is about missing table or RLS permission, don't keep trying columns
+          if (lastError.includes('PGRST205') || lastError.includes('42501') || lastError.includes('permission denied')) {
+            break;
+          }
+        }
+      } catch (postErr: any) {
+        lastError = postErr?.message || 'Errore di rete';
+      }
     }
+
+    const formatted = formatSupabaseErrorMessage(lastError);
+    return { success: false, error: formatted };
   } catch (err: any) {
     console.warn("Avviso sync cloud:", err?.message || err);
     return { success: false, error: err?.message || 'Connessione di rete non disponibile' };

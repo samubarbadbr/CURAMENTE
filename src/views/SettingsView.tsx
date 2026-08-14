@@ -75,7 +75,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const customTags = allTags.filter((t) => t.isCustom === 1);
 
-  const sqlScript = `-- 1. Crea la tabella 'user_sync_data' nel tuo progetto Supabase
+  const sqlScript = `-- 1. Crea o aggiorna la tabella 'user_sync_data' nel tuo progetto Supabase
 CREATE TABLE IF NOT EXISTS public.user_sync_data (
   user_id TEXT PRIMARY KEY,
   pin TEXT,
@@ -84,13 +84,22 @@ CREATE TABLE IF NOT EXISTS public.user_sync_data (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Assicura che tutte le colonne necessarie siano presenti
+ALTER TABLE public.user_sync_data ADD COLUMN IF NOT EXISTS data JSONB;
+ALTER TABLE public.user_sync_data ADD COLUMN IF NOT EXISTS payload JSONB;
+ALTER TABLE public.user_sync_data ADD COLUMN IF NOT EXISTS pin TEXT;
+ALTER TABLE public.user_sync_data ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
 -- 2. Abilita la sicurezza Row Level Security (RLS)
 ALTER TABLE public.user_sync_data ENABLE ROW LEVEL SECURITY;
 
--- 3. Crea la policy per consentire la sincronizzazione
+-- 3. Crea la policy per consentire la sincronizzazione anonima
 DROP POLICY IF EXISTS "Accesso completo anonimo" ON public.user_sync_data;
 CREATE POLICY "Accesso completo anonimo" ON public.user_sync_data
-  FOR ALL USING (true) WITH CHECK (true);`;
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- 4. Ricarica la cache dello schema per applicare subito le modifiche
+NOTIFY pgrst, 'reload schema';`;
 
   const handleCopySql = () => {
     navigator.clipboard.writeText(sqlScript);
