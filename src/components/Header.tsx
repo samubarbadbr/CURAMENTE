@@ -1,6 +1,7 @@
 import React from 'react';
-import { Brain, Plus, Sun, Moon, WifiOff } from 'lucide-react';
+import { Plus, Sun, Moon, WifiOff } from 'lucide-react';
 import { ViewType, ThemeMode } from '../types';
+import { APP_LOGO } from '../assets/logo';
 
 interface HeaderProps {
   currentView: ViewType;
@@ -17,24 +18,28 @@ export const Header: React.FC<HeaderProps> = ({
   isOnline,
 }) => {
   return (
-    <header className="sticky top-0 z-30 w-full glass-header bg-white dark:bg-[#121915] px-5 py-3.5 flex items-center justify-between border-b border-[#C8D5CB] dark:border-[#2B3A31]">
-      <div className="flex items-center space-x-2.5">
-        <div className="p-2.5 rounded-2xl bg-[#5B67CA]/15 text-[#5B67CA] dark:text-[#9CA6DC] border border-[#5B67CA]/30 shadow-sm">
-          <Brain className="w-5 h-5 stroke-[2.5]" />
+    <header className="sticky top-0 z-30 w-full glass-header px-5 py-3.5 flex items-center justify-between border-b transition-colors duration-200">
+      <div className="flex items-center space-x-3">
+        <div className="w-10 h-10 rounded-2xl overflow-hidden shadow-md border border-[var(--border-solid)] bg-black flex items-center justify-center shrink-0">
+          <img
+            src={APP_LOGO}
+            alt="Diariamente Logo"
+            className="w-full h-full object-cover"
+          />
         </div>
         <div>
           <div className="flex items-center space-x-2">
-            <h1 className="text-lg font-black tracking-tight text-[#15251C] dark:text-[#EEF3EF] leading-none">
-              Diario Mente
+            <h1 className="text-lg font-black tracking-tight text-[var(--text-primary)] leading-none">
+              Diariamente
             </h1>
             {!isOnline && (
-              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/15 text-[#15251C] dark:text-[#EEF3EF] border border-amber-500/30">
+              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30">
                 <WifiOff className="w-3 h-3" />
                 <span>Offline</span>
               </span>
             )}
           </div>
-          <p className="text-[11px] text-[#2C3E35] dark:text-[#D5E0D8] font-extrabold mt-0.5">
+          <p className="text-[11px] text-[var(--text-secondary)] font-extrabold mt-0.5 opacity-80">
             Monitoraggio CBT
           </p>
         </div>
@@ -44,10 +49,10 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           type="button"
           onClick={onToggleTheme}
-          className="p-2.5 min-h-[44px] min-w-[44px] rounded-full text-[#15251C] dark:text-[#EEF3EF] bg-[#F7FAFC] dark:bg-[#1B2520] hover:bg-[#EBF0EC] dark:hover:bg-[#2B3A31] active:scale-95 transition-all duration-150 border border-[#C8D5CB] dark:border-[#2B3A31] shadow-sm cursor-pointer flex items-center justify-center"
+          className="p-2.5 min-h-[44px] min-w-[44px] rounded-full text-[var(--text-primary)] bg-[var(--bg-surface)] hover:opacity-80 active:scale-95 transition-all duration-150 border border-[var(--border-solid)] shadow-sm cursor-pointer flex items-center justify-center"
           aria-label="Cambia tema"
         >
-          {themeMode === 'dark' ? (
+          {themeMode === 'dark' || themeMode === 'ocean' ? (
             <Sun className="w-4 h-4 text-amber-400" />
           ) : (
             <Moon className="w-4 h-4 text-[#5B67CA]" />
@@ -66,3 +71,4 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
+

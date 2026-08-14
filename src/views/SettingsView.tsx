@@ -75,19 +75,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const customTags = allTags.filter((t) => t.isCustom === 1);
 
-  const sqlScript = `-- 1. Crea la tabella 'user_data' nel tuo progetto Supabase
-CREATE TABLE IF NOT EXISTS public.user_data (
-  pin TEXT PRIMARY KEY,
+  const sqlScript = `-- 1. Crea la tabella 'user_sync_data' nel tuo progetto Supabase
+CREATE TABLE IF NOT EXISTS public.user_sync_data (
+  user_id TEXT PRIMARY KEY,
+  pin TEXT,
   data JSONB,
   payload JSONB,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Abilita la sicurezza RLS
-ALTER TABLE public.user_data ENABLE ROW LEVEL SECURITY;
+-- 2. Abilita la sicurezza Row Level Security (RLS)
+ALTER TABLE public.user_sync_data ENABLE ROW LEVEL SECURITY;
 
--- 3. Crea la policy per consentire la sincronizzazione anonima via PIN
-CREATE POLICY "Accesso completo anonimo" ON public.user_data
+-- 3. Crea la policy per consentire la sincronizzazione
+DROP POLICY IF EXISTS "Accesso completo anonimo" ON public.user_sync_data;
+CREATE POLICY "Accesso completo anonimo" ON public.user_sync_data
   FOR ALL USING (true) WITH CHECK (true);`;
 
   const handleCopySql = () => {

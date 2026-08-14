@@ -66,21 +66,39 @@ export default function App() {
   // Apply Theme
   const applyTheme = useCallback((mode: ThemeMode) => {
     const root = document.documentElement;
+    const body = document.body;
     root.classList.remove('dark', 'theme-light', 'theme-dark', 'theme-lavender', 'theme-ocean');
+    body.classList.remove('dark', 'theme-light', 'theme-dark', 'theme-lavender', 'theme-ocean');
 
     let effectiveMode = mode;
     if (mode === 'auto') {
       effectiveMode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
 
+    root.setAttribute('data-theme', mode);
+    body.setAttribute('data-theme', mode);
+
+    try {
+      localStorage.setItem('diariamente_theme', mode);
+      localStorage.setItem('diario_mente_theme', mode);
+    } catch {}
+
     if (effectiveMode === 'dark') {
       root.classList.add('dark', 'theme-dark');
+      body.classList.add('dark', 'theme-dark');
+      root.style.colorScheme = 'dark';
     } else if (effectiveMode === 'lavender') {
       root.classList.add('theme-lavender');
+      body.classList.add('theme-lavender');
+      root.style.colorScheme = 'light';
     } else if (effectiveMode === 'ocean') {
       root.classList.add('dark', 'theme-ocean');
+      body.classList.add('dark', 'theme-ocean');
+      root.style.colorScheme = 'dark';
     } else {
       root.classList.add('theme-light');
+      body.classList.add('theme-light');
+      root.style.colorScheme = 'light';
     }
   }, []);
 
@@ -821,7 +839,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-[#EBF0EC] dark:bg-[#121915] text-[#15251C] dark:text-[#EEF3EF] flex flex-col font-sans transition-colors duration-200">
+    <div className="min-h-screen w-full app-root-container flex flex-col font-sans transition-colors duration-200">
       {/* Lock screen overlay if PIN lock is enabled */}
       {isLocked && (
         <LockScreen

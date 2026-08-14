@@ -12,10 +12,10 @@ export function formatSupabaseErrorMessage(errText: string): string {
   try {
     const parsed = JSON.parse(errText);
     if (parsed.code === 'PGRST205' || (parsed.message && parsed.message.includes("Could not find the table"))) {
-      return "Tabella 'user_data' non trovata su Supabase. Crea la tabella nell'SQL Editor di Supabase (vedi le istruzioni nelle Impostazioni).";
+      return "Tabella 'user_sync_data' non trovata su Supabase. Esegui la query SQL fornita nell'SQL Editor di Supabase.";
     }
     if (parsed.code === '42501' || (parsed.message && (parsed.message.includes("permission denied") || parsed.message.includes("row-level security")))) {
-      return "Permessi insufficienti su Supabase (RLS). Attiva la policy di accesso per la tabella 'user_data'.";
+      return "Permessi insufficienti su Supabase (RLS). Attiva la policy di accesso per la tabella 'user_sync_data'.";
     }
     if (parsed.message) {
       return parsed.message;
@@ -23,20 +23,20 @@ export function formatSupabaseErrorMessage(errText: string): string {
   } catch (e) {
     // string is not JSON
   }
-  if (errText.includes('PGRST205') || errText.includes('public.user_data')) {
-    return "Tabella 'user_data' non trovata su Supabase. Crea la tabella nell'SQL Editor di Supabase (vedi le istruzioni nelle Impostazioni).";
+  if (errText.includes('PGRST205') || errText.includes('public.user_sync_data') || errText.includes('user_data')) {
+    return "Tabella 'user_sync_data' non trovata su Supabase. Esegui la query SQL nell'SQL Editor di Supabase.";
   }
   return errText;
 }
 
 export async function saveDataToCloud(pin: string, payloadData: any) {
-  if (!pin) return { success: false, error: 'PIN mancante' };
-  const cleanPin = pin.trim().toLowerCase();
+  if (!pin) return { success: false, error: 'PIN / User ID mancante' };
+  const cleanId = pin.trim().toLowerCase();
   try {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       return { success: false, error: 'Dispositivo offline' };
     }
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/user_data`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/user_sync_data`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -45,7 +45,8 @@ export async function saveDataToCloud(pin: string, payloadData: any) {
         'Prefer': 'resolution=merge-duplicates'
       },
       body: JSON.stringify({
-        pin: cleanPin,
+        user_id: cleanId,
+        pin: cleanId,
         data: payloadData,
         payload: payloadData,
         updated_at: new Date().toISOString()
@@ -53,7 +54,7 @@ export async function saveDataToCloud(pin: string, payloadData: any) {
     });
 
     if (res.ok) {
-      console.log("Sincronizzazione riuscita");
+      console.log("Sincronizzazione riuscita su user_sync_data");
       return { success: true };
     } else {
       const errText = await res.text();
@@ -69,19 +70,31 @@ export async function saveDataToCloud(pin: string, payloadData: any) {
 
 export async function loadDataFromCloud(pin: string) {
   if (!pin) return null;
-  const cleanPin = pin.trim().toLowerCase();
+  const cleanId = pin.trim().toLowerCase();
   try {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       console.warn("Dispositivo offline, caricamento cloud saltato");
       return null;
     }
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/user_data?pin=eq.${encodeURIComponent(cleanPin)}&select=*`, {
+    // Try user_id first, fallback or pin
+    let res = await fetch(`${SUPABASE_URL}/rest/v1/user_sync_data?or=(user_id.eq.${encodeURIComponent(cleanId)},pin.eq.${encodeURIComponent(cleanId)})&select=*`, {
       method: 'GET',
       headers: {
         'apikey': SUPABASE_KEY,
         'Authorization': `Bearer ${SUPABASE_KEY}`
       }
     });
+
+    if (!res.ok) {
+      // Fallback simple query
+      res = await fetch(`${SUPABASE_URL}/rest/v1/user_sync_data?user_id=eq.${encodeURIComponent(cleanId)}&select=*`, {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`
+        }
+      });
+    }
     
     if (res.ok) {
       const data = await res.json();
@@ -94,6 +107,7 @@ export async function loadDataFromCloud(pin: string) {
   }
   return null;
 }
+
 
 
 
