@@ -77,14 +77,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const sqlScript = `-- 1. Crea o aggiorna la tabella 'user_sync_data' nel tuo progetto Supabase
 CREATE TABLE IF NOT EXISTS public.user_sync_data (
-  user_id TEXT PRIMARY KEY,
+  user_pin TEXT PRIMARY KEY,
   pin TEXT,
+  user_id TEXT,
   data JSONB,
   payload JSONB,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Assicura che tutte le colonne necessarie siano presenti
+ALTER TABLE public.user_sync_data ADD COLUMN IF NOT EXISTS user_pin TEXT;
+ALTER TABLE public.user_sync_data ADD COLUMN IF NOT EXISTS user_id TEXT;
 ALTER TABLE public.user_sync_data ADD COLUMN IF NOT EXISTS data JSONB;
 ALTER TABLE public.user_sync_data ADD COLUMN IF NOT EXISTS payload JSONB;
 ALTER TABLE public.user_sync_data ADD COLUMN IF NOT EXISTS pin TEXT;

@@ -108,7 +108,7 @@ export const SyncService = {
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
         return { success: false, error: 'Dispositivo offline' };
       }
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/user_sync_data?select=user_id&limit=1`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/user_sync_data?select=*&limit=1`, {
         method: 'GET',
         headers: {
           'apikey': SUPABASE_KEY,

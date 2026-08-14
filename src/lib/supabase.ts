@@ -50,17 +50,18 @@ export async function saveDataToCloud(pin: string, payloadData: any) {
       'Prefer': 'resolution=merge-duplicates'
     };
 
-    // Try multiple column payload combinations to support any schema variation
+    // Try multiple column payload combinations to support user_pin, pin, and user_id schemas
     const attempts = [
-      // Attempt 1: Full format with data & payload & pin
+      // Format matching user_pin primary key table (User's active Supabase schema)
+      { user_pin: cleanId, pin: cleanId, data: payloadData, payload: payloadData, updated_at: new Date().toISOString() },
+      { user_pin: cleanId, payload: payloadData, updated_at: new Date().toISOString() },
+      { user_pin: cleanId, data: payloadData, updated_at: new Date().toISOString() },
+      // Format matching user_id primary key table
       { user_id: cleanId, pin: cleanId, data: payloadData, payload: payloadData, updated_at: new Date().toISOString() },
-      // Attempt 2: payload column only (common Supabase format)
       { user_id: cleanId, payload: payloadData, updated_at: new Date().toISOString() },
-      // Attempt 3: data column only
       { user_id: cleanId, data: payloadData, updated_at: new Date().toISOString() },
-      // Attempt 4: pin as primary key with payload
+      // Format matching pin primary key table
       { pin: cleanId, payload: payloadData, updated_at: new Date().toISOString() },
-      // Attempt 5: pin as primary key with data
       { pin: cleanId, data: payloadData, updated_at: new Date().toISOString() }
     ];
 
@@ -105,30 +106,30 @@ export async function loadDataFromCloud(pin: string) {
       console.warn("Dispositivo offline, caricamento cloud saltato");
       return null;
     }
-    // Try user_id first, fallback or pin
-    let res = await fetch(`${SUPABASE_URL}/rest/v1/user_sync_data?or=(user_id.eq.${encodeURIComponent(cleanId)},pin.eq.${encodeURIComponent(cleanId)})&select=*`, {
-      method: 'GET',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`
-      }
-    });
 
-    if (!res.ok) {
-      // Fallback simple query
-      res = await fetch(`${SUPABASE_URL}/rest/v1/user_sync_data?user_id=eq.${encodeURIComponent(cleanId)}&select=*`, {
-        method: 'GET',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`
+    const headers = {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`
+    };
+
+    // Try queries matching user_pin, pin, and user_id columns
+    const queryUrls = [
+      `${SUPABASE_URL}/rest/v1/user_sync_data?user_pin=eq.${encodeURIComponent(cleanId)}&select=*`,
+      `${SUPABASE_URL}/rest/v1/user_sync_data?pin=eq.${encodeURIComponent(cleanId)}&select=*`,
+      `${SUPABASE_URL}/rest/v1/user_sync_data?user_id=eq.${encodeURIComponent(cleanId)}&select=*`
+    ];
+
+    for (const url of queryUrls) {
+      try {
+        const res = await fetch(url, { method: 'GET', headers });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0) {
+            return data[0].data || data[0].payload || data[0];
+          }
         }
-      });
-    }
-    
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.length > 0) {
-        return data[0].data || data[0].payload || data[0];
+      } catch (e) {
+        // try next column query
       }
     }
   } catch (err: any) {
