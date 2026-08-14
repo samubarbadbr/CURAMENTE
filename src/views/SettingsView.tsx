@@ -73,7 +73,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [showSqlGuide, setShowSqlGuide] = useState(false);
   const [copiedSql, setCopiedSql] = useState(false);
 
-  const customTags = allTags.filter((t) => t.isCustom === 1);
+  const customTags = React.useMemo(() => {
+    const seen = new Set<string>();
+    const list: Tag[] = [];
+    for (const t of allTags) {
+      if (t.isCustom !== 1) continue;
+      const key = `${t.category}:${t.label.trim().toLowerCase()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push(t);
+      }
+    }
+    return list;
+  }, [allTags]);
 
   const sqlScript = `-- 1. Crea o aggiorna la tabella 'user_sync_data' nel tuo progetto Supabase
 CREATE TABLE IF NOT EXISTS public.user_sync_data (

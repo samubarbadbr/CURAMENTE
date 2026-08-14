@@ -22,7 +22,19 @@ export const TagPicker: React.FC<TagPickerProps> = ({
   const [newLabel, setNewLabel] = useState('');
   const [isAdding, setIsAdding] = useState(false);
 
-  const categoryTags = allTags.filter((t) => t.category === category);
+  const categoryTags = React.useMemo(() => {
+    const seen = new Set<string>();
+    const list: Tag[] = [];
+    for (const t of allTags) {
+      if (!t || t.category !== category) continue;
+      const normalized = t.label.trim().toLowerCase();
+      if (!seen.has(normalized)) {
+        seen.add(normalized);
+        list.push(t);
+      }
+    }
+    return list;
+  }, [allTags, category]);
 
   const handleAdd = async (e?: React.FormEvent | React.MouseEvent | React.KeyboardEvent) => {
     if (e && 'preventDefault' in e) {

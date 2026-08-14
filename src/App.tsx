@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CbtEntry, Tag, ViewType, PeriodFilter, ThemeMode } from './types';
-import { DB, seedDefaultTagsIfNeeded, createBlankEntry, openDatabase } from './services/db';
+import { DB, seedDefaultTagsIfNeeded, cleanupAndDeduplicateTags, createBlankEntry, openDatabase } from './services/db';
 import { SyncService } from './services/sync';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
@@ -180,7 +180,7 @@ export default function App() {
           }
         }
 
-        const updatedTags = await DB.getAll<Tag>('tags');
+        const updatedTags = await cleanupAndDeduplicateTags();
         setAllTags(updatedTags);
         await loadEntries(periodFilter);
 
@@ -245,7 +245,7 @@ export default function App() {
           await DB.put('tags', tag);
         }
       }
-      const updatedTags = await DB.getAll<Tag>('tags');
+      const updatedTags = await cleanupAndDeduplicateTags();
       setAllTags(updatedTags);
       await loadEntries(periodFilter);
       setSyncStatus('synced');
@@ -274,7 +274,7 @@ export default function App() {
     async function init() {
       try {
         await openDatabase();
-        const tags = await seedDefaultTagsIfNeeded();
+        const tags = await cleanupAndDeduplicateTags();
         if (isMounted) setAllTags(tags);
 
         // Load saved theme or default to light
@@ -322,7 +322,7 @@ export default function App() {
                   await DB.put('tags', tag);
                 }
               }
-              const updatedTags = await DB.getAll<Tag>('tags');
+              const updatedTags = await cleanupAndDeduplicateTags();
               if (isMounted) {
                 setAllTags(updatedTags);
                 setSyncStatus('synced');
@@ -451,16 +451,28 @@ export default function App() {
 
   // Add custom tag
   const handleAddCustomTag = async (category: 'emotion' | 'physical_symptom', label: string) => {
+    const cleanLabel = label.trim();
+    if (!cleanLabel) return;
+
+    const existing = allTags.find(
+      (t) => t.category === category && t.label.trim().toLowerCase() === cleanLabel.toLowerCase()
+    );
+
+    if (existing) {
+      showToast(`"${cleanLabel}" è già presente nella lista`);
+      return;
+    }
+
     const newTag: Tag = {
-      id: 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9),
-      label: label.trim(),
+      id: 'tag-custom-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7),
+      label: cleanLabel,
       category,
       isCustom: 1,
     };
     await DB.put('tags', newTag);
-    const updatedTags = await DB.getAll<Tag>('tags');
+    const updatedTags = await cleanupAndDeduplicateTags();
     setAllTags(updatedTags);
-    showToast(`Tag "${label}" aggiunto`);
+    showToast(`Tag "${cleanLabel}" aggiunto`);
 
     if (syncPin) {
       handleSyncPush(syncPin);
@@ -470,7 +482,7 @@ export default function App() {
   // Delete custom tag
   const handleDeleteCustomTag = async (tagId: string) => {
     await DB.delete('tags', tagId);
-    const updatedTags = await DB.getAll<Tag>('tags');
+    const updatedTags = await cleanupAndDeduplicateTags();
     setAllTags(updatedTags);
     showToast('Tag eliminato');
 
@@ -691,7 +703,7 @@ export default function App() {
                 await DB.put('tags', tag);
               }
             }
-            const updatedTags = await DB.getAll<Tag>('tags');
+            const updatedTags = await cleanupAndDeduplicateTags();
             setAllTags(updatedTags);
             await loadEntries(periodFilter);
             showToast('Backup importato con successo');
