@@ -1,6 +1,6 @@
 import React from 'react';
 import { CbtEntry, Tag, PeriodFilter } from '../types';
-import { Calendar, Sparkles, ChevronRight, Activity, Pencil } from 'lucide-react';
+import { Calendar, Sparkles, ChevronRight, Activity, Pencil, Camera } from 'lucide-react';
 import { CustomDropdown } from '../components/CustomDropdown';
 
 interface TimelineViewProps {
@@ -148,9 +148,17 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                       className="glass-panel rounded-[20px] p-4 sm:p-5 transition-all duration-150 hover:shadow-md hover:-translate-y-0.5 active:scale-98 cursor-pointer border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] group space-y-3"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-black text-[#15251C] dark:text-[#EEF3EF]">
-                          {formatTime(entry.eventDatetime)}
-                        </span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs font-black text-[#15251C] dark:text-[#EEF3EF]">
+                            {formatTime(entry.eventDatetime)}
+                          </span>
+                          {entry.photo && (
+                            <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-[#5B67CA]/15 text-[#5B67CA] dark:text-[#9CA6DC] border border-[#5B67CA]/30" title="Foto allegata">
+                              <Camera className="w-3 h-3 stroke-[2.5]" />
+                              <span>Foto</span>
+                            </span>
+                          )}
+                        </div>
 
                         <div className="flex items-center space-x-2">
                           {onEditEntry && (

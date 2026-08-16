@@ -26,6 +26,7 @@ export interface CbtEntry {
   avoidanceType: string;
   avoidanceCount: number;
   overallAnxietyLevel: number; // 0-100
+  photo?: string; // Base64 encoded image for multi-device sync
   notes: string;
 }
 

@@ -370,6 +370,12 @@ export default function App() {
     if (isDbReady) {
       loadEntries(currentView === 'dashboard' ? dashPeriod : periodFilter);
     }
+    // Smooth scroll to top on view changes
+    try {
+      window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+    } catch {
+      window.scrollTo(0, 0);
+    }
   }, [periodFilter, dashPeriod, currentView, isDbReady, loadEntries]);
 
   // Toggle theme mode

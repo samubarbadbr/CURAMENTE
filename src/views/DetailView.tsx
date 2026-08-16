@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CbtEntry, Tag } from '../types';
-import { ArrowLeft, Pencil, Trash2, Calendar, MapPin, Brain, Activity, ShieldCheck, HelpCircle, Ban, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, Calendar, MapPin, Brain, Activity, ShieldCheck, HelpCircle, Ban, AlertCircle, Eye, EyeOff, Image as ImageIcon } from 'lucide-react';
 
 interface DetailViewProps {
   entry: CbtEntry;
@@ -17,6 +17,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
   onEdit,
   onDelete,
 }) => {
+  const [isPhotoObscured, setIsPhotoObscured] = useState(false);
   const getTagLabels = (tagIds: string[]) => {
     if (!tagIds || !tagIds.length) return [];
     return tagIds
@@ -89,11 +90,11 @@ export const DetailView: React.FC<DetailViewProps> = ({
       {/* SEZIONE A Cards */}
       <div className="space-y-3">
         <h3 className="text-xs font-black uppercase tracking-wider text-[#14241B] dark:text-[#EEF3EF] px-1">
-          Analisi della Situazione & Pensieri
+          ANALISI DELLA SITUAZIONE E DEI PENSIERI
         </h3>
 
         {/* Situazione */}
-        <div className="glass-panel rounded-[20px] p-4 space-y-1.5 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
+        <div className="glass-panel rounded-[20px] p-4 space-y-2.5 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
           <div className="flex items-center space-x-2 text-xs font-black text-[#14241B] dark:text-[#EEF3EF] uppercase tracking-wider">
             <MapPin className="w-3.5 h-3.5 text-[#5B67CA] dark:text-[#9CA6DC]" />
             <span>Situazione</span>
@@ -101,6 +102,59 @@ export const DetailView: React.FC<DetailViewProps> = ({
           <p className="text-sm font-black text-[#14241B] dark:text-[#EEF3EF] leading-relaxed">
             {entry.situation || <span className="italic font-bold text-[#14241B] dark:text-[#A7B6AC]">Non specificata</span>}
           </p>
+
+          {/* Foto allegata se presente */}
+          {entry.photo && (
+            <div className="pt-2 border-t border-[#E8EFEA] dark:border-[#2B3A31]/60 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-1.5 text-[11px] font-bold text-[#14241B] dark:text-[#EEF3EF]">
+                  <ImageIcon className="w-3.5 h-3.5 text-[#5B67CA] dark:text-[#9CA6DC]" />
+                  <span>Foto Allegata</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsPhotoObscured(!isPhotoObscured)}
+                  className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-bold bg-[#E8EFEA] dark:bg-[#2B3A31] text-[#14241B] dark:text-[#EEF3EF] hover:bg-[#5B67CA] hover:text-white transition-all cursor-pointer"
+                  title={isPhotoObscured ? 'Mostra foto' : 'Nascondi/Sfoca foto per privacy'}
+                >
+                  {isPhotoObscured ? (
+                    <>
+                      <Eye className="w-3.5 h-3.5" />
+                      <span className="text-[10px]">Mostra</span>
+                    </>
+                  ) : (
+                    <>
+                      <EyeOff className="w-3.5 h-3.5" />
+                      <span className="text-[10px]">Proteggi Privacy</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="relative rounded-xl overflow-hidden border border-[#C8D4CB] dark:border-[#2B3A31] bg-black/5 dark:bg-black/30 flex items-center justify-center min-h-[140px] max-h-[320px]">
+                <img
+                  src={entry.photo}
+                  alt="Foto allegata all'evento"
+                  className={`w-full max-h-[320px] object-contain rounded-xl transition-all duration-200 ${
+                    isPhotoObscured ? 'filter blur-xl opacity-20 scale-105' : 'filter-none opacity-100'
+                  }`}
+                />
+                {isPhotoObscured && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center p-4 bg-black/30 backdrop-blur-sm text-white">
+                    <EyeOff className="w-6 h-6 mb-1 text-white/90" />
+                    <span className="text-xs font-bold text-white/90">Foto oscurata per privacy</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsPhotoObscured(false)}
+                      className="mt-2 px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold backdrop-blur transition-all"
+                    >
+                      Tocca per visualizzare
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Trigger */}
