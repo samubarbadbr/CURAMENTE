@@ -15,7 +15,7 @@ export const Toast: React.FC<ToastProps> = ({ message }) => {
       className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-50 flex items-center space-x-2.5 px-5 py-3 rounded-full text-xs font-black shadow-2xl border animate-fade-in pointer-events-none max-w-[90vw] text-center ${
         isError
           ? 'bg-rose-950 text-rose-100 border-rose-500/60'
-          : 'bg-[#15251C] dark:bg-[#1B2520] text-white dark:text-[#EEF3EF] border-[#2C3E35] dark:border-[#2B3A31]'
+          : 'bg-[var(--bg-surface)] text-[var(--text-primary)] border-[var(--border-solid)] shadow-lg'
       }`}
     >
       {isError ? (
@@ -27,4 +27,3 @@ export const Toast: React.FC<ToastProps> = ({ message }) => {
     </div>
   );
 };
-

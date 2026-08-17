@@ -39,7 +39,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({ correctPin, onUnlock }) 
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-[var(--bg-page)] text-[var(--text-primary)]">
       <div className="w-full max-w-sm text-center space-y-6 animate-fade-in">
         <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl shadow-xl border border-[var(--border-solid)] bg-[var(--bg-surface)] mx-auto">
-          <Brain className="w-10 h-10 text-[#3C4E43] dark:text-[#526E5C]" />
+          <Brain className="w-10 h-10 text-[var(--accent-primary)]" />
         </div>
 
         <div>
@@ -58,8 +58,8 @@ export const LockScreen: React.FC<LockScreenProps> = ({ correctPin, onUnlock }) 
                   hasError
                     ? 'border-rose-500 bg-rose-500/30 animate-bounce'
                     : isFilled
-                    ? 'border-[#5B67CA] dark:border-[#9CA6DC] bg-[#5B67CA] dark:bg-[#8B95C9] scale-110 shadow-sm'
-                    : 'border-[#C8D4CB] dark:border-[#2B3A31] bg-transparent'
+                    ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)] scale-110 shadow-sm'
+                    : 'border-[var(--border-solid)] bg-transparent'
                 }`}
               />
             );
@@ -67,7 +67,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({ correctPin, onUnlock }) 
         </div>
 
         {hasError && (
-          <div className="flex items-center justify-center text-rose-600 dark:text-rose-400 text-xs font-black space-x-1 animate-pulse">
+          <div className="flex items-center justify-center text-rose-500 text-xs font-black space-x-1 animate-pulse">
             <ShieldAlert className="w-4 h-4" />
             <span>PIN errato, riprova.</span>
           </div>
@@ -80,7 +80,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({ correctPin, onUnlock }) 
               key={num}
               type="button"
               onClick={() => handleKeyPress(num)}
-              className="w-16 h-16 mx-auto rounded-full bg-white dark:bg-[#1B2520] border border-[#C8D4CB] dark:border-[#2B3A31] text-xl font-black text-[#14241B] dark:text-[#EEF3EF] hover:bg-[#E8EFEA] dark:hover:bg-[#2B3A31] active:scale-90 transition-all duration-150 flex items-center justify-center shadow-md cursor-pointer"
+              className="w-16 h-16 mx-auto rounded-full bg-[var(--bg-surface)] border border-[var(--border-solid)] text-xl font-black text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] active:scale-90 transition-all duration-150 flex items-center justify-center shadow-md cursor-pointer"
             >
               {num}
             </button>
@@ -89,14 +89,14 @@ export const LockScreen: React.FC<LockScreenProps> = ({ correctPin, onUnlock }) 
           <button
             type="button"
             onClick={() => handleKeyPress('0')}
-            className="w-16 h-16 mx-auto rounded-full bg-white dark:bg-[#1B2520] border border-[#C8D4CB] dark:border-[#2B3A31] text-xl font-black text-[#14241B] dark:text-[#EEF3EF] hover:bg-[#E8EFEA] dark:hover:bg-[#2B3A31] active:scale-90 transition-all duration-150 flex items-center justify-center shadow-md cursor-pointer"
+            className="w-16 h-16 mx-auto rounded-full bg-[var(--bg-surface)] border border-[var(--border-solid)] text-xl font-black text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] active:scale-90 transition-all duration-150 flex items-center justify-center shadow-md cursor-pointer"
           >
             0
           </button>
           <button
             type="button"
             onClick={handleDelete}
-            className="w-16 h-16 mx-auto rounded-full bg-transparent text-[#14241B] dark:text-[#A7B6AC] hover:text-[#14241B] dark:hover:text-[#EEF3EF] active:scale-90 transition-all duration-150 flex items-center justify-center cursor-pointer"
+            className="w-16 h-16 mx-auto rounded-full bg-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] active:scale-90 transition-all duration-150 flex items-center justify-center cursor-pointer"
             aria-label="Cancella cifra"
           >
             <Delete className="w-6 h-6" />

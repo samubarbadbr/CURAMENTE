@@ -3,86 +3,135 @@
 @variant dark (&:where(.dark, .dark *));
 
 /* =========================================================
-   THEME PALETTES & CSS VARIABLES
+   REFINED 4-THEME SYSTEM (Contrast-Checked & Distinct)
    ========================================================= */
 
-/* 1. Verde Salvia (Light Default) */
+/* 1. SCURO NEON / CYBER (Dark #050505, Surface #121212, Neon Emerald #00FF87) */
+html.theme-cyber,
+html[data-theme='cyber'],
+html.dark:not(.theme-midnight):not(.theme-minimal):not(.theme-earth):not(.theme-violet):not(.theme-amethyst) {
+  --bg-page: #050505;
+  --bg-surface: #121212;
+  --bg-subtle: #1C1C1C;
+  --border-solid: #282828;
+  --border-subtle: #1C1C1C;
+  --text-primary: #FFFFFF;
+  --text-secondary: #E0E0E0;
+  --text-muted: #A0A0A0;
+  --accent-primary: #00FF87;
+  --accent-btn: #00FF87;
+  --accent-btn-hover: #00E578;
+  --accent-btn-text: #050505;
+  --nav-active-bg: rgba(0, 255, 135, 0.16);
+  --nav-active-text: #00FF87;
+  --input-bg: #0A0A0A;
+  --badge-bg: rgba(0, 255, 135, 0.14);
+  --badge-text: #00FF87;
+  --badge-border: rgba(0, 255, 135, 0.35);
+  --ring-color: #00FF87;
+}
+
+/* 2. LIGHT MINIMAL / MINIMALISTA (Pure White #FFFFFF, Light Gray #F4F4F5, Deep Black #09090B, Emerald #059669) */
 :root,
+html.theme-minimal,
+html[data-theme='minimal'],
 html.theme-light,
 html[data-theme='light'] {
-  --bg-page: #EBF0EC;
-  --bg-surface: #FFFFFF;
-  --bg-subtle: #E2ECE5;
-  --border-solid: #C8D5CB;
-  --border-subtle: #DAE4DC;
-  --text-primary: #15251C;
-  --text-secondary: #2C3E35;
-  --text-muted: #4D6456;
-  --accent-primary: #3C4E43;
-  --accent-btn: #3C4E43;
-  --accent-btn-hover: #2B3A31;
-  --nav-active-bg: #DCE8E0;
-  --nav-active-text: #1E3326;
+  --bg-page: #FFFFFF;
+  --bg-surface: #F4F4F5;
+  --bg-subtle: #E4E4E7;
+  --border-solid: #D4D4D8;
+  --border-subtle: #E4E4E7;
+  --text-primary: #09090B;
+  --text-secondary: #3F3F46;
+  --text-muted: #71717A;
+  --accent-primary: #059669;
+  --accent-btn: #059669;
+  --accent-btn-hover: #047857;
+  --accent-btn-text: #FFFFFF;
+  --nav-active-bg: #E4F7ED;
+  --nav-active-text: #059669;
   --input-bg: #FFFFFF;
+  --badge-bg: #E4F7ED;
+  --badge-text: #047857;
+  --badge-border: #A7F3D0;
+  --ring-color: #059669;
 }
 
-/* 2. Lillà Mente (Lavender / Lilac Pastel) */
-html.theme-lavender,
-html[data-theme='lavender'],
-html[data-theme='lilac'] {
-  --bg-page: #F4EFFB;
-  --bg-surface: #FFFFFF;
-  --bg-subtle: #EAE1F7;
-  --border-solid: #D8CAEC;
-  --border-subtle: #E5DCF4;
-  --text-primary: #211238;
-  --text-secondary: #4B336B;
-  --text-muted: #6B528E;
-  --accent-primary: #6E44E8;
-  --accent-btn: #6E44E8;
-  --accent-btn-hover: #582FD4;
-  --nav-active-bg: #E8DDFA;
-  --nav-active-text: #582FD4;
-  --input-bg: #FFFFFF;
-}
-
-/* 3. Oceano Profondo (Deep Navy / Ocean Blue) */
+/* 3. MIDNIGHT BLUE / NOTTE (Deep Navy #0A1120, Dark Blue Surface #131F37, Cyan #38BDF8) */
+html.theme-midnight,
+html[data-theme='midnight'],
 html.theme-ocean,
 html[data-theme='ocean'] {
-  --bg-page: #091322;
-  --bg-surface: #0E1D33;
-  --bg-subtle: #142845;
-  --border-solid: #1E3B63;
-  --border-subtle: #264B7D;
-  --text-primary: #F0F6FC;
-  --text-secondary: #97B2D6;
-  --text-muted: #6D8EBA;
-  --accent-primary: #0284C7;
+  --bg-page: #0A1120;
+  --bg-surface: #131F37;
+  --bg-subtle: #1E2D4C;
+  --border-solid: #25385C;
+  --border-subtle: #192742;
+  --text-primary: #FFFFFF;
+  --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
+  --accent-primary: #38BDF8;
   --accent-btn: #0284C7;
   --accent-btn-hover: #0369A1;
-  --nav-active-bg: #1B365D;
+  --accent-btn-text: #FFFFFF;
+  --nav-active-bg: rgba(56, 189, 248, 0.18);
   --nav-active-text: #38BDF8;
-  --input-bg: #11233D;
+  --input-bg: #0D1629;
+  --badge-bg: rgba(56, 189, 248, 0.15);
+  --badge-text: #38BDF8;
+  --badge-border: rgba(56, 189, 248, 0.35);
+  --ring-color: #38BDF8;
 }
 
-/* 4. Scuro Notte (Dark Forest OLED) */
-html.dark,
-html.theme-dark,
-html[data-theme='dark'] {
-  --bg-page: #0F1613;
-  --bg-surface: #17231E;
-  --bg-subtle: #1F2E28;
-  --border-solid: #273A30;
-  --border-subtle: #344B3E;
-  --text-primary: #EEF4F0;
-  --text-secondary: #9EB2A6;
-  --text-muted: #738C7D;
-  --accent-primary: #4C725B;
-  --accent-btn: #4C725B;
-  --accent-btn-hover: #5E8A6F;
-  --nav-active-bg: #24382E;
-  --nav-active-text: #A6CEB7;
-  --input-bg: #1C2B24;
+/* 4. WARM EARTH / NATURA (Warm Cream/Sand #FDFBF7, Soft Beige #F3EFE6, Deep Brown #2C221E, Terracotta #C85A32) */
+html.theme-earth,
+html[data-theme='earth'] {
+  --bg-page: #FDFBF7;
+  --bg-surface: #F3EFE6;
+  --bg-subtle: #E8E2D5;
+  --border-solid: #DED6C7;
+  --border-subtle: #E8E2D5;
+  --text-primary: #2C221E;
+  --text-secondary: #54433A;
+  --text-muted: #7C6658;
+  --accent-primary: #C85A32;
+  --accent-btn: #C85A32;
+  --accent-btn-hover: #B24A24;
+  --accent-btn-text: #FFFFFF;
+  --nav-active-bg: #EAE1D2;
+  --nav-active-text: #C85A32;
+  --input-bg: #FDFBF7;
+  --badge-bg: #EAE1D2;
+  --badge-text: #C85A32;
+  --badge-border: #D8CCA8;
+  --ring-color: #C85A32;
+}
+
+/* 5. AMETISTA / DEEP VIOLET (Deep Violet #0F0C1B, Dark Violet Surface #18132B, Neon Lavender #A78BFA) */
+html.theme-violet,
+html[data-theme='violet'],
+html.theme-amethyst,
+html[data-theme='amethyst'] {
+  --bg-page: #0F0C1B;
+  --bg-surface: #18132B;
+  --bg-subtle: #261E42;
+  --border-solid: #3B2F62;
+  --border-subtle: #261E42;
+  --text-primary: #FFFFFF;
+  --text-secondary: #DDD6FE;
+  --text-muted: #A78BFA;
+  --accent-primary: #A78BFA;
+  --accent-btn: #8B5CF6;
+  --accent-btn-hover: #7C3AED;
+  --accent-btn-text: #FFFFFF;
+  --nav-active-bg: rgba(167, 139, 250, 0.20);
+  --nav-active-text: #C4B5FD;
+  --input-bg: #130F23;
+  --badge-bg: rgba(167, 139, 250, 0.16);
+  --badge-text: #C4B5FD;
+  --badge-border: rgba(167, 139, 250, 0.35);
+  --ring-color: #8B5CF6;
 }
 
 @layer base {
@@ -102,17 +151,17 @@ html[data-theme='dark'] {
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Headings default to full contrast */
+  /* Headings with high contrast */
   h1, h2, h3, h4, h5, h6 {
     font-weight: 800;
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
   }
 
-  /* Inputs & Selects */
+  /* Form Controls */
   input, textarea, select {
     color: var(--text-primary) !important;
     background-color: var(--input-bg) !important;
-    border: 1.5px solid var(--border-solid) !important;
+    border-color: var(--border-solid) !important;
   }
 
   input::placeholder, textarea::placeholder {
@@ -129,26 +178,25 @@ html[data-theme='dark'] {
   }
 }
 
-/* Glass panel / Cards */
+/* Base surface elements uniformly mapping to theme variables */
 .glass-panel {
   background-color: var(--bg-surface) !important;
   border: 1px solid var(--border-solid) !important;
   border-radius: 20px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
 
-/* Header */
 .glass-header, header {
   background-color: var(--bg-surface) !important;
   border-bottom: 1px solid var(--border-solid) !important;
   padding-top: calc(0.875rem + env(safe-area-inset-top, 0px));
 }
 
-/* Primary buttons */
 .btn-primary, button.btn-primary {
   background-color: var(--accent-btn) !important;
-  color: #FFFFFF !important;
+  color: var(--accent-btn-text) !important;
   font-weight: 800;
+  border: 1px solid transparent;
 }
 
 .btn-primary:hover, button.btn-primary:hover {
@@ -187,7 +235,7 @@ html[data-theme='dark'] {
   background-color: var(--bg-surface) !important;
   border: 1px solid var(--border-solid) !important;
   color: var(--text-primary) !important;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.22);
 }
 
 .dropdown-menu button {
@@ -197,6 +245,21 @@ html[data-theme='dark'] {
 .dropdown-menu button:hover {
   background-color: var(--nav-active-bg) !important;
   color: var(--nav-active-text) !important;
+}
+
+/* Privacy Blur Mode (Modalità Sguardo Veloce) */
+.privacy-blurred {
+  filter: blur(5px);
+  opacity: 0.5;
+  transition: filter 0.2s ease, opacity 0.2s ease;
+  user-select: none;
+}
+
+/* On desktop hover over card or when explicitly revealed */
+.privacy-card:hover .privacy-blurred,
+.privacy-revealed .privacy-blurred {
+  filter: blur(0px) !important;
+  opacity: 1 !important;
 }
 
 /* Animations */
@@ -230,7 +293,7 @@ html[data-theme='dark'] {
   border-radius: 999px;
 }
 
-/* Range input thumb */
+/* Range input slider thumb */
 input[type="range"]::-webkit-slider-thumb {
   appearance: none;
   width: 28px;
@@ -238,14 +301,14 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 50%;
   background: #ffffff;
   border: 4px solid var(--accent-btn);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   cursor: pointer;
   transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.15s ease;
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
   transform: scale(1.15);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
 }
 
 input[type="range"]::-moz-range-thumb {
@@ -254,7 +317,6 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 50%;
   background: #ffffff;
   border: 4px solid var(--accent-btn);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   cursor: pointer;
 }
-

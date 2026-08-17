@@ -13,7 +13,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({ className = 'w-10 h-10', i
     >
       <Brain
         size={iconSize}
-        className="w-6 h-6 text-[#3C4E43] dark:text-[#526E5C]"
+        className="w-6 h-6 text-[var(--accent-primary)]"
       />
     </div>
   );

@@ -1,40 +1,52 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { CbtEntry, Tag, FormTab } from '../types';
-import { GradientSlider } from '../components/GradientSlider';
-import { CounterInput } from '../components/CounterInput';
+import { CbtEntry, FormTab, Tag } from '../types';
 import { TagPicker } from '../components/TagPicker';
-import { Save, X, Layers, Activity, Camera, Eye, EyeOff, Trash2, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { GradientSlider } from '../components/GradientSlider';
+import {
+  Save,
+  X,
+  Plus,
+  Minus,
+  Layers,
+  Activity,
+  Camera,
+  Trash2,
+  Eye,
+  EyeOff,
+  Image as ImageIcon,
+  ChevronRight,
+  ChevronLeft,
+} from 'lucide-react';
 
 interface EntryFormViewProps {
   initialDraft: CbtEntry;
   allTags: Tag[];
   isEditing: boolean;
-  onSave: (draft: CbtEntry) => Promise<void>;
+  onSave: (entry: CbtEntry) => Promise<void>;
   onCancel: () => void;
   onAddCustomTag: (category: 'emotion' | 'physical_symptom', label: string) => Promise<void>;
 }
 
-/**
- * Resizes and converts an image file into a compressed Base64 JPEG string
- * for fast local persistence and lightweight Supabase cloud synchronization.
- */
+// Client-side image resize helper to keep IndexedDB and base64 sync fast & lightweight
 function processImageFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        const maxDim = 1200;
-        let width = img.width;
-        let height = img.height;
+        const maxWidth = 1000;
+        const maxHeight = 1000;
+        let { width, height } = img;
 
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
           }
         }
 
@@ -46,7 +58,6 @@ function processImageFile(file: File): Promise<string> {
           resolve(e.target?.result as string);
           return;
         }
-
         ctx.drawImage(img, 0, 0, width, height);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
         resolve(dataUrl);
@@ -169,10 +180,10 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
       {/* Header bar */}
       <div className="flex items-center justify-between pt-1">
         <div>
-          <h2 className="text-xl font-black text-[#14241B] dark:text-[#EEF3EF]">
+          <h2 className="text-xl font-black text-[var(--text-primary)]">
             {isEditing ? 'Modifica Registrazione' : 'Nuova Registrazione'}
           </h2>
-          <p className="text-xs font-bold text-[#14241B] dark:text-[#D5E0D8] mt-0.5">
+          <p className="text-xs font-bold text-[var(--text-secondary)] mt-0.5">
             Registra l'evento, i pensieri e i comportamenti
           </p>
         </div>
@@ -181,7 +192,7 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
           <button
             type="button"
             onClick={onCancel}
-            className="p-2.5 rounded-full text-[#14241B] dark:text-[#EEF3EF] hover:bg-[#E8EFEA] dark:hover:bg-[#2B3A31] active:scale-95 transition-all cursor-pointer"
+            className="p-2.5 rounded-full text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] active:scale-95 transition-all cursor-pointer"
             aria-label="Annulla"
           >
             <X className="w-5 h-5 stroke-[2.5]" />
@@ -189,26 +200,26 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
           <button
             type="submit"
             disabled={isSaving}
-            className="btn-primary inline-flex items-center space-x-1.5 px-4 py-2 rounded-full bg-[#5B67CA] hover:bg-[#4A55B8] text-white text-xs font-semibold shadow-md active:scale-95 transition-all duration-150 disabled:opacity-50 cursor-pointer"
+            className="btn-primary inline-flex items-center space-x-1.5 px-4 py-2 rounded-full text-xs font-semibold shadow-md active:scale-95 transition-all duration-150 disabled:opacity-50 cursor-pointer"
           >
-            <Save className="w-4 h-4 stroke-[2.5] text-white" />
-            <span className="text-white font-semibold">Salva</span>
+            <Save className="w-4 h-4 stroke-[2.5]" />
+            <span className="font-semibold">Salva</span>
           </button>
         </div>
       </div>
 
       {/* Animated Tab Switcher */}
-      <div className="p-1 rounded-[20px] bg-[#E8EFEA] dark:bg-[#1B2520] border border-[#C8D4CB] dark:border-[#2B3A31] flex">
+      <div className="p-1 rounded-[20px] bg-[var(--bg-subtle)] border border-[var(--border-solid)] flex">
         <button
           type="button"
           onClick={() => handleSwitchTab('section_a')}
           className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all duration-150 flex items-center justify-center space-x-1.5 active:scale-98 cursor-pointer ${
             activeTab === 'section_a'
-              ? 'bg-white dark:bg-[#212E27] text-[#14241B] dark:text-[#EEF3EF] shadow-sm border border-[#C8D4CB] dark:border-[#2B3A31]'
-              : 'text-[#14241B] dark:text-[#A7B6AC] hover:text-[#14241B] dark:hover:text-[#EEF3EF]'
+              ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm border border-[var(--border-solid)]'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
           }`}
         >
-          <Layers className="w-3.5 h-3.5 text-[#5B67CA] dark:text-[#9CA6DC]" />
+          <Layers className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
           <span>Sezione A: Analisi Rapida</span>
         </button>
         <button
@@ -216,11 +227,11 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
           onClick={() => handleSwitchTab('section_b')}
           className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all duration-150 flex items-center justify-center space-x-1.5 active:scale-98 cursor-pointer ${
             activeTab === 'section_b'
-              ? 'bg-white dark:bg-[#212E27] text-[#14241B] dark:text-[#EEF3EF] shadow-sm border border-[#C8D4CB] dark:border-[#2B3A31]'
-              : 'text-[#14241B] dark:text-[#A7B6AC] hover:text-[#14241B] dark:hover:text-[#EEF3EF]'
+              ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm border border-[var(--border-solid)]'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
           }`}
         >
-          <Activity className="w-3.5 h-3.5 text-[#2D5C3E] dark:text-[#6A9C78]" />
+          <Activity className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
           <span>Sezione B: Approfondito</span>
         </button>
       </div>
@@ -229,8 +240,8 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
       {activeTab === 'section_a' && (
         <div className="space-y-4 animate-fade-in">
           {/* Data e ora */}
-          <div className="glass-panel rounded-[20px] p-4 space-y-2 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
-            <label className="block text-xs font-black uppercase tracking-wider text-[#14241B] dark:text-[#EEF3EF]">
+          <div className="glass-panel rounded-[20px] p-4 space-y-2 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
+            <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
               DATA E ORA DELL'EVENTO
             </label>
             <input
@@ -238,13 +249,13 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               required
               value={toDatetimeLocalValue(draft.eventDatetime)}
               onChange={(e) => updateDraft('eventDatetime', new Date(e.target.value).toISOString())}
-              className="w-full px-3.5 py-2.5 text-sm font-bold rounded-xl border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] text-[#14241B] dark:text-[#EEF3EF] focus:ring-2 focus:ring-[#5B67CA] outline-none cursor-pointer"
+              className="w-full px-3.5 py-2.5 text-sm font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none cursor-pointer"
             />
           </div>
 
           {/* Situazione con Caricamento Foto */}
-          <div className="glass-panel rounded-[20px] p-4 space-y-3.5 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
-            <label className="block text-xs font-black uppercase tracking-wider text-[#14241B] dark:text-[#EEF3EF]">
+          <div className="glass-panel rounded-[20px] p-4 space-y-3.5 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
+            <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
               Situazione (Dove ti trovavi? Con chi?)
             </label>
             <textarea
@@ -252,11 +263,11 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               value={draft.situation}
               onChange={(e) => updateDraft('situation', e.target.value)}
               placeholder="Descrivi cosa stava succedendo in quel momento..."
-              className="w-full px-3.5 py-2.5 text-sm font-bold rounded-xl border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] text-[#14241B] dark:text-[#EEF3EF] focus:ring-2 focus:ring-[#5B67CA] outline-none resize-none placeholder:text-[#6C7A72] dark:placeholder:text-[#A7B6AC]"
+              className="w-full px-3.5 py-2.5 text-sm font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-none placeholder:text-[var(--text-muted)]"
             />
 
             {/* SEZIONE FOTO STILIZZATA */}
-            <div className="pt-2 border-t border-[#E8EFEA] dark:border-[#2B3A31]/60 space-y-3">
+            <div className="pt-2 border-t border-[var(--border-subtle)] space-y-3">
               {/* Native hidden file input */}
               <input
                 ref={fileInputRef}
@@ -268,8 +279,8 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               />
 
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center space-x-1.5 text-[11px] font-bold text-[#14241B] dark:text-[#EEF3EF]">
-                  <ImageIcon className="w-3.5 h-3.5 text-[#5B67CA] dark:text-[#9CA6DC]" />
+                <div className="flex items-center space-x-1.5 text-[11px] font-bold text-[var(--text-primary)]">
+                  <ImageIcon className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
                   <span>Foto della Situazione (Opzionale)</span>
                 </div>
 
@@ -279,9 +290,9 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isProcessingPhoto}
-                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#E8EFEA] dark:bg-[#2B3A31] text-[#14241B] dark:text-[#EEF3EF] border border-[#C8D4CB] dark:border-[#2B3A31] hover:bg-[#5B67CA] hover:text-white dark:hover:bg-[#5B67CA] transition-all duration-150 active:scale-95 cursor-pointer shadow-sm disabled:opacity-50"
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[var(--bg-subtle)] text-[var(--text-primary)] border border-[var(--border-solid)] hover:bg-[var(--accent-btn)] hover:text-[var(--accent-btn-text)] transition-all duration-150 active:scale-95 cursor-pointer shadow-sm disabled:opacity-50"
                   >
-                    <Camera className="w-3.5 h-3.5 text-[#5B67CA] dark:text-[#9CA6DC] group-hover:text-white" />
+                    <Camera className="w-3.5 h-3.5" />
                     <span>{draft.photo ? 'Cambia Foto' : 'Allega o Scatta Foto'}</span>
                   </button>
 
@@ -289,18 +300,18 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                     <button
                       type="button"
                       onClick={() => setIsPhotoObscured(!isPhotoObscured)}
-                      className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-[#E8EFEA] dark:bg-[#2B3A31] text-[#14241B] dark:text-[#EEF3EF] border border-[#C8D4CB] dark:border-[#2B3A31] hover:bg-[#5B67CA] hover:text-white transition-all duration-150 active:scale-95 cursor-pointer shadow-sm"
+                      className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-[var(--bg-subtle)] text-[var(--text-primary)] border border-[var(--border-solid)] hover:bg-[var(--accent-btn)] hover:text-[var(--accent-btn-text)] transition-all duration-150 active:scale-95 cursor-pointer shadow-sm"
                       title={isPhotoObscured ? 'Mostra foto' : 'Oscura / Sfoca foto per privacy'}
                       aria-label="Nascondi o mostra foto"
                     >
                       {isPhotoObscured ? (
                         <>
-                          <Eye className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                          <Eye className="w-3.5 h-3.5 text-emerald-500" />
                           <span className="text-[11px]">Mostra</span>
                         </>
                       ) : (
                         <>
-                          <EyeOff className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                          <EyeOff className="w-3.5 h-3.5 text-amber-500" />
                           <span className="text-[11px]">Oscura</span>
                         </>
                       )}
@@ -311,13 +322,13 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
 
               {/* Photo Preview Container */}
               {isProcessingPhoto && (
-                <div className="p-4 rounded-xl border border-dashed border-[#5B67CA] bg-[#5B67CA]/5 text-center text-xs font-bold text-[#5B67CA] animate-pulse">
+                <div className="p-4 rounded-xl border border-dashed border-[var(--accent-primary)] bg-[var(--bg-subtle)] text-center text-xs font-bold text-[var(--accent-primary)] animate-pulse">
                   Elaborazione e ottimizzazione foto in corso...
                 </div>
               )}
 
               {draft.photo && !isProcessingPhoto && (
-                <div className="relative rounded-2xl overflow-hidden border border-[#C8D4CB] dark:border-[#2B3A31] bg-black/5 dark:bg-black/30 flex items-center justify-center min-h-[140px] max-h-[320px]">
+                <div className="relative rounded-2xl overflow-hidden border border-[var(--border-solid)] bg-black/5 dark:bg-black/30 flex items-center justify-center min-h-[140px] max-h-[320px]">
                   <img
                     src={draft.photo}
                     alt="Foto situazione allegata"
@@ -361,108 +372,116 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
           </div>
 
           {/* Trigger */}
-          <div className="glass-panel rounded-[20px] p-4 space-y-2 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
-            <label className="block text-xs font-black uppercase tracking-wider text-[#14241B] dark:text-[#EEF3EF]">
+          <div className="glass-panel rounded-[20px] p-4 space-y-2 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
+            <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
               Fattori Scatenanti / Trigger
             </label>
             <textarea
               rows={2}
               value={draft.triggerFactors}
               onChange={(e) => updateDraft('triggerFactors', e.target.value)}
-              placeholder="Cosa ha innescato l'episodio o la reazione?"
-              className="w-full px-3.5 py-2.5 text-sm font-bold rounded-xl border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] text-[#14241B] dark:text-[#EEF3EF] focus:ring-2 focus:ring-[#5B67CA] outline-none resize-none placeholder:text-[#6C7A72] dark:placeholder:text-[#A7B6AC]"
+              placeholder="Cosa ha innescato la reazione d'ansia?"
+              className="w-full px-3.5 py-2.5 text-sm font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-none placeholder:text-[var(--text-muted)]"
             />
           </div>
 
-          {/* Emozioni Tag Picker */}
-          <div className="glass-panel rounded-[20px] p-4 space-y-3 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
-            <label className="block text-xs font-black uppercase tracking-wider text-[#14241B] dark:text-[#EEF3EF]">
+          {/* Tag Emozioni */}
+          <div className="glass-panel rounded-[20px] p-4 space-y-2.5 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
+            <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
               Emozioni Provate
             </label>
             <TagPicker
               category="emotion"
               allTags={allTags}
-              selectedTagIds={draft.emotionTagIds}
+              selectedTagIds={draft.emotionTagIds || []}
               onToggleTag={(id) => handleToggleTag('emotion', id)}
               onAddCustomTag={onAddCustomTag}
-              placeholder="Aggiungi altra emozione..."
+              placeholder="Aggiungi emozione personalizzata..."
             />
           </div>
 
-          {/* Pensiero Negativo & Slider Convinzione */}
-          <div className="glass-panel rounded-[20px] p-4 space-y-4 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
+          {/* Pensiero Negativo + Convinzione */}
+          <div className="glass-panel rounded-[20px] p-4 space-y-4 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
             <div className="space-y-2">
-              <label className="block text-xs font-black uppercase tracking-wider text-[#14241B] dark:text-[#EEF3EF]">
+              <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
                 Pensiero Negativo Automatico
               </label>
               <textarea
                 rows={2}
                 value={draft.negativeThought}
                 onChange={(e) => updateDraft('negativeThought', e.target.value)}
-                placeholder="Quale pensiero si è affacciato alla mente?"
-                className="w-full px-3.5 py-2.5 text-sm font-bold rounded-xl border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] text-[#14241B] dark:text-[#EEF3EF] focus:ring-2 focus:ring-[#5B67CA] outline-none resize-none placeholder:text-[#6C7A72] dark:placeholder:text-[#A7B6AC]"
+                placeholder="Cosa hai pensato in quel momento? Cosa temevi accadesse?"
+                className="w-full px-3.5 py-2.5 text-sm font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-none placeholder:text-[var(--text-muted)]"
               />
             </div>
 
             <GradientSlider
-              label="Grado di convinzione del pensiero"
-              sublabel="Quanto credevi a questo pensiero in quel momento? (0-100)"
+              label="Grado di convinzione nel pensiero"
+              sublabel="Quanto credevi a questo pensiero in quel momento?"
               value={draft.thoughtBeliefLevel}
               onChange={(val) => updateDraft('thoughtBeliefLevel', val)}
             />
           </div>
 
-          {/* Continue to Section B prompt button */}
-          <div className="pt-2">
+          {/* Navigation & Action to Section B */}
+          <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
             <button
               type="button"
               onClick={() => handleSwitchTab('section_b')}
-              className="w-full py-3.5 rounded-[20px] bg-[#E8EFEA] dark:bg-[#2B3A31] border border-[#C8D4CB] dark:border-[#2B3A31] text-[#14241B] dark:text-[#EEF3EF] text-xs font-black hover:bg-[#5B67CA] hover:text-white dark:hover:bg-[#5B67CA] transition-all duration-150 active:scale-98 flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm"
+              className="py-3 px-4 rounded-[20px] bg-[var(--bg-subtle)] border border-[var(--border-solid)] text-[var(--text-primary)] text-xs font-black hover:bg-[var(--accent-btn)] hover:text-[var(--accent-btn-text)] transition-all duration-150 active:scale-98 flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm"
             >
-              <span>Passa a Sezione B (Sintomi & Comportamenti)</span>
+              <span>Continua a Sezione B (Monitoraggio Approfondito) →</span>
               <ChevronRight className="w-4 h-4" />
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="btn-primary flex-1 py-3.5 min-h-[48px] rounded-full text-sm font-bold shadow-md active:scale-98 transition-all duration-150 flex items-center justify-center space-x-2 cursor-pointer"
+            >
+              <Save className="w-4 h-4 stroke-[2.5]" />
+              <span className="font-bold">Salva Registrazione</span>
             </button>
           </div>
         </div>
       )}
 
-      {/* SEZIONE B: Monitoraggio Approfondito */}
+      {/* SEZIONE B: Approfondito */}
       {activeTab === 'section_b' && (
         <div className="space-y-4 animate-fade-in">
-          {/* Sintomi Fisici */}
-          <div className="glass-panel rounded-[20px] p-4 space-y-3 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
-            <label className="block text-xs font-black uppercase tracking-wider text-[#14241B] dark:text-[#EEF3EF]">
-              Sintomi Fisici Avvertiti
+          {/* Sintomi fisici */}
+          <div className="glass-panel rounded-[20px] p-4 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
+            <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+              Sintomi Fisici &amp; Sensazioni
             </label>
             <TagPicker
               category="physical_symptom"
               allTags={allTags}
-              selectedTagIds={draft.physicalSymptomTagIds}
+              selectedTagIds={draft.physicalSymptomTagIds || []}
               onToggleTag={(id) => handleToggleTag('physical_symptom', id)}
               onAddCustomTag={onAddCustomTag}
-              placeholder="Aggiungi altro sintomo..."
+              placeholder="Aggiungi sintomo personalizzato..."
             />
             <textarea
               rows={2}
               value={draft.physicalSymptomsText}
               onChange={(e) => updateDraft('physicalSymptomsText', e.target.value)}
-              placeholder="Dettagli aggiuntivi sulle sensazioni corporee..."
-              className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] text-[#14241B] dark:text-[#EEF3EF] focus:ring-2 focus:ring-[#5B67CA] outline-none resize-none placeholder:text-[#6C7A72] dark:placeholder:text-[#A7B6AC]"
+              placeholder="Dettagli aggiuntivi sui sintomi fisici (es. formicolio, vertigini)..."
+              className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-none placeholder:text-[var(--text-muted)]"
             />
           </div>
 
-          {/* Pensieri Negativi Estesi + Intensità */}
-          <div className="glass-panel rounded-[20px] p-4 space-y-4 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
+          {/* Pensieri Negativi Estesi & Intensità */}
+          <div className="glass-panel rounded-[20px] p-4 space-y-4 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
             <div className="space-y-2">
-              <label className="block text-xs font-black uppercase tracking-wider text-[#14241B] dark:text-[#EEF3EF]">
-                Pensieri Negativi (Descrizione Estesa)
+              <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+                Pensieri Negativi (Approfondimento)
               </label>
               <textarea
                 rows={3}
                 value={draft.negativeThoughtsExtended}
                 onChange={(e) => updateDraft('negativeThoughtsExtended', e.target.value)}
                 placeholder="Approfondisci i pensieri negativi o catastrofici ricorrenti..."
-                className="w-full px-3.5 py-2.5 text-sm font-bold rounded-xl border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] text-[#14241B] dark:text-[#EEF3EF] focus:ring-2 focus:ring-[#5B67CA] outline-none resize-none placeholder:text-[#6C7A72] dark:placeholder:text-[#A7B6AC]"
+                className="w-full px-3.5 py-2.5 text-sm font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-none placeholder:text-[var(--text-muted)]"
               />
             </div>
 
@@ -474,7 +493,7 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
           </div>
 
           {/* Attenzione Corporea */}
-          <div className="glass-panel rounded-[20px] p-4 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
+          <div className="glass-panel rounded-[20px] p-4 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
             <GradientSlider
               label="Attenzione focalizzata sul corpo"
               sublabel="Quanto eri concentrato/a nell'ascolto dei sintomi fisici?"
@@ -484,8 +503,8 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
           </div>
 
           {/* Controllo Sintomi */}
-          <div className="glass-panel rounded-[20px] p-4 space-y-3 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
-            <label className="block text-xs font-black uppercase tracking-wider text-[#14241B] dark:text-[#EEF3EF]">
+          <div className="glass-panel rounded-[20px] p-4 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
+            <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
               Controllo dei Sintomi
             </label>
             <textarea
@@ -493,7 +512,7 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               value={draft.symptomControlDescription}
               onChange={(e) => updateDraft('symptomControlDescription', e.target.value)}
               placeholder="Quali azioni di controllo hai effettuato? (es. misurare il battito)"
-              className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] text-[#14241B] dark:text-[#EEF3EF] focus:ring-2 focus:ring-[#5B67CA] outline-none resize-none placeholder:text-[#6C7A72] dark:placeholder:text-[#A7B6AC]"
+              className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-none placeholder:text-[var(--text-muted)]"
             />
             <CounterInput
               label="Numero di check o misurazioni"
@@ -503,8 +522,8 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
           </div>
 
           {/* Ricerca Rassicurazioni */}
-          <div className="glass-panel rounded-[20px] p-4 space-y-3 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
-            <label className="block text-xs font-black uppercase tracking-wider text-[#14241B] dark:text-[#EEF3EF]">
+          <div className="glass-panel rounded-[20px] p-4 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
+            <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
               Ricerca di Rassicurazioni
             </label>
             <input
@@ -512,7 +531,7 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               value={draft.reassuranceSeekingType}
               onChange={(e) => updateDraft('reassuranceSeekingType', e.target.value)}
               placeholder="Tipo di richiesta (es. chiedere conferme ai familiari, internet...)"
-              className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] text-[#14241B] dark:text-[#EEF3EF] focus:ring-2 focus:ring-[#5B67CA] outline-none placeholder:text-[#6C7A72] dark:placeholder:text-[#A7B6AC]"
+              className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none placeholder:text-[var(--text-muted)]"
             />
             <CounterInput
               label="Numero di volte"
@@ -522,8 +541,8 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
           </div>
 
           {/* Evitamenti */}
-          <div className="glass-panel rounded-[20px] p-4 space-y-3 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
-            <label className="block text-xs font-black uppercase tracking-wider text-[#14241B] dark:text-[#EEF3EF]">
+          <div className="glass-panel rounded-[20px] p-4 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
+            <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
               Evitamenti
             </label>
             <input
@@ -531,7 +550,7 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               value={draft.avoidanceType}
               onChange={(e) => updateDraft('avoidanceType', e.target.value)}
               placeholder="Situazione o luogo evitato..."
-              className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] text-[#14241B] dark:text-[#EEF3EF] focus:ring-2 focus:ring-[#5B67CA] outline-none placeholder:text-[#6C7A72] dark:placeholder:text-[#A7B6AC]"
+              className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none placeholder:text-[var(--text-muted)]"
             />
             <CounterInput
               label="Numero di evitamenti"
@@ -541,7 +560,7 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
           </div>
 
           {/* Ansia Complessiva */}
-          <div className="glass-panel rounded-[20px] p-5 border border-[#5B67CA] bg-white dark:bg-[#1B2520]">
+          <div className="glass-panel rounded-[20px] p-5 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
             <GradientSlider
               label="Ansia complessiva percepita"
               sublabel="Valuta il livello globale di ansia in questa situazione (0-100)"
@@ -552,8 +571,8 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
           </div>
 
           {/* Note */}
-          <div className="glass-panel rounded-[20px] p-4 space-y-2 border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520]">
-            <label className="block text-xs font-black uppercase tracking-wider text-[#14241B] dark:text-[#EEF3EF]">
+          <div className="glass-panel rounded-[20px] p-4 space-y-2 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
+            <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
               Note Aggiuntive
             </label>
             <textarea
@@ -561,7 +580,7 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               value={draft.notes}
               onChange={(e) => updateDraft('notes', e.target.value)}
               placeholder="Altre osservazioni per te o la psicologa..."
-              className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-[#C8D4CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] text-[#14241B] dark:text-[#EEF3EF] focus:ring-2 focus:ring-[#5B67CA] outline-none resize-none placeholder:text-[#6C7A72] dark:placeholder:text-[#A7B6AC]"
+              className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-none placeholder:text-[var(--text-muted)]"
             />
           </div>
 
@@ -570,7 +589,7 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
             <button
               type="button"
               onClick={() => handleSwitchTab('section_a')}
-              className="py-3 px-4 rounded-[20px] bg-[#E8EFEA] dark:bg-[#2B3A31] border border-[#C8D4CB] dark:border-[#2B3A31] text-[#14241B] dark:text-[#EEF3EF] text-xs font-black hover:bg-[#5B67CA] hover:text-white dark:hover:bg-[#5B67CA] transition-all duration-150 active:scale-98 flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm"
+              className="py-3 px-4 rounded-[20px] bg-[var(--bg-subtle)] border border-[var(--border-solid)] text-[var(--text-primary)] text-xs font-black hover:bg-[var(--accent-btn)] hover:text-[var(--accent-btn-text)] transition-all duration-150 active:scale-98 flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm"
             >
               <ChevronLeft className="w-4 h-4" />
               <span>← Torna a Sezione A (Analisi Rapida)</span>
@@ -578,14 +597,46 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
             <button
               type="submit"
               disabled={isSaving}
-              className="btn-primary flex-1 py-3.5 min-h-[48px] rounded-full bg-[#5B67CA] hover:bg-[#4A55B8] text-white text-sm font-bold shadow-md active:scale-98 transition-all duration-150 flex items-center justify-center space-x-2 cursor-pointer"
+              className="btn-primary flex-1 py-3.5 min-h-[48px] rounded-full text-sm font-bold shadow-md active:scale-98 transition-all duration-150 flex items-center justify-center space-x-2 cursor-pointer"
             >
-              <Save className="w-4 h-4 stroke-[2.5] text-white" />
-              <span className="text-white font-bold">Salva Registrazione</span>
+              <Save className="w-4 h-4 stroke-[2.5]" />
+              <span className="font-bold">Salva Registrazione</span>
             </button>
           </div>
         </div>
       )}
     </form>
+  );
+};
+
+/* Reusable Counter Component */
+const CounterInput: React.FC<{
+  label: string;
+  value: number;
+  onChange: (val: number) => void;
+}> = ({ label, value, onChange }) => {
+  return (
+    <div className="flex items-center justify-between pt-1">
+      <span className="text-xs font-bold text-[var(--text-primary)]">{label}</span>
+      <div className="flex items-center space-x-2">
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(0, value - 1))}
+          className="w-8 h-8 rounded-lg bg-[var(--bg-subtle)] text-[var(--text-primary)] border border-[var(--border-solid)] flex items-center justify-center hover:bg-[var(--accent-btn)] hover:text-[var(--accent-btn-text)] transition-all active:scale-95 cursor-pointer"
+          aria-label="Diminuisci"
+        >
+          <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
+        </button>
+        <span className="w-8 text-center text-sm font-black text-[var(--text-primary)] tabular-nums">{value}</span>
+        <button
+          type="button"
+          onClick={() => onChange(value + 1)}
+          className="w-8 h-8 rounded-lg bg-[var(--bg-subtle)] text-[var(--text-primary)] border border-[var(--border-solid)] flex items-center justify-center hover:bg-[var(--accent-btn)] hover:text-[var(--accent-btn-text)] transition-all active:scale-95 cursor-pointer"
+          aria-label="Aumenta"
+        >
+          <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+        </button>
+      </div>
+    </div>
   );
 };

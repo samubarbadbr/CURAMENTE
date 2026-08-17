@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { CbtEntry, Tag, ViewType, PeriodFilter, ThemeMode } from './types';
 import { DB, seedDefaultTagsIfNeeded, cleanupAndDeduplicateTags, createBlankEntry, openDatabase } from './services/db';
 import { SyncService } from './services/sync';
@@ -13,11 +14,49 @@ import { DetailView } from './views/DetailView';
 import { DashboardView } from './views/DashboardView';
 import { SettingsView } from './views/SettingsView';
 
+const viewOrder: Record<ViewType, number> = {
+  timeline: 0,
+  entry: 0.5,
+  detail: 0.5,
+  dashboard: 1,
+  settings: 2,
+};
+
+const pageVariants = {
+  enter: (dir: number) => ({
+    x: dir > 0 ? 36 : dir < 0 ? -36 : 0,
+    opacity: 0,
+  }),
+  center: {
+    x: 0,
+    opacity: 1,
+  },
+  exit: (dir: number) => ({
+    x: dir < 0 ? 36 : dir > 0 ? -36 : 0,
+    opacity: 0,
+  }),
+};
+
+const pageTransition = {
+  type: 'tween',
+  ease: [0.25, 1, 0.5, 1],
+  duration: 0.22,
+};
+
 export default function App() {
   const [isDbReady, setIsDbReady] = useState(false);
   const [entries, setEntries] = useState<CbtEntry[]>([]);
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [currentView, setCurrentView] = useState<ViewType>('timeline');
+  const [direction, setDirection] = useState<number>(0);
+
+  const navigateToView = (nextView: ViewType) => {
+    if (nextView === currentView) return;
+    const currentPos = viewOrder[currentView] ?? 0;
+    const nextPos = viewOrder[nextView] ?? 0;
+    setDirection(nextPos > currentPos ? 1 : nextPos < currentPos ? -1 : 1);
+    setCurrentView(nextView);
+  };
 
   // Form & Detail states
   const [entryDraft, setEntryDraft] = useState<CbtEntry | null>(null);
@@ -28,6 +67,26 @@ export default function App() {
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('30');
   const [dashPeriod, setDashPeriod] = useState<PeriodFilter>('30');
   const [themeMode, setThemeMode] = useState<ThemeMode>('light');
+
+  // Visual Privacy Mode (Modalità Sguardo Veloce)
+  const [isPrivacyModeEnabled, setIsPrivacyModeEnabled] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('diariamente_privacy_mode') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleTogglePrivacyMode = () => {
+    setIsPrivacyModeEnabled((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('diariamente_privacy_mode', String(next));
+      } catch {}
+      showToast(next ? 'Modalità Privacy attivata (Sguardo Veloce)' : 'Modalità Privacy disattivata');
+      return next;
+    });
+  };
 
   // Security & Lock
   const [pinEnabled, setPinEnabled] = useState(false);
@@ -67,37 +126,76 @@ export default function App() {
   const applyTheme = useCallback((mode: ThemeMode) => {
     const root = document.documentElement;
     const body = document.body;
-    root.classList.remove('dark', 'theme-light', 'theme-dark', 'theme-lavender', 'theme-ocean');
-    body.classList.remove('dark', 'theme-light', 'theme-dark', 'theme-lavender', 'theme-ocean');
+    root.classList.remove(
+      'dark',
+      'theme-cyber',
+      'theme-minimal',
+      'theme-midnight',
+      'theme-earth',
+      'theme-violet',
+      'theme-amethyst',
+      'theme-light',
+      'theme-dark',
+      'theme-lavender',
+      'theme-ocean'
+    );
+    body.classList.remove(
+      'dark',
+      'theme-cyber',
+      'theme-minimal',
+      'theme-midnight',
+      'theme-earth',
+      'theme-violet',
+      'theme-amethyst',
+      'theme-light',
+      'theme-dark',
+      'theme-lavender',
+      'theme-ocean'
+    );
 
-    let effectiveMode = mode;
+    let effectiveMode: 'cyber' | 'minimal' | 'midnight' | 'earth' | 'violet' = 'minimal';
     if (mode === 'auto') {
-      effectiveMode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      effectiveMode = prefersDark ? 'cyber' : 'minimal';
+    } else if (mode === 'cyber' || (mode as any) === 'dark') {
+      effectiveMode = 'cyber';
+    } else if (mode === 'midnight' || (mode as any) === 'ocean') {
+      effectiveMode = 'midnight';
+    } else if (mode === 'earth') {
+      effectiveMode = 'earth';
+    } else if (mode === 'violet' || (mode as any) === 'amethyst') {
+      effectiveMode = 'violet';
+    } else {
+      effectiveMode = 'minimal';
     }
 
-    root.setAttribute('data-theme', mode);
-    body.setAttribute('data-theme', mode);
+    root.setAttribute('data-theme', effectiveMode);
+    body.setAttribute('data-theme', effectiveMode);
 
     try {
       localStorage.setItem('diariamente_theme', mode);
       localStorage.setItem('diario_mente_theme', mode);
     } catch {}
 
-    if (effectiveMode === 'dark') {
-      root.classList.add('dark', 'theme-dark');
-      body.classList.add('dark', 'theme-dark');
+    if (effectiveMode === 'cyber') {
+      root.classList.add('dark', 'theme-cyber');
+      body.classList.add('dark', 'theme-cyber');
       root.style.colorScheme = 'dark';
-    } else if (effectiveMode === 'lavender') {
-      root.classList.add('theme-lavender');
-      body.classList.add('theme-lavender');
+    } else if (effectiveMode === 'midnight') {
+      root.classList.add('dark', 'theme-midnight');
+      body.classList.add('dark', 'theme-midnight');
+      root.style.colorScheme = 'dark';
+    } else if (effectiveMode === 'violet') {
+      root.classList.add('dark', 'theme-violet');
+      body.classList.add('dark', 'theme-violet');
+      root.style.colorScheme = 'dark';
+    } else if (effectiveMode === 'earth') {
+      root.classList.add('theme-earth');
+      body.classList.add('theme-earth');
       root.style.colorScheme = 'light';
-    } else if (effectiveMode === 'ocean') {
-      root.classList.add('dark', 'theme-ocean');
-      body.classList.add('dark', 'theme-ocean');
-      root.style.colorScheme = 'dark';
     } else {
-      root.classList.add('theme-light');
-      body.classList.add('theme-light');
+      root.classList.add('theme-minimal');
+      body.classList.add('theme-minimal');
       root.style.colorScheme = 'light';
     }
   }, []);
@@ -277,9 +375,14 @@ export default function App() {
         const tags = await cleanupAndDeduplicateTags();
         if (isMounted) setAllTags(tags);
 
-        // Load saved theme or default to light
+        // Load saved theme or default to minimal
         const themeRow = await DB.get<{ key: string; value: ThemeMode }>('settings', 'theme_mode');
-        const initialTheme: ThemeMode = themeRow?.value || 'light';
+        let initialTheme: ThemeMode = themeRow?.value || 'minimal';
+        // Normalize legacy theme names
+        if ((initialTheme as any) === 'light' || (initialTheme as any) === 'lavender') initialTheme = 'minimal';
+        if ((initialTheme as any) === 'dark') initialTheme = 'cyber';
+        if ((initialTheme as any) === 'ocean') initialTheme = 'midnight';
+
         if (isMounted) {
           setThemeMode(initialTheme);
           applyTheme(initialTheme);
@@ -378,31 +481,50 @@ export default function App() {
     }
   }, [periodFilter, dashPeriod, currentView, isDbReady, loadEntries]);
 
-  // Toggle theme mode
+  // Auto theme system preference listener
+  useEffect(() => {
+    if (themeMode !== 'auto') return;
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => {
+      applyTheme('auto');
+    };
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [themeMode, applyTheme]);
+
+  // Toggle theme mode via Quick Button in Header (Clean Light <-> Dark Switch)
   const handleToggleThemeMode = async () => {
-    const cycle: ThemeMode[] = ['light', 'dark', 'lavender', 'ocean'];
-    const currentIndex = cycle.indexOf(themeMode);
-    const nextTheme = cycle[(currentIndex + 1) % cycle.length] || 'light';
+    const isCurrentlyDark =
+      themeMode === 'cyber' ||
+      themeMode === 'midnight' ||
+      themeMode === 'violet' ||
+      (themeMode === 'auto' &&
+        typeof window !== 'undefined' &&
+        window.matchMedia &&
+        window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+    const nextTheme: ThemeMode = isCurrentlyDark ? 'minimal' : 'cyber';
 
     setThemeMode(nextTheme);
     applyTheme(nextTheme);
     await DB.put('settings', { key: 'theme_mode', value: nextTheme });
 
     const labels: Record<ThemeMode, string> = {
-      light: 'Verde Salvia',
-      dark: 'Scuro Notte',
-      lavender: 'Lilla Mente',
-      ocean: 'Oceano Profondo',
-      auto: 'Automatico',
+      cyber: 'Scuro Neon (Cyber Dark)',
+      minimal: 'Light Minimal (Chiaro)',
+      midnight: 'Midnight Blue (Oceano/Notte)',
+      earth: 'Warm Earth (Sabbia/Caldo)',
+      violet: 'Ametista (Viola Profondo)',
+      auto: 'Automatico (Sistema)',
     };
-    showToast(`Tema: ${labels[nextTheme]}`);
+    showToast(`Tema attivo: ${labels[nextTheme]}`);
   };
 
   // Open New Entry form
   const handleOpenNewEntry = () => {
     setEditingEntryId(null);
     setEntryDraft(createBlankEntry());
-    setCurrentView('entry');
+    navigateToView('entry');
   };
 
   // Open Edit Entry form
@@ -411,7 +533,7 @@ export default function App() {
     if (!found) return;
     setEditingEntryId(entryId);
     setEntryDraft(JSON.parse(JSON.stringify(found)));
-    setCurrentView('entry');
+    navigateToView('entry');
   };
 
   // Save Entry (Create / Update)
@@ -420,7 +542,7 @@ export default function App() {
       await DB.put('entries', draft);
       showToast('Voce di diario salvata con successo');
       await loadEntries(periodFilter);
-      setCurrentView('timeline');
+      navigateToView('timeline');
       setEntryDraft(null);
 
       // Auto cloud sync
@@ -445,7 +567,7 @@ export default function App() {
         await DB.delete('entries', entryId);
         showToast('Voce eliminata');
         await loadEntries(periodFilter);
-        setCurrentView('timeline');
+        navigateToView('timeline');
 
         // Auto cloud sync
         if (syncPin) {
@@ -741,7 +863,7 @@ export default function App() {
         const freshTags = await seedDefaultTagsIfNeeded();
         setAllTags(freshTags);
         await loadEntries(periodFilter);
-        setCurrentView('timeline');
+        navigateToView('timeline');
         showToast('Tutti i dati sono stati azzerati');
       },
     });
@@ -874,89 +996,106 @@ export default function App() {
           onToggleTheme={handleToggleThemeMode}
           onNewEntry={handleOpenNewEntry}
           isOnline={isOnline}
+          isPrivacyModeEnabled={isPrivacyModeEnabled}
+          onTogglePrivacyMode={handleTogglePrivacyMode}
         />
 
-        <main className="flex-1 px-4 sm:px-6 pt-3 pb-24">
-          {currentView === 'timeline' && (
-            <TimelineView
-              entries={entries}
-              allTags={allTags}
-              periodFilter={periodFilter}
-              onFilterChange={(p) => setPeriodFilter(p)}
-              onSelectEntry={(id) => {
-                setDetailEntryId(id);
-                setCurrentView('detail');
-              }}
-              onEditEntry={handleOpenEditEntry}
-              onNewEntry={handleOpenNewEntry}
-            />
-          )}
+        <main className="flex-1 px-4 sm:px-6 pt-3 pb-24 overflow-x-hidden">
+          <AnimatePresence mode="wait" custom={direction}>
+            <motion.div
+              key={currentView}
+              custom={direction}
+              variants={pageVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={pageTransition}
+              className="w-full min-h-full"
+            >
+              {currentView === 'timeline' && (
+                <TimelineView
+                  entries={entries}
+                  allTags={allTags}
+                  periodFilter={periodFilter}
+                  onFilterChange={(p) => setPeriodFilter(p)}
+                  onSelectEntry={(id) => {
+                    setDetailEntryId(id);
+                    navigateToView('detail');
+                  }}
+                  onEditEntry={handleOpenEditEntry}
+                  onNewEntry={handleOpenNewEntry}
+                  isPrivacyModeEnabled={isPrivacyModeEnabled}
+                  onTogglePrivacyMode={handleTogglePrivacyMode}
+                />
+              )}
 
-          {currentView === 'entry' && entryDraft && (
-            <EntryFormView
-              initialDraft={entryDraft}
-              allTags={allTags}
-              isEditing={!!editingEntryId}
-              onSave={handleSaveEntry}
-              onCancel={() => {
-                setCurrentView('timeline');
-                setEntryDraft(null);
-              }}
-              onAddCustomTag={handleAddCustomTag}
-            />
-          )}
+              {currentView === 'entry' && entryDraft && (
+                <EntryFormView
+                  initialDraft={entryDraft}
+                  allTags={allTags}
+                  isEditing={!!editingEntryId}
+                  onSave={handleSaveEntry}
+                  onCancel={() => {
+                    navigateToView('timeline');
+                    setEntryDraft(null);
+                  }}
+                  onAddCustomTag={handleAddCustomTag}
+                />
+              )}
 
-          {currentView === 'detail' && selectedDetailEntry && (
-            <DetailView
-              entry={selectedDetailEntry}
-              allTags={allTags}
-              onBack={() => setCurrentView('timeline')}
-              onEdit={() => handleOpenEditEntry(selectedDetailEntry.id)}
-              onDelete={() => handleDeleteEntry(selectedDetailEntry.id)}
-            />
-          )}
+              {currentView === 'detail' && selectedDetailEntry && (
+                <DetailView
+                  entry={selectedDetailEntry}
+                  allTags={allTags}
+                  onBack={() => navigateToView('timeline')}
+                  onEdit={() => handleOpenEditEntry(selectedDetailEntry.id)}
+                  onDelete={() => handleDeleteEntry(selectedDetailEntry.id)}
+                />
+              )}
 
-          {currentView === 'dashboard' && (
-            <DashboardView
-              entries={entries}
-              dashPeriod={dashPeriod}
-              onPeriodChange={(p) => setDashPeriod(p)}
-              onExportReport={handleExportPdfReport}
-            />
-          )}
+              {currentView === 'dashboard' && (
+                <DashboardView
+                  entries={entries}
+                  dashPeriod={dashPeriod}
+                  onPeriodChange={(p) => setDashPeriod(p)}
+                  onExportReport={handleExportPdfReport}
+                />
+              )}
 
-          {currentView === 'settings' && (
-            <SettingsView
-              pinEnabled={pinEnabled}
-              onTogglePin={handleTogglePin}
-              themeMode={themeMode}
-              onThemeChange={(m) => {
-                setThemeMode(m);
-                applyTheme(m);
-                DB.put('settings', { key: 'theme_mode', value: m });
-              }}
-              syncPin={syncPin}
-              syncStatus={syncStatus}
-              lastSyncedAt={lastSyncedAt}
-              onSaveSyncPin={handleSaveSyncPin}
-              onManualSyncPush={() => handleSyncPush(syncPin)}
-              onManualSyncPull={() => handleSyncPull(syncPin, true)}
-              onTestConnection={handleTestConnection}
-              onExportJson={handleExportJson}
-              onExportTxt={handleExportTxt}
-              onExportCsv={handleExportCsv}
-              onImportJson={handleImportJson}
-              allTags={allTags}
-              onDeleteCustomTag={handleDeleteCustomTag}
-              onDeleteAllData={handleDeleteAllData}
-            />
-          )}
+              {currentView === 'settings' && (
+                <SettingsView
+                  pinEnabled={pinEnabled}
+                  onTogglePin={handleTogglePin}
+                  themeMode={themeMode}
+                  onThemeChange={(m) => {
+                    setThemeMode(m);
+                    applyTheme(m);
+                    DB.put('settings', { key: 'theme_mode', value: m });
+                  }}
+                  syncPin={syncPin}
+                  syncStatus={syncStatus}
+                  lastSyncedAt={lastSyncedAt}
+                  onSaveSyncPin={handleSaveSyncPin}
+                  onManualSyncPush={() => handleSyncPush(syncPin)}
+                  onManualSyncPull={() => handleSyncPull(syncPin, true)}
+                  onTestConnection={handleTestConnection}
+                  onExportJson={handleExportJson}
+                  onExportTxt={handleExportTxt}
+                  onExportCsv={handleExportCsv}
+                  onImportJson={handleImportJson}
+                  allTags={allTags}
+                  onDeleteCustomTag={handleDeleteCustomTag}
+                  onDeleteAllData={handleDeleteAllData}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
         </main>
 
         <BottomNav
           currentView={currentView}
           onSelectView={(view) => {
-            setCurrentView(view);
+            navigateToView(view);
             if (view === 'timeline') loadEntries(periodFilter);
             if (view === 'dashboard') loadEntries(dashPeriod);
           }}

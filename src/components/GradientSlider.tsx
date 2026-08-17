@@ -29,20 +29,20 @@ export const GradientSlider: React.FC<GradientSliderProps> = ({
 }) => {
   const percentage = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
 
-  let valueBadgeStyle = 'bg-[#2D5C3E]/15 text-[#14241B] dark:text-[#EEF3EF] border-[#2D5C3E]/30';
+  let valueBadgeStyle = 'bg-emerald-500/15 text-[var(--text-primary)] border-emerald-500/30';
   if (percentage > 35 && percentage <= 68) {
-    valueBadgeStyle = 'bg-[#5B67CA]/20 text-[#14241B] dark:text-[#EEF3EF] border-[#5B67CA]/40';
+    valueBadgeStyle = 'bg-amber-500/20 text-[var(--text-primary)] border-amber-500/40';
   } else if (percentage > 68) {
-    valueBadgeStyle = 'bg-rose-500/20 text-[#14241B] dark:text-[#EEF3EF] border-rose-500/40';
+    valueBadgeStyle = 'bg-rose-500/20 text-[var(--text-primary)] border-rose-500/40';
   }
 
   const trackStyle = {
     background: `linear-gradient(to right, 
-      #2D5C3E 0%, 
-      #4A7C59 30%, 
-      #5B67CA 65%, 
-      #D97706 85%, 
-      #E11D48 100%)`,
+      #10B981 0%, 
+      #34D399 30%, 
+      #F59E0B 65%, 
+      #F97316 85%, 
+      #EF4444 100%)`,
   };
 
   return (
@@ -50,11 +50,11 @@ export const GradientSlider: React.FC<GradientSliderProps> = ({
       {label && (
         <div className="flex items-center justify-between">
           <div>
-            <label htmlFor={id} className="block text-sm font-black text-[#14241B] dark:text-[#EEF3EF]">
+            <label htmlFor={id} className="block text-sm font-black text-[var(--text-primary)]">
               {label}
             </label>
             {sublabel && (
-              <p className="text-xs font-bold text-[#14241B] dark:text-[#D5E0D8] mt-0.5">{sublabel}</p>
+              <p className="text-xs font-bold text-[var(--text-secondary)] mt-0.5">{sublabel}</p>
             )}
           </div>
           <span
@@ -68,7 +68,7 @@ export const GradientSlider: React.FC<GradientSliderProps> = ({
       )}
 
       <div className="relative flex items-center">
-        <div className="relative w-full h-3 rounded-full overflow-hidden bg-[#E8EFEA] dark:bg-[#2B3A31]">
+        <div className="relative w-full h-3 rounded-full overflow-hidden bg-[var(--bg-subtle)]">
           <div
             className="absolute inset-y-0 left-0 transition-all duration-75 rounded-full"
             style={{
@@ -90,7 +90,7 @@ export const GradientSlider: React.FC<GradientSliderProps> = ({
       </div>
 
       {(lowLabel || midLabel || highLabel) && (
-        <div className="flex justify-between text-[11px] font-extrabold text-[#14241B] dark:text-[#EEF3EF] px-0.5 pt-0.5">
+        <div className="flex justify-between text-[11px] font-extrabold text-[var(--text-secondary)] px-0.5 pt-0.5">
           <span>{lowLabel}</span>
           <span>{midLabel}</span>
           <span>{highLabel}</span>

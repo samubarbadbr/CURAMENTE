@@ -21,9 +21,9 @@ import {
   Wifi,
   Database,
   Copy,
-  Check
+  Check,
+  Laptop
 } from 'lucide-react';
-import { CustomDropdown } from '../components/CustomDropdown';
 
 interface SettingsViewProps {
   pinEnabled: boolean;
@@ -139,54 +139,109 @@ NOTIFY pgrst, 'reload schema';`;
     setIsEditingPin(false);
   };
 
-  const themeOptions: { value: ThemeMode; label: string }[] = [
-    { value: 'light', label: 'Verde Salvia' },
-    { value: 'dark', label: 'Scuro Notte' },
-    { value: 'lavender', label: 'Lilla Mente' },
-    { value: 'ocean', label: 'Oceano Profondo' },
-    { value: 'auto', label: 'Automatico' },
+  const themePreviews: {
+    id: ThemeMode;
+    name: string;
+    description: string;
+    bgHex?: string;
+    cardHex?: string;
+    accentHex?: string;
+    textHex?: string;
+    isAuto?: boolean;
+  }[] = [
+    {
+      id: 'auto',
+      name: 'Automatico (Sistema)',
+      description: 'Adatta chiaro o scuro in base alle impostazioni del tuo dispositivo',
+      isAuto: true,
+    },
+    {
+      id: 'minimal',
+      name: 'Light Minimal (Chiaro)',
+      description: 'Sfondo bianco puro (#FFFFFF), schede grigio chiarissimo (#F4F4F5) e accenti smeraldo',
+      bgHex: '#FFFFFF',
+      cardHex: '#F4F4F5',
+      accentHex: '#059669',
+      textHex: '#09090B',
+    },
+    {
+      id: 'cyber',
+      name: 'Scuro Neon (Cyber Dark)',
+      description: 'Sfondo nero quasi assoluto (#050505), schede grigio scuro (#121212) e verde neon (#00FF87)',
+      bgHex: '#050505',
+      cardHex: '#121212',
+      accentHex: '#00FF87',
+      textHex: '#FFFFFF',
+    },
+    {
+      id: 'midnight',
+      name: 'Midnight Blue (Oceano/Notte)',
+      description: 'Sfondo blu notte intenso (#0A1120), schede blu scuro (#131F37) e accenti azzurro ciano (#38BDF8)',
+      bgHex: '#0A1120',
+      cardHex: '#131F37',
+      accentHex: '#38BDF8',
+      textHex: '#FFFFFF',
+    },
+    {
+      id: 'earth',
+      name: 'Warm Earth (Sabbia/Caldo)',
+      description: 'Sfondo color crema/sabbia (#FDFBF7), schede beige soft (#F3EFE6) e accenti terracotta (#C85A32)',
+      bgHex: '#FDFBF7',
+      cardHex: '#F3EFE6',
+      accentHex: '#C85A32',
+      textHex: '#2C221E',
+    },
+    {
+      id: 'violet',
+      name: 'Ametista (Viola Profondo)',
+      description: 'Sfondo viola profondo (#0F0C1B), schede viola notte (#18132B) e accenti lavanda neon (#A78BFA)',
+      bgHex: '#0F0C1B',
+      cardHex: '#18132B',
+      accentHex: '#A78BFA',
+      textHex: '#FFFFFF',
+    },
   ];
 
   return (
     <div className="space-y-5 pb-28 animate-fade-in">
       {/* Page Header */}
       <div className="pt-1">
-        <h2 className="text-2xl font-black text-[#15251C] dark:text-[#EEF3EF]">Impostazioni</h2>
-        <p className="text-xs font-bold text-[#2C3E35] dark:text-[#D5E0D8] mt-0.5">
+        <h2 className="text-2xl font-black text-[var(--text-primary)]">Impostazioni</h2>
+        <p className="text-xs font-bold text-[var(--text-secondary)] mt-0.5">
           Gestione sincronizzazione cloud, backup dati, temi, tag e sicurezza
         </p>
       </div>
 
       {/* SUPABASE CLOUD SYNC SECTION */}
-      <div className="glass-panel rounded-[22px] p-5 space-y-4 border-2 border-[#5B67CA]/40 bg-white dark:bg-[#1B2520] shadow-md relative overflow-hidden">
+      <div className="glass-panel rounded-[22px] p-5 space-y-4 border-2 border-[#5B67CA]/40 bg-[var(--bg-surface)] shadow-md relative overflow-hidden">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center space-x-3">
             <div className="p-2.5 rounded-2xl bg-[#5B67CA] text-white shadow-sm shrink-0">
               <Cloud className="w-5 h-5 stroke-[2.5]" />
             </div>
             <div>
-              <span className="block text-base font-black text-[#15251C] dark:text-[#EEF3EF]">
+              <span className="block text-base font-black text-[var(--text-primary)]">
                 Sincronizzazione Cloud Supabase
               </span>
-              <span className="block text-xs font-bold text-[#2C3E35] dark:text-[#D5E0D8]">
+              <span className="block text-xs font-bold text-[var(--text-secondary)]">
                 Condividi in automatico il diario tra PC e Smartphone via PIN
               </span>
             </div>
           </div>
 
-          <div className="flex items-center space-x-1 shrink-0 bg-[#EBF0EC] dark:bg-[#212E27] px-2.5 py-1.5 rounded-xl border border-[#C8D5CB] dark:border-[#2B3A31]">
-            <Monitor className="w-4 h-4 text-[#5B67CA] dark:text-[#9CA6DC]" />
-            <span className="text-[11px] font-black text-[#15251C] dark:text-[#EEF3EF]">↔</span>
-            <Smartphone className="w-4 h-4 text-[#5B67CA] dark:text-[#9CA6DC]" />
+          <div className="flex items-center space-x-1 shrink-0 bg-[var(--bg-subtle)] px-2.5 py-1.5 rounded-xl border border-[var(--border-solid)]">
+            <Monitor className="w-4 h-4 text-[#5B67CA]" />
+            <span className="text-[11px] font-black text-[var(--text-primary)]">↔</span>
+            <Smartphone className="w-4 h-4 text-[#5B67CA]" />
           </div>
         </div>
 
         {/* PIN Box */}
-        <div className="p-4 rounded-2xl bg-[#EBF0EC] dark:bg-[#212E27] border border-[#C8D5CB] dark:border-[#2B3A31] space-y-3">
+        <div className="p-4 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <KeyRound className="w-4 h-4 text-[#5B67CA] dark:text-[#9CA6DC]" />
-              <span className="text-xs font-black uppercase tracking-wider text-[#15251C] dark:text-[#EEF3EF]">
+              <KeyRound className="w-4 h-4 text-[#5B67CA]" />
+              <span className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
                 PIN Personale Sincronizzazione Cloud:
               </span>
             </div>
@@ -194,7 +249,7 @@ NOTIFY pgrst, 'reload schema';`;
               <button
                 type="button"
                 onClick={() => setIsEditingPin(true)}
-                className="text-[11px] font-black text-[#5B67CA] dark:text-[#9CA6DC] hover:underline cursor-pointer"
+                className="text-[11px] font-black text-[#5B67CA] hover:underline cursor-pointer"
               >
                 Cambia PIN
               </button>
@@ -210,14 +265,14 @@ NOTIFY pgrst, 'reload schema';`;
                   onChange={(e) => setPinInput(e.target.value)}
                   placeholder="Inserisci PIN (es. 4829)"
                   maxLength={12}
-                  className="flex-1 px-3.5 py-2.5 text-sm font-black tracking-widest rounded-xl border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] text-[#15251C] dark:text-[#EEF3EF] focus:outline-none focus:ring-2 focus:ring-[#5B67CA]"
+                  className="flex-1 px-3.5 py-2.5 text-sm font-black tracking-widest rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[#5B67CA]"
                 />
                 <button
                   type="submit"
                   disabled={!pinInput.trim() || pinInput.trim().length < 3}
                   className="px-4 py-2.5 text-xs font-black rounded-xl bg-[#5B67CA] text-white hover:bg-[#4A55B8] transition-all disabled:opacity-40 cursor-pointer shadow-sm shrink-0"
                 >
-                  Salva &amp; Sincronizza PIN
+                  Salva e Sincronizza PIN
                 </button>
               </div>
               <button
@@ -226,7 +281,7 @@ NOTIFY pgrst, 'reload schema';`;
                   const randomPin = Math.floor(1000 + Math.random() * 9000).toString();
                   setPinInput(randomPin);
                 }}
-                className="text-[11px] font-bold text-[#5B67CA] dark:text-[#9CA6DC] hover:underline cursor-pointer"
+                className="text-[11px] font-bold text-[#5B67CA] hover:underline cursor-pointer"
               >
                 ⚡ Genera PIN casuale a 4 cifre
               </button>
@@ -234,16 +289,16 @@ NOTIFY pgrst, 'reload schema';`;
           ) : (
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center space-x-3">
-                <span className="text-base font-black text-[#5B67CA] dark:text-[#9CA6DC] tracking-widest bg-white dark:bg-[#1B2520] px-4 py-1.5 rounded-xl border-2 border-[#5B67CA]/40 shadow-inner">
+                <span className="text-base font-black text-[#5B67CA] tracking-widest bg-[var(--bg-surface)] px-4 py-1.5 rounded-xl border-2 border-[#5B67CA]/40 shadow-inner">
                   {syncPin}
                 </span>
-                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                <span className="text-xs font-bold text-emerald-500 flex items-center gap-1">
                   <CheckCircle2 className="w-4 h-4" /> Collegato a Supabase
                 </span>
               </div>
 
               {lastSyncedAt && (
-                <div className="text-[11px] font-bold text-[#2C3E35] dark:text-[#D5E0D8]">
+                <div className="text-[11px] font-bold text-[var(--text-secondary)]">
                   Ultimo aggiornamento: {new Date(lastSyncedAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
                 </div>
               )}
@@ -287,7 +342,7 @@ NOTIFY pgrst, 'reload schema';`;
               onClick={async () => {
                 await onTestConnection();
               }}
-              className="w-full flex items-center justify-center space-x-2 py-2.5 px-4 rounded-xl border-2 border-[#5B67CA]/40 bg-white dark:bg-[#212E27] text-[#5B67CA] dark:text-[#9CA6DC] hover:bg-[#5B67CA]/10 text-xs font-black transition-all cursor-pointer"
+              className="w-full flex items-center justify-center space-x-2 py-2.5 px-4 rounded-xl border-2 border-[#5B67CA]/40 bg-[var(--bg-surface)] text-[#5B67CA] hover:bg-[#5B67CA]/10 text-xs font-black transition-all cursor-pointer"
             >
               <Wifi className="w-4 h-4" />
               <span>📡 Test Connessione Cloud</span>
@@ -295,31 +350,31 @@ NOTIFY pgrst, 'reload schema';`;
           )}
 
           {/* SQL Setup Helper Toggle */}
-          <div className="pt-2 border-t border-[#C8D5CB] dark:border-[#2B3A31]">
+          <div className="pt-2 border-t border-[var(--border-solid)]">
             <button
               type="button"
               onClick={() => setShowSqlGuide(!showSqlGuide)}
-              className="w-full flex items-center justify-between text-left py-2 px-3 rounded-xl bg-[#EBF0EC] dark:bg-[#212E27] text-[#15251C] dark:text-[#EEF3EF] hover:bg-[#DCE5DE] dark:hover:bg-[#2B3A31] transition-all cursor-pointer"
+              className="w-full flex items-center justify-between text-left py-2 px-3 rounded-xl bg-[var(--bg-subtle)] text-[var(--text-primary)] hover:opacity-90 transition-all cursor-pointer"
             >
               <div className="flex items-center space-x-2">
-                <Database className="w-4 h-4 text-[#5B67CA] dark:text-[#9CA6DC]" />
+                <Database className="w-4 h-4 text-[#5B67CA]" />
                 <span className="text-xs font-black">🛠️ Istruzioni Setup Tabella Supabase SQL</span>
               </div>
               <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${showSqlGuide ? 'rotate-90' : ''}`} />
             </button>
 
             {showSqlGuide && (
-              <div className="mt-3 p-4 rounded-2xl bg-[#15251C] text-[#EEF3EF] space-y-3 text-xs animate-fade-in border border-[#2B3A31]">
-                <p className="font-bold text-emerald-400">
-                  Se ricevi l'errore <code className="bg-black/40 px-1.5 py-0.5 rounded text-amber-300">PGRST205 / user_data not found</code>, segui questi 2 passaggi nel tuo account Supabase:
+              <div className="mt-3 p-4 rounded-2xl bg-[var(--bg-subtle)] text-[var(--text-primary)] space-y-3 text-xs animate-fade-in border border-[var(--border-solid)]">
+                <p className="font-bold text-[var(--accent-primary)]">
+                  Se ricevi l'errore <code className="bg-black/30 px-1.5 py-0.5 rounded text-amber-400">PGRST205 / user_data not found</code>, segui questi 2 passaggi nel tuo account Supabase:
                 </p>
-                <ol className="list-decimal list-inside space-y-1 font-semibold text-gray-200">
+                <ol className="list-decimal list-inside space-y-1 font-semibold text-[var(--text-secondary)]">
                   <li>Apri il progetto su <strong>supabase.com</strong> e vai su <strong>SQL Editor</strong> nel menu laterale.</li>
                   <li>Incolla ed esegui (premi <strong>Run</strong>) il seguente script SQL:</li>
                 </ol>
 
                 <div className="relative mt-2">
-                  <pre className="p-3 rounded-xl bg-black/60 text-emerald-300 font-mono text-[11px] overflow-x-auto leading-relaxed border border-white/10 select-all">
+                  <pre className="p-3 rounded-xl bg-black/70 text-emerald-300 font-mono text-[11px] overflow-x-auto leading-relaxed border border-white/10 select-all">
                     {sqlScript}
                   </pre>
                   <button
@@ -339,17 +394,17 @@ NOTIFY pgrst, 'reload schema';`;
 
 
       {/* BACKUP & DATA TRANSFER SECTION */}
-      <div className="glass-panel rounded-[22px] p-5 space-y-4 border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-sm relative overflow-hidden">
+      <div className="glass-panel rounded-[22px] p-5 space-y-4 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm relative overflow-hidden">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-2xl bg-[#5B67CA]/15 text-[#5B67CA] dark:text-[#9CA6DC] border border-[#5B67CA]/30 shrink-0">
+            <div className="p-2.5 rounded-2xl bg-[#5B67CA]/15 text-[#5B67CA] border border-[#5B67CA]/30 shrink-0">
               <ArrowLeftRight className="w-5 h-5 stroke-[2.5]" />
             </div>
             <div>
-              <span className="block text-base font-black text-[#15251C] dark:text-[#EEF3EF]">
+              <span className="block text-base font-black text-[var(--text-primary)]">
                 Backup e Trasferimento File JSON
               </span>
-              <span className="block text-xs font-bold text-[#2C3E35] dark:text-[#D5E0D8]">
+              <span className="block text-xs font-bold text-[var(--text-secondary)]">
                 Esporta o carica un file di backup per salvare i tuoi dati offline
               </span>
             </div>
@@ -386,21 +441,21 @@ NOTIFY pgrst, 'reload schema';`;
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="flex flex-col items-start justify-between p-4 rounded-2xl bg-[#EBF0EC] dark:bg-[#212E27] hover:bg-[#DCE5DE] dark:hover:bg-[#2B3A31] text-[#15251C] dark:text-[#EEF3EF] border-2 border-[#5B67CA]/40 transition-all active:scale-98 shadow-sm cursor-pointer text-left group"
+            className="flex flex-col items-start justify-between p-4 rounded-2xl bg-[var(--bg-subtle)] hover:opacity-90 text-[var(--text-primary)] border-2 border-[#5B67CA]/40 transition-all active:scale-98 shadow-sm cursor-pointer text-left group"
           >
             <div className="flex items-center justify-between w-full mb-2">
-              <div className="p-2 rounded-xl bg-[#5B67CA]/15 text-[#5B67CA] dark:text-[#9CA6DC]">
+              <div className="p-2 rounded-xl bg-[#5B67CA]/15 text-[#5B67CA]">
                 <Upload className="w-5 h-5 stroke-[2.5]" />
               </div>
-              <span className="text-[10px] font-extrabold uppercase tracking-wider bg-[#5B67CA]/15 text-[#5B67CA] dark:text-[#9CA6DC] px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider bg-[#5B67CA]/15 text-[#5B67CA] px-2 py-0.5 rounded-full">
                 Ripristino
               </span>
             </div>
             <div>
-              <span className="block text-sm font-black text-[#15251C] dark:text-[#EEF3EF] leading-tight">
+              <span className="block text-sm font-black text-[var(--text-primary)] leading-tight">
                 Carica File di Backup
               </span>
-              <span className="block text-[11px] font-bold text-[#2C3E35] dark:text-[#D5E0D8] mt-1">
+              <span className="block text-[11px] font-bold text-[var(--text-secondary)] mt-1">
                 Seleziona il file .json per ripristinare o sincronizzare in 1 sec.
               </span>
             </div>
@@ -415,8 +470,8 @@ NOTIFY pgrst, 'reload schema';`;
         </div>
 
         {/* Additional Formats Header */}
-        <div className="pt-2 border-t border-[#C8D5CB] dark:border-[#2B3A31]">
-          <span className="text-[11px] font-black uppercase tracking-wider text-[#2C3E35] dark:text-[#D5E0D8] block mb-2">
+        <div className="pt-2 border-t border-[var(--border-solid)]">
+          <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)] block mb-2">
             Altri Formati di Esportazione
           </span>
 
@@ -424,56 +479,56 @@ NOTIFY pgrst, 'reload schema';`;
             <button
               type="button"
               onClick={onExportTxt}
-              className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-[#1B2520] hover:bg-[#EBF0EC] dark:hover:bg-[#2B3A31] border border-[#C8D5CB] dark:border-[#2B3A31] text-left transition-all cursor-pointer"
+              className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-subtle)] hover:opacity-90 border border-[var(--border-solid)] text-left transition-all cursor-pointer"
             >
               <div className="flex items-center space-x-2.5">
-                <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400 stroke-[2.5] shrink-0" />
+                <FileText className="w-4 h-4 text-emerald-500 stroke-[2.5] shrink-0" />
                 <div>
-                  <span className="block text-xs font-black text-[#15251C] dark:text-[#EEF3EF]">
+                  <span className="block text-xs font-black text-[var(--text-primary)]">
                     Registro Leggibile (.TXT)
                   </span>
-                  <span className="block text-[10px] font-bold text-[#2C3E35] dark:text-[#D5E0D8]">
+                  <span className="block text-[10px] font-bold text-[var(--text-secondary)]">
                     Testo per lettura e stampa
                   </span>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-[#15251C] dark:text-[#EEF3EF]" />
+              <ChevronRight className="w-4 h-4 text-[var(--text-primary)]" />
             </button>
 
             <button
               type="button"
               onClick={onExportCsv}
-              className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-[#1B2520] hover:bg-[#EBF0EC] dark:hover:bg-[#2B3A31] border border-[#C8D5CB] dark:border-[#2B3A31] text-left transition-all cursor-pointer"
+              className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-subtle)] hover:opacity-90 border border-[var(--border-solid)] text-left transition-all cursor-pointer"
             >
               <div className="flex items-center space-x-2.5">
-                <Table className="w-4 h-4 text-amber-600 dark:text-amber-400 stroke-[2.5] shrink-0" />
+                <Table className="w-4 h-4 text-amber-500 stroke-[2.5] shrink-0" />
                 <div>
-                  <span className="block text-xs font-black text-[#15251C] dark:text-[#EEF3EF]">
+                  <span className="block text-xs font-black text-[var(--text-primary)]">
                     Fogli di Calcolo (.CSV)
                   </span>
-                  <span className="block text-[10px] font-bold text-[#2C3E35] dark:text-[#D5E0D8]">
+                  <span className="block text-[10px] font-bold text-[var(--text-secondary)]">
                     Compatibile con Excel e Google
                   </span>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-[#15251C] dark:text-[#EEF3EF]" />
+              <ChevronRight className="w-4 h-4 text-[var(--text-primary)]" />
             </button>
           </div>
         </div>
       </div>
 
       {/* SECURITY SECTION */}
-      <div className="glass-panel rounded-[20px] p-5 space-y-4 border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-sm">
+      <div className="glass-panel rounded-[20px] p-5 space-y-4 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-2xl bg-[#5B67CA]/15 text-[#5B67CA] dark:text-[#9CA6DC] border border-[#5B67CA]/30">
+            <div className="p-2.5 rounded-2xl bg-[#5B67CA]/15 text-[#5B67CA] border border-[#5B67CA]/30">
               <Lock className="w-5 h-5 stroke-[2.5]" />
             </div>
             <div>
-              <span className="block text-sm font-black text-[#15251C] dark:text-[#EEF3EF]">
+              <span className="block text-sm font-black text-[var(--text-primary)]">
                 Protezione con PIN dell'App
               </span>
-              <span className="block text-xs font-bold text-[#2C3E35] dark:text-[#D5E0D8]">
+              <span className="block text-xs font-bold text-[var(--text-secondary)]">
                 Richiedi PIN a 4 cifre all'avvio dell'applicazione
               </span>
             </div>
@@ -486,62 +541,107 @@ NOTIFY pgrst, 'reload schema';`;
               onChange={(e) => onTogglePin(e.target.checked)}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-[#EBF0EC] dark:bg-[#2B3A31] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#C8D5CB] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5B67CA]" />
+            <div className="w-11 h-6 bg-[var(--bg-subtle)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[var(--border-solid)] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5B67CA]" />
           </label>
         </div>
       </div>
 
       {/* THEME SECTION */}
-      <div className="glass-panel rounded-[20px] p-5 space-y-4 border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0">
-              <Palette className="w-5 h-5 stroke-[2.5]" />
-            </div>
-            <div>
-              <span className="block text-sm font-black text-[#15251C] dark:text-[#EEF3EF]">
-                Tema Grafico
-              </span>
-              <span className="block text-xs font-bold text-[#2C3E35] dark:text-[#D5E0D8]">
-                Scegli la palette di colori dell'interfaccia
-              </span>
-            </div>
+      <div className="glass-panel rounded-[20px] p-5 space-y-4 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
+        <div className="flex items-center space-x-3">
+          <div className="p-2.5 rounded-2xl bg-amber-500/15 text-amber-500 border border-amber-500/30 shrink-0">
+            <Palette className="w-5 h-5 stroke-[2.5]" />
           </div>
+          <div>
+            <span className="block text-sm font-black text-[var(--text-primary)]">
+              Tema Grafico e Palette
+            </span>
+            <span className="block text-xs font-bold text-[var(--text-secondary)]">
+              5 temi curati ad alto contrasto e modalità automatica per ogni condizione di luce
+            </span>
+          </div>
+        </div>
 
-          <div className="w-full sm:w-auto">
-            <CustomDropdown
-              value={themeMode}
-              onChange={onThemeChange}
-              options={themeOptions}
-              className="w-full sm:w-48"
-            />
-          </div>
+        {/* Visual Palette Selector Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+          {themePreviews.map((p) => {
+            const isSelected = themeMode === p.id;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onThemeChange(p.id)}
+                className={`p-3.5 rounded-2xl border text-left transition-all duration-150 active:scale-98 cursor-pointer flex flex-col justify-between space-y-2 relative overflow-hidden ${
+                  isSelected
+                    ? 'border-2 border-[var(--accent-btn)] bg-[var(--bg-subtle)] shadow-md ring-2 ring-[var(--ring-color)]/30'
+                    : 'border-[var(--border-solid)] bg-[var(--bg-subtle)]/50 hover:bg-[var(--bg-subtle)]'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    {p.isAuto ? (
+                      <div className="w-6 h-6 rounded-full bg-[var(--bg-subtle)] border border-[var(--border-solid)] flex items-center justify-center text-[var(--accent-primary)] shrink-0 shadow-xs">
+                        <Laptop className="w-3.5 h-3.5 stroke-[2.5]" />
+                      </div>
+                    ) : (
+                      /* Swatch Preview Dots */
+                      <div className="flex items-center -space-x-1.5">
+                        <span
+                          className="w-5 h-5 rounded-full border border-black/20 shadow-sm inline-block shrink-0"
+                          style={{ backgroundColor: p.bgHex }}
+                          title={`Sfondo: ${p.bgHex}`}
+                        />
+                        <span
+                          className="w-5 h-5 rounded-full border border-black/20 shadow-sm inline-block shrink-0"
+                          style={{ backgroundColor: p.accentHex }}
+                          title={`Accento: ${p.accentHex}`}
+                        />
+                      </div>
+                    )}
+                    <span className="text-xs font-black text-[var(--text-primary)]">
+                      {p.name}
+                    </span>
+                  </div>
+
+                  {isSelected && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-[var(--accent-btn)] text-[var(--accent-btn-text)] shadow-xs">
+                      Attivo
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-[11px] font-bold text-[var(--text-secondary)] leading-relaxed">
+                  {p.description}
+                </p>
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* CUSTOM TAG MANAGEMENT */}
-      <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-sm">
+      <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
         <div className="flex items-center space-x-2">
-          <Tags className="w-4 h-4 text-[#5B67CA] dark:text-[#9CA6DC] stroke-[2.5]" />
-          <h3 className="text-xs font-black uppercase tracking-wider text-[#15251C] dark:text-[#EEF3EF]">
+          <Tags className="w-4 h-4 text-[#5B67CA] stroke-[2.5]" />
+          <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
             Tag Personalizzati ({customTags.length})
           </h3>
         </div>
 
         {customTags.length === 0 ? (
-          <p className="text-xs font-bold text-[#2C3E35] dark:text-[#D5E0D8] italic">Nessun tag personalizzato creato.</p>
+          <p className="text-xs font-bold text-[var(--text-secondary)] italic">Nessun tag personalizzato creato.</p>
         ) : (
           <div className="flex flex-wrap gap-2 pt-1">
             {customTags.map((tag) => (
               <div
                 key={tag.id}
-                className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#EBF0EC] dark:bg-[#212E27] text-[#15251C] dark:text-[#EEF3EF] border border-[#C8D5CB] dark:border-[#2B3A31]"
+                className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[var(--bg-subtle)] text-[var(--text-primary)] border border-[var(--border-solid)]"
               >
                 <span>{tag.label}</span>
                 <button
                   type="button"
                   onClick={() => onDeleteCustomTag(tag.id)}
-                  className="text-[#15251C] dark:text-[#EEF3EF] hover:text-rose-600 p-0.5 rounded-full font-bold cursor-pointer"
+                  className="text-[var(--text-primary)] hover:text-rose-500 p-0.5 rounded-full font-bold cursor-pointer"
                   aria-label={`Elimina tag ${tag.label}`}
                 >
                   &times;
@@ -553,11 +653,11 @@ NOTIFY pgrst, 'reload schema';`;
       </div>
 
       {/* DANGER ZONE */}
-      <div className="glass-panel rounded-[20px] p-2 border border-rose-500/40 bg-white dark:bg-[#1B2520] shadow-sm">
+      <div className="glass-panel rounded-[20px] p-2 border border-rose-500/40 bg-[var(--bg-surface)] shadow-sm">
         <button
           type="button"
           onClick={onDeleteAllData}
-          className="w-full flex items-center justify-between p-3.5 text-left text-rose-700 dark:text-rose-400 hover:bg-rose-500/10 active:scale-98 rounded-2xl transition-all duration-150 cursor-pointer"
+          className="w-full flex items-center justify-between p-3.5 text-left text-rose-500 hover:bg-rose-500/10 active:scale-98 rounded-2xl transition-all duration-150 cursor-pointer"
         >
           <div className="flex items-center space-x-3">
             <Trash2 className="w-4 h-4 stroke-[2.5]" />
@@ -568,10 +668,10 @@ NOTIFY pgrst, 'reload schema';`;
       </div>
 
       {/* FOOTNOTE */}
-      <div className="flex items-start space-x-2 p-4 text-xs text-[#15251C] dark:text-[#EEF3EF] leading-relaxed rounded-[20px] bg-[#EBF0EC] dark:bg-[#2B3A31]/80 border border-[#C8D5CB] dark:border-[#2B3A31]">
-        <ShieldCheck className="w-4 h-4 text-[#2D5C3E] dark:text-[#6A9C78] shrink-0 mt-0.5 stroke-[2.5]" />
+      <div className="flex items-start space-x-2 p-4 text-xs text-[var(--text-primary)] leading-relaxed rounded-[20px] bg-[var(--bg-subtle)] border border-[var(--border-solid)]">
+        <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5 stroke-[2.5]" />
         <span>
-          <strong className="font-black text-[#15251C] dark:text-[#EEF3EF]">100% Client-Side &amp; Privato:</strong> I tuoi dati restano esclusivamente sul tuo dispositivo in memoria locale e sono trasferibili in sicurezza tramite file di backup `.json`.
+          <strong className="font-black text-[var(--text-primary)]">100% Client-Side e Privato:</strong> I tuoi dati restano esclusivamente sul tuo dispositivo in memoria locale e sono trasferibili in sicurezza tramite file di backup `.json`.
         </span>
       </div>
     </div>

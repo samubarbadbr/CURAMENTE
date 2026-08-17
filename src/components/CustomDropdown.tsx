@@ -44,14 +44,14 @@ export function CustomDropdown<T extends string = string>({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="custom-dropdown-btn w-full inline-flex items-center justify-between gap-2.5 px-4 py-2.5 min-h-[44px] text-xs font-black rounded-[12px] border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] text-[#15251C] dark:text-[#EEF3EF] shadow-sm hover:bg-[#EBF0EC] dark:hover:bg-[#212E27] focus:outline-none focus:ring-2 focus:ring-[#5B67CA] transition-all duration-150 cursor-pointer active:scale-98"
+        className="custom-dropdown-btn w-full inline-flex items-center justify-between gap-2.5 px-4 py-2.5 min-h-[44px] text-xs font-black rounded-[12px] border border-[var(--border-solid)] bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm hover:bg-[var(--bg-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--ring-color)] transition-all duration-150 cursor-pointer active:scale-98"
       >
         <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
-        <ChevronDown className={`w-4 h-4 text-[#15251C] dark:text-[#EEF3EF] transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-[var(--text-primary)] transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="dropdown-menu absolute right-0 mt-1.5 w-full min-w-[170px] z-50 rounded-[12px] border border-[#C8D5CB] dark:border-[#2B3A31] bg-white dark:bg-[#1B2520] shadow-xl p-1.5 animate-fade-in space-y-0.5">
+        <div className="dropdown-menu absolute right-0 mt-1.5 w-full min-w-[170px] z-50 rounded-[12px] border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-xl p-1.5 animate-fade-in space-y-0.5">
           {options.map((option) => {
             const isSelected = option.value === value;
             return (
@@ -64,12 +64,12 @@ export function CustomDropdown<T extends string = string>({
                 }}
                 className={`w-full flex items-center justify-between px-3 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer text-left ${
                   isSelected
-                    ? 'bg-[#E0E6FD] dark:bg-[#2B3A31] text-[#15251C] dark:text-[#EEF3EF] font-black'
-                    : 'text-[#15251C] dark:text-[#EEF3EF] hover:bg-[#EBF0EC] dark:hover:bg-[#212E27]'
+                    ? 'bg-[var(--nav-active-bg)] text-[var(--nav-active-text)] font-black'
+                    : 'text-[var(--text-primary)] hover:bg-[var(--bg-subtle)]'
                 }`}
               >
                 <span className="truncate">{option.label}</span>
-                {isSelected && <Check className="w-3.5 h-3.5 text-[#5B67CA] dark:text-[#6A9C78] shrink-0 ml-1.5 stroke-[3]" />}
+                {isSelected && <Check className="w-3.5 h-3.5 text-[var(--nav-active-text)] shrink-0 ml-1.5 stroke-[3]" />}
               </button>
             );
           })}
