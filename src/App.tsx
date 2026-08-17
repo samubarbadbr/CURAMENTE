@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { CbtEntry, Tag, ViewType, PeriodFilter, ThemeMode } from './types';
 import { DB, seedDefaultTagsIfNeeded, cleanupAndDeduplicateTags, createBlankEntry, openDatabase } from './services/db';
