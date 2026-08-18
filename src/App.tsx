@@ -722,7 +722,7 @@ export default function App() {
     showToast('File TXT scaricato con successo');
   };
 
-  // Export Spreadsheet (.CSV)
+  // Export Spreadsheet (.CSV) with UTF-8 BOM, strict quoting and double-quote escaping
   const handleExportCsv = async () => {
     const allEntries = await DB.getAll<CbtEntry>('entries');
     allEntries.sort((a, b) => new Date(b.eventDatetime).getTime() - new Date(a.eventDatetime).getTime());
@@ -735,71 +735,76 @@ export default function App() {
     const tagMap = new Map(allTags.map((t) => [t.id, t.label]));
 
     const headers = [
+      'ID',
       'Data e Ora',
       'Situazione',
       'Fattori Scatenanti',
       'Pensiero Negativo Automatico',
-      'Credenza (%)',
+      'Credenza nel Pensiero (%)',
       'Intensita Pensiero (%)',
       'Emozioni',
       'Sintomi Fisici',
       'Dettaglio Sintomi Fisici',
-      'Attenzione Corpo (%)',
+      'Attenzione al Corpo (%)',
       'Sintomi Controllati',
-      'Check Controllo (n)',
-      'Rassicurazioni Tipo',
-      'Rassicurazioni (n)',
-      'Evitamento Tipo',
-      'Evitamenti (n)',
+      'Numero Controlli',
+      'Tipo Rassicurazioni',
+      'Numero Rassicurazioni',
+      'Tipo Evitamento',
+      'Numero Evitamenti',
       'Ansia Complessiva (%)',
       'Note e Riflessioni',
     ];
 
-    const escapeCsv = (str: string | number | undefined | null) => {
-      if (str === undefined || str === null) return '""';
-      const val = String(str).replace(/"/g, '""');
-      return `"${val}"`;
+    const escapeCsvField = (field: unknown): string => {
+      if (field === null || field === undefined) {
+        return '""';
+      }
+      const text = String(field).replace(/"/g, '""');
+      return `"${text}"`;
     };
 
-    let csvContent = '\uFEFF'; // UTF-8 BOM
-    csvContent += headers.map(escapeCsv).join(',') + '\n';
+    // UTF-8 BOM prefix (\uFEFF) ensures Excel and third-party apps correctly render accented characters
+    let csvContent = '\uFEFF';
+    csvContent += headers.map(escapeCsvField).join(',') + '\r\n';
 
-    allEntries.forEach((e) => {
-      const emotions = e.emotionTagIds.map((id) => tagMap.get(id) || id).join('; ');
-      const symptoms = e.physicalSymptomTagIds.map((id) => tagMap.get(id) || id).join('; ');
+    allEntries.forEach((entry) => {
+      const emotionLabels = (entry.emotionTagIds || []).map((id) => tagMap.get(id) || id).join('; ');
+      const symptomLabels = (entry.physicalSymptomTagIds || []).map((id) => tagMap.get(id) || id).join('; ');
 
       const row = [
-        e.eventDatetime,
-        e.situation,
-        e.triggerFactors,
-        e.negativeThought,
-        e.thoughtBeliefLevel,
-        e.negativeThoughtsIntensity,
-        emotions,
-        symptoms,
-        e.physicalSymptomsText,
-        e.bodyFocusedAttentionLevel,
-        e.symptomControlDescription,
-        e.symptomControlCount,
-        e.reassuranceSeekingType,
-        e.reassuranceSeekingCount,
-        e.avoidanceType,
-        e.avoidanceCount,
-        e.overallAnxietyLevel,
-        e.notes,
+        entry.id,
+        entry.eventDatetime,
+        entry.situation || '',
+        entry.triggerFactors || '',
+        entry.negativeThought || '',
+        entry.thoughtBeliefLevel ?? 0,
+        entry.negativeThoughtsIntensity ?? 0,
+        emotionLabels,
+        symptomLabels,
+        entry.physicalSymptomsText || '',
+        entry.bodyFocusedAttentionLevel ?? 0,
+        entry.symptomControlDescription || '',
+        entry.symptomControlCount ?? 0,
+        entry.reassuranceSeekingType || '',
+        entry.reassuranceSeekingCount ?? 0,
+        entry.avoidanceType || '',
+        entry.avoidanceCount ?? 0,
+        entry.overallAnxietyLevel ?? 0,
+        entry.notes || '',
       ];
 
-      csvContent += row.map(escapeCsv).join(',') + '\n';
+      csvContent += row.map(escapeCsvField).join(',') + '\r\n';
     });
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `curamente-dati-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `diariamente-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
     URL.revokeObjectURL(url);
     showToast('File CSV scaricato con successo');
   };
