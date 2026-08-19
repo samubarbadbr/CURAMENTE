@@ -22,12 +22,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   );
 
   const totalEntries = chronEntries.length;
-  const avgAnxiety = totalEntries > 0
-    ? Math.round(chronEntries.reduce((s, e) => s + (e.overallAnxietyLevel || 0), 0) / totalEntries)
+  const anxietyEntries = chronEntries.filter((e) => typeof e.overallAnxietyLevel === 'number');
+  const avgAnxiety = anxietyEntries.length > 0
+    ? Math.round(anxietyEntries.reduce((s, e) => s + (e.overallAnxietyLevel || 0), 0) / anxietyEntries.length)
     : 0;
-  const totalControl = chronEntries.reduce((s, e) => s + (e.symptomControlCount || 0), 0);
-  const totalReassurance = chronEntries.reduce((s, e) => s + (e.reassuranceSeekingCount || 0), 0);
-  const totalAvoidance = chronEntries.reduce((s, e) => s + (e.avoidanceCount || 0), 0);
+
+  const totalControl = chronEntries.reduce((s, e) => s + (Number(e.symptomControlCount) || 0), 0);
+  const totalReassurance = chronEntries.reduce((s, e) => s + (Number(e.reassuranceSeekingCount) || 0), 0);
+  
+  // Calculate total avoidances safely (if avoidanceType or avoidanceDescription exists, count as at least 1)
+  const totalAvoidance = chronEntries.reduce((s, e) => {
+    if (typeof e.avoidanceCount === 'number' && e.avoidanceCount > 0) {
+      return s + e.avoidanceCount;
+    }
+    if (e.avoidanceType && e.avoidanceType.trim().length > 0) {
+      return s + 1;
+    }
+    return s;
+  }, 0);
 
   const periodOptions: { value: PeriodFilter; label: string }[] = [
     { value: '7', label: 'Ultimi 7 giorni' },
@@ -50,17 +62,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const width = 360;
     const height = 180;
     const padding = 28;
-    const values = chronEntries.map((e) => e.overallAnxietyLevel || 0);
+    const values = chronEntries.map((e) => Number(e.overallAnxietyLevel) || 0);
     const stepX = values.length > 1 ? (width - padding * 2) / (values.length - 1) : 0;
 
     const points = values.map((v, i) => {
-      const x = padding + i * stepX;
-      const y = height - padding - (v / 100) * (height - padding * 2);
+      const x = values.length === 1 ? width / 2 : padding + i * stepX;
+      const y = height - padding - (Math.min(100, Math.max(0, v)) / 100) * (height - padding * 2);
       return { x, y, v, date: new Date(chronEntries[i].eventDatetime) };
     });
 
     const pathD = points.map((p, i) => (i === 0 ? `M ${p.x},${p.y}` : `L ${p.x},${p.y}`)).join(' ');
-    const areaD = `${pathD} L ${points[points.length - 1].x},${height - padding} L ${points[0].x},${height - padding} Z`;
+    const areaD = values.length === 1
+      ? ''
+      : `${pathD} L ${points[points.length - 1].x},${height - padding} L ${points[0].x},${height - padding} Z`;
 
     const gridValues = [0, 25, 50, 75, 100];
 
@@ -102,17 +116,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           })}
 
           {/* Area under line */}
-          <path d={areaD} fill="url(#anxietyGradient)" />
+          {areaD && <path d={areaD} fill="url(#anxietyGradient)" />}
 
           {/* Main anxiety trend line */}
-          <path
-            d={pathD}
-            fill="none"
-            stroke="var(--accent-btn)"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          {values.length > 1 && (
+            <path
+              d={pathD}
+              fill="none"
+              stroke="var(--accent-btn)"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
 
           {/* Data points */}
           {points.map((p, i) => (
@@ -125,6 +141,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 stroke="var(--bg-surface)"
                 strokeWidth="2"
               />
+              <text
+                x={p.x}
+                y={p.y - 8}
+                fontSize="9"
+                textAnchor="middle"
+                fill="var(--text-primary)"
+                fontWeight="bold"
+              >
+                {p.v}
+              </text>
             </g>
           ))}
         </svg>
@@ -148,8 +174,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       const key = new Date(e.eventDatetime).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
       if (!byDayMap.has(key)) byDayMap.set(key, { control: 0, reassurance: 0 });
       const current = byDayMap.get(key)!;
-      current.control += e.symptomControlCount || 0;
-      current.reassurance += e.reassuranceSeekingCount || 0;
+      current.control += Number(e.symptomControlCount) || 0;
+      current.reassurance += Number(e.reassuranceSeekingCount) || 0;
     });
 
     const days = Array.from(byDayMap.keys());
@@ -158,7 +184,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const width = Math.max(340, days.length * 54);
     const height = 180;
     const padding = 28;
-    const groupWidth = (width - padding * 2) / days.length;
+    const groupWidth = (width - padding * 2) / Math.max(1, days.length);
 
     return (
       <div className="space-y-2">
@@ -167,7 +193,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {days.map((day, i) => {
               const { control, reassurance } = byDayMap.get(day)!;
               const groupX = padding + i * groupWidth;
-              const barW = groupWidth * 0.32;
+              const barW = Math.min(22, groupWidth * 0.35);
 
               const hControl = (control / maxVal) * (height - padding * 2);
               const hReassurance = (reassurance / maxVal) * (height - padding * 2);
@@ -175,23 +201,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               return (
                 <g key={day}>
                   {/* Control Bar */}
-                  <rect
-                    x={groupX + groupWidth * 0.12}
-                    y={height - padding - hControl}
-                    width={barW}
-                    height={hControl}
-                    rx="3"
-                    fill="var(--accent-btn)"
-                  />
+                  {hControl > 0 && (
+                    <rect
+                      x={groupX + groupWidth * 0.12}
+                      y={height - padding - hControl}
+                      width={barW}
+                      height={hControl}
+                      rx="4"
+                      fill="var(--accent-btn)"
+                    />
+                  )}
                   {/* Reassurance Bar */}
-                  <rect
-                    x={groupX + groupWidth * 0.52}
-                    y={height - padding - hReassurance}
-                    width={barW}
-                    height={hReassurance}
-                    rx="3"
-                    className="fill-amber-500"
-                  />
+                  {hReassurance > 0 && (
+                    <rect
+                      x={groupX + groupWidth * 0.52}
+                      y={height - padding - hReassurance}
+                      width={barW}
+                      height={hReassurance}
+                      rx="4"
+                      className="fill-amber-500"
+                    />
+                  )}
                   {/* Day Label */}
                   <text
                     x={groupX + groupWidth / 2}
@@ -224,48 +254,62 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     );
   };
 
-  /* Render Avoidances list with frequency dots */
+  /* Render Avoidances list with clean counters & progress bars (Fixed Layout) */
   const renderAvoidanceList = () => {
     const totals = new Map<string, number>();
     chronEntries.forEach((e) => {
-      if (!e.avoidanceType || !e.avoidanceCount) return;
-      const key = e.avoidanceType.trim();
-      totals.set(key, (totals.get(key) || 0) + e.avoidanceCount);
+      const type = (e.avoidanceType || '').trim();
+      if (!type) return;
+      const count = (typeof e.avoidanceCount === 'number' && e.avoidanceCount > 0) ? e.avoidanceCount : 1;
+      totals.set(type, (totals.get(type) || 0) + count);
     });
 
     if (totals.size === 0) {
       return (
         <div className="py-6 text-center text-xs font-bold text-[var(--text-secondary)]">
-          Nessun evitamento registrato nel periodo.
+          Nessun evitamento registrato nel periodo selezionato.
         </div>
       );
     }
 
     const sorted = Array.from(totals.entries()).sort((a, b) => b[1] - a[1]);
+    const maxAvoidance = Math.max(1, ...sorted.map(([, c]) => c));
+    const allAvoidanceSum = sorted.reduce((sum, [, c]) => sum + c, 0);
 
     return (
-      <div className="space-y-2">
-        {sorted.map(([type, count]) => (
-          <div
-            key={type}
-            className="flex items-center justify-between py-2 border-b border-[var(--border-solid)] last:border-none text-xs"
-          >
-            <span className="font-black text-[var(--text-primary)]">{type}</span>
-            <div className="flex items-center space-x-1">
-              {Array.from({ length: Math.min(10, count) }).map((_, idx) => (
-                <span
-                  key={idx}
-                  className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block shadow-sm"
+      <div className="space-y-3">
+        {sorted.map(([type, count]) => {
+          const percent = Math.round((count / allAvoidanceSum) * 100);
+          return (
+            <div
+              key={type}
+              className="p-3.5 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] space-y-2.5 shadow-2xs"
+            >
+              {/* Header: Description & Badge */}
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-xs font-bold text-[var(--text-primary)] leading-relaxed flex-1 break-words">
+                  {type}
+                </p>
+                <div className="flex items-center space-x-1.5 shrink-0">
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-rose-500/15 text-rose-500 border border-rose-500/30">
+                    {count} {count === 1 ? 'volta' : 'volte'}
+                  </span>
+                  <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                    ({percent}%)
+                  </span>
+                </div>
+              </div>
+
+              {/* Progress Proportion Bar */}
+              <div className="w-full h-1.5 bg-[var(--border-solid)]/40 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-rose-500 rounded-full transition-all duration-300"
+                  style={{ width: `${Math.max(8, (count / maxAvoidance) * 100)}%` }}
                 />
-              ))}
-              {count > 10 && (
-                <span className="text-xs font-black text-rose-500 ml-1">
-                  +{count - 10}
-                </span>
-              )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };

@@ -150,6 +150,8 @@ NOTIFY pgrst, 'reload schema';`;
     cardHex?: string;
     accentHex?: string;
     textHex?: string;
+    dot1Hex?: string;
+    dot2Hex?: string;
     isAuto?: boolean;
   }[] = [
     {
@@ -161,20 +163,24 @@ NOTIFY pgrst, 'reload schema';`;
     {
       id: 'minimal',
       name: 'Light Minimal (Chiaro)',
-      description: 'Sfondo bianco puro (#FFFFFF), schede grigio chiarissimo (#F4F4F5) e accenti smeraldo',
+      description: 'Sfondo bianco puro, schede chiare e contrasto nitido monocromatico',
       bgHex: '#FFFFFF',
       cardHex: '#F4F4F5',
-      accentHex: '#059669',
+      accentHex: '#090A0E',
       textHex: '#09090B',
+      dot1Hex: '#090A0E',
+      dot2Hex: '#FFFFFF',
     },
     {
       id: 'cyber',
-      name: 'Scuro Neon (Cyber Dark)',
-      description: 'Sfondo nero quasi assoluto (#050505), schede grigio scuro (#121212) e verde neon (#00FF87)',
-      bgHex: '#050505',
+      name: 'Scuro Profondo (Dark)',
+      description: 'Sfondo nero profondo, schede scure e finiture bianche ad alto contrasto',
+      bgHex: '#090A0E',
       cardHex: '#121212',
-      accentHex: '#00FF87',
+      accentHex: '#FFFFFF',
       textHex: '#FFFFFF',
+      dot1Hex: '#FFFFFF',
+      dot2Hex: '#090A0E',
     },
     {
       id: 'midnight',
@@ -184,6 +190,8 @@ NOTIFY pgrst, 'reload schema';`;
       cardHex: '#131F37',
       accentHex: '#38BDF8',
       textHex: '#FFFFFF',
+      dot1Hex: '#0A1120',
+      dot2Hex: '#38BDF8',
     },
     {
       id: 'earth',
@@ -193,6 +201,8 @@ NOTIFY pgrst, 'reload schema';`;
       cardHex: '#F3EFE6',
       accentHex: '#C85A32',
       textHex: '#2C221E',
+      dot1Hex: '#FDFBF7',
+      dot2Hex: '#C85A32',
     },
     {
       id: 'violet',
@@ -202,6 +212,8 @@ NOTIFY pgrst, 'reload schema';`;
       cardHex: '#18132B',
       accentHex: '#A78BFA',
       textHex: '#FFFFFF',
+      dot1Hex: '#0F0C1B',
+      dot2Hex: '#A78BFA',
     },
   ];
 
@@ -591,13 +603,13 @@ NOTIFY pgrst, 'reload schema';`;
                       <div className="flex items-center -space-x-1.5">
                         <span
                           className="w-5 h-5 rounded-full border border-black/20 shadow-sm inline-block shrink-0"
-                          style={{ backgroundColor: p.bgHex }}
-                          title={`Sfondo: ${p.bgHex}`}
+                          style={{ backgroundColor: p.dot1Hex || p.bgHex }}
+                          title={`Colore 1: ${p.dot1Hex || p.bgHex}`}
                         />
                         <span
                           className="w-5 h-5 rounded-full border border-black/20 shadow-sm inline-block shrink-0"
-                          style={{ backgroundColor: p.accentHex }}
-                          title={`Accento: ${p.accentHex}`}
+                          style={{ backgroundColor: p.dot2Hex || p.accentHex }}
+                          title={`Colore 2: ${p.dot2Hex || p.accentHex}`}
                         />
                       </div>
                     )}

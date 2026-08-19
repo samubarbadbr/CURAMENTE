@@ -129,10 +129,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onStart }) => {
               type="button"
               id="splash-start-button"
               onClick={onStart}
-              whileHover={{ scale: 1.03, borderColor: 'rgba(255, 255, 255, 0.85)' }}
+              whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.95 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-              className="px-9 py-2.5 rounded-full border border-white/40 bg-[#12141C]/80 hover:bg-[#1A1D28]/90 text-white text-xs sm:text-sm font-semibold tracking-wide backdrop-blur-md shadow-lg transition-all duration-150 cursor-pointer select-none"
+              className="px-9 py-2.5 rounded-full border border-white/40 hover:border-white/80 bg-[#12141C]/80 hover:bg-[#1A1D28]/90 text-white text-xs sm:text-sm font-semibold tracking-wide backdrop-blur-md shadow-lg transition-all duration-150 cursor-pointer select-none"
               style={{
                 boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
               }}
