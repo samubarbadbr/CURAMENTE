@@ -23,7 +23,10 @@ import {
   Copy,
   Check,
   Laptop,
-  Sparkles
+  Sparkles,
+  UploadCloud,
+  DownloadCloud,
+  Loader2
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -296,9 +299,10 @@ NOTIFY pgrst, 'reload schema';`;
                   const randomPin = Math.floor(1000 + Math.random() * 9000).toString();
                   setPinInput(randomPin);
                 }}
-                className="text-[11px] font-bold text-[#5B67CA] hover:underline cursor-pointer"
+                className="inline-flex items-center space-x-1.5 text-[11px] font-bold text-[#5B67CA] hover:underline cursor-pointer"
               >
-                ⚡ Genera PIN casuale a 4 cifre
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Genera PIN casuale a 4 cifre</span>
               </button>
             </form>
           ) : (
@@ -324,17 +328,21 @@ NOTIFY pgrst, 'reload schema';`;
         {/* Sync Buttons */}
         <div className="pt-1 space-y-2">
           {syncPin && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <button
                 type="button"
                 onClick={async () => {
                   if (onManualSyncPush) await onManualSyncPush();
                 }}
                 disabled={syncStatus === 'syncing'}
-                className="flex items-center justify-center space-x-2 py-3 px-4 rounded-xl bg-[#5B67CA] hover:bg-[#4A55B8] text-white text-sm font-black transition-all active:scale-98 shadow-md cursor-pointer disabled:opacity-50"
+                className="flex items-center justify-center space-x-2 py-3 px-4 rounded-xl bg-[#5B67CA] hover:bg-[#4A55B8] text-white text-xs sm:text-sm font-black transition-all active:scale-98 shadow-md cursor-pointer disabled:opacity-50"
               >
-                <RefreshCw className={`w-4 h-4 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
-                <span>{syncStatus === 'syncing' ? 'Invio...' : '⬆️ Invia Dati a Supabase'}</span>
+                {syncStatus === 'syncing' ? (
+                  <Loader2 className="w-4 h-4 animate-spin stroke-[2.5]" />
+                ) : (
+                  <UploadCloud className="w-4 h-4 stroke-[2.2]" />
+                )}
+                <span>{syncStatus === 'syncing' ? 'Invio in corso...' : 'Invia Dati a Supabase'}</span>
               </button>
 
               <button
@@ -343,10 +351,14 @@ NOTIFY pgrst, 'reload schema';`;
                   if (onManualSyncPull) await onManualSyncPull();
                 }}
                 disabled={syncStatus === 'syncing'}
-                className="flex items-center justify-center space-x-2 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-black transition-all active:scale-98 shadow-md cursor-pointer disabled:opacity-50"
+                className="flex items-center justify-center space-x-2 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-black transition-all active:scale-98 shadow-md cursor-pointer disabled:opacity-50"
               >
-                <Download className={`w-4 h-4 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
-                <span>{syncStatus === 'syncing' ? 'Scaricamento...' : '⬇️ Scarica Dati dal Cloud'}</span>
+                {syncStatus === 'syncing' ? (
+                  <Loader2 className="w-4 h-4 animate-spin stroke-[2.5]" />
+                ) : (
+                  <DownloadCloud className="w-4 h-4 stroke-[2.2]" />
+                )}
+                <span>{syncStatus === 'syncing' ? 'Scaricamento in corso...' : 'Scarica Dati dal Cloud'}</span>
               </button>
             </div>
           )}
@@ -359,8 +371,8 @@ NOTIFY pgrst, 'reload schema';`;
               }}
               className="w-full flex items-center justify-center space-x-2 py-2.5 px-4 rounded-xl border-2 border-[#5B67CA]/40 bg-[var(--bg-surface)] text-[#5B67CA] hover:bg-[#5B67CA]/10 text-xs font-black transition-all cursor-pointer"
             >
-              <Wifi className="w-4 h-4" />
-              <span>📡 Test Connessione Cloud</span>
+              <Wifi className="w-4 h-4 stroke-[2.2]" />
+              <span>Verifica Connessione Cloud</span>
             </button>
           )}
 
@@ -373,7 +385,7 @@ NOTIFY pgrst, 'reload schema';`;
             >
               <div className="flex items-center space-x-2">
                 <Database className="w-4 h-4 text-[#5B67CA]" />
-                <span className="text-xs font-black">🛠️ Istruzioni Setup Tabella Supabase SQL</span>
+                <span className="text-xs font-black">Istruzioni Setup Tabella Supabase SQL</span>
               </div>
               <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${showSqlGuide ? 'rotate-90' : ''}`} />
             </button>
@@ -586,48 +598,44 @@ NOTIFY pgrst, 'reload schema';`;
                 key={p.id}
                 type="button"
                 onClick={() => onThemeChange(p.id)}
-                className={`p-3.5 rounded-2xl border text-left transition-all duration-150 active:scale-98 cursor-pointer flex flex-col justify-between space-y-2 relative overflow-hidden ${
+                className={`p-3.5 rounded-2xl border text-left transition-all duration-150 active:scale-98 cursor-pointer flex items-center justify-between relative overflow-hidden group ${
                   isSelected
-                    ? 'border-2 border-[var(--accent-btn)] bg-[var(--bg-subtle)] shadow-md ring-2 ring-[var(--ring-color)]/30'
-                    : 'border-[var(--border-solid)] bg-[var(--bg-subtle)]/50 hover:bg-[var(--bg-subtle)]'
+                    ? 'border-2 border-[var(--accent-btn)] bg-[var(--bg-subtle)] shadow-sm ring-1 ring-[var(--ring-color)]/20'
+                    : 'border-[var(--border-solid)] bg-[var(--bg-surface)] hover:bg-[var(--bg-subtle)]'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    {p.isAuto ? (
-                      <div className="w-6 h-6 rounded-full bg-[var(--bg-subtle)] border border-[var(--border-solid)] flex items-center justify-center text-[var(--accent-primary)] shrink-0 shadow-xs">
-                        <Laptop className="w-3.5 h-3.5 stroke-[2.5]" />
-                      </div>
-                    ) : (
-                      /* Swatch Preview Dots */
-                      <div className="flex items-center -space-x-1.5">
-                        <span
-                          className="w-5 h-5 rounded-full border border-black/20 shadow-sm inline-block shrink-0"
-                          style={{ backgroundColor: p.dot1Hex || p.bgHex }}
-                          title={`Colore 1: ${p.dot1Hex || p.bgHex}`}
-                        />
-                        <span
-                          className="w-5 h-5 rounded-full border border-black/20 shadow-sm inline-block shrink-0"
-                          style={{ backgroundColor: p.dot2Hex || p.accentHex }}
-                          title={`Colore 2: ${p.dot2Hex || p.accentHex}`}
-                        />
-                      </div>
-                    )}
-                    <span className="text-xs font-black text-[var(--text-primary)]">
-                      {p.name}
-                    </span>
-                  </div>
-
-                  {isSelected && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-[var(--accent-btn)] text-[var(--accent-btn-text)] shadow-xs">
-                      Attivo
-                    </span>
+                <div className="flex items-center space-x-3 min-w-0">
+                  {p.isAuto ? (
+                    <div className="w-7 h-7 rounded-full bg-[var(--bg-subtle)] border border-[var(--border-solid)] flex items-center justify-center text-[var(--accent-primary)] shrink-0 shadow-xs group-hover:scale-105 transition-transform duration-150">
+                      <Laptop className="w-3.5 h-3.5 stroke-[2.5]" />
+                    </div>
+                  ) : (
+                    /* Swatch Preview Dots */
+                    <div className="flex items-center -space-x-2 shrink-0 group-hover:scale-105 transition-transform duration-150">
+                      <span
+                        className="w-5 h-5 rounded-full border border-black/20 shadow-xs inline-block"
+                        style={{ backgroundColor: p.dot1Hex || p.bgHex }}
+                        title={`Sfondo: ${p.dot1Hex || p.bgHex}`}
+                      />
+                      <span
+                        className="w-5 h-5 rounded-full border border-black/20 shadow-xs inline-block"
+                        style={{ backgroundColor: p.dot2Hex || p.accentHex }}
+                        title={`Accento: ${p.dot2Hex || p.accentHex}`}
+                      />
+                    </div>
                   )}
+                  <span className="text-xs sm:text-sm font-black text-[var(--text-primary)] truncate">
+                    {p.name}
+                  </span>
                 </div>
 
-                <p className="text-[11px] font-bold text-[var(--text-secondary)] leading-relaxed">
-                  {p.description}
-                </p>
+                {isSelected ? (
+                  <span className="ml-2 px-2.5 py-1 rounded-full text-[10px] font-black bg-[var(--accent-btn)] text-[var(--accent-btn-text)] shrink-0 shadow-xs">
+                    Attivo
+                  </span>
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-[var(--border-solid)] ml-2 shrink-0 opacity-40 group-hover:opacity-80 transition-opacity" />
+                )}
               </button>
             );
           })}
