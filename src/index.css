@@ -30,15 +30,16 @@ html.dark:not(.theme-midnight):not(.theme-minimal):not(.theme-earth):not(.theme-
   --badge-text: #FFFFFF;
   --badge-border: rgba(255, 255, 255, 0.2);
   --ring-color: #FFFFFF;
+  --panel-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
-/* 2. LIGHT MINIMAL / MINIMALISTA (Pure White #FFFFFF, Light Slate #F4F4F5, Deep Black #090A0E) */
+/* 2. LIGHT MINIMAL / MINIMALISTA (Pure White #FFFFFF, Light Slate #F4F4F5, Deep Black #0F172A) */
 html.theme-minimal,
 html[data-theme='minimal'],
 html.theme-light,
 html[data-theme='light'] {
   --bg-page: #F8F9FA;
-  --bg-surface: rgba(255, 255, 255, 0.9);
+  --bg-surface: rgba(255, 255, 255, 0.95);
   --bg-subtle: #F1F3F5;
   --border-solid: #E2E8F0;
   --border-subtle: #EDF2F7;
@@ -56,6 +57,7 @@ html[data-theme='light'] {
   --badge-text: #0F172A;
   --badge-border: #CBD5E1;
   --ring-color: #0F172A;
+  --panel-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 /* 3. MIDNIGHT BLUE / NOTTE (Deep Navy #0A1120, Dark Blue Surface #131F37, Cyan #38BDF8) */
@@ -82,6 +84,7 @@ html[data-theme='ocean'] {
   --badge-text: #38BDF8;
   --badge-border: rgba(56, 189, 248, 0.35);
   --ring-color: #38BDF8;
+  --panel-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 /* 4. WARM EARTH / NATURA */
@@ -106,6 +109,7 @@ html[data-theme='earth'] {
   --badge-text: #C85A32;
   --badge-border: #D8CCA8;
   --ring-color: #C85A32;
+  --panel-shadow: 0 1px 3px rgba(44, 34, 30, 0.05);
 }
 
 /* 5. AMETISTA / DEEP VIOLET */
@@ -132,6 +136,7 @@ html[data-theme='amethyst'] {
   --badge-text: #C4B5FD;
   --badge-border: rgba(167, 139, 250, 0.35);
   --ring-color: #8B5CF6;
+  --panel-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
 }
 
 @layer base {
@@ -192,7 +197,7 @@ html[data-theme='amethyst'] {
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-solid) !important;
   border-radius: 24px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--panel-shadow, 0 1px 3px rgba(0, 0, 0, 0.05));
 }
 
 .glass-header, header {

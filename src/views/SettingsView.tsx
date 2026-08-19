@@ -26,12 +26,21 @@ import {
   Sparkles,
   UploadCloud,
   DownloadCloud,
-  Loader2
+  Loader2,
+  ScanFace,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 interface SettingsViewProps {
   pinEnabled: boolean;
+  pinCode?: string;
   onTogglePin: (enabled: boolean) => void;
+  onSavePin?: (pin: string) => Promise<boolean>;
+  biometricsEnabled?: boolean;
+  onToggleBiometrics?: (enabled: boolean) => Promise<boolean>;
+  isBiometricsSupported?: boolean;
+  onLockApp?: () => void;
   themeMode: ThemeMode;
   onThemeChange: (mode: ThemeMode) => void;
   syncPin?: string;
@@ -53,7 +62,13 @@ interface SettingsViewProps {
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   pinEnabled,
+  pinCode = '',
   onTogglePin,
+  onSavePin,
+  biometricsEnabled = false,
+  onToggleBiometrics,
+  isBiometricsSupported = false,
+  onLockApp,
   themeMode,
   onThemeChange,
   syncPin = '',
@@ -72,12 +87,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onDeleteAllData,
   onShowSplash,
 }) => {
-
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pinInput, setPinInput] = useState(syncPin);
   const [isEditingPin, setIsEditingPin] = useState(!syncPin);
   const [showSqlGuide, setShowSqlGuide] = useState(false);
   const [copiedSql, setCopiedSql] = useState(false);
+
+  // App Lock PIN local state
+  const [appPinDraft, setAppPinDraft] = useState('');
+  const [isEditingAppPin, setIsEditingAppPin] = useState(!pinCode);
+  const [showAppPinPlain, setShowAppPinPlain] = useState(false);
+  const [appPinError, setAppPinError] = useState<string | null>(null);
 
   const customTags = React.useMemo(() => {
     const seen = new Set<string>();
@@ -145,6 +165,22 @@ NOTIFY pgrst, 'reload schema';`;
     setIsEditingPin(false);
   };
 
+  const handleSaveAppPinSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setAppPinError(null);
+    if (!appPinDraft || !/^\d{4}$/.test(appPinDraft.trim())) {
+      setAppPinError('Inserisci esattamente 4 cifre numeriche');
+      return;
+    }
+    if (onSavePin) {
+      const ok = await onSavePin(appPinDraft.trim());
+      if (ok) {
+        setIsEditingAppPin(false);
+        setAppPinDraft('');
+      }
+    }
+  };
+
   const themePreviews: {
     id: ThemeMode;
     name: string;
@@ -159,13 +195,13 @@ NOTIFY pgrst, 'reload schema';`;
   }[] = [
     {
       id: 'auto',
-      name: 'Automatico (Sistema)',
+      name: 'Automatico',
       description: 'Adatta chiaro o scuro in base alle impostazioni del tuo dispositivo',
       isAuto: true,
     },
     {
       id: 'minimal',
-      name: 'Light Minimal (Chiaro)',
+      name: 'Light Minimal',
       description: 'Sfondo bianco puro, schede chiare e contrasto nitido monocromatico',
       bgHex: '#FFFFFF',
       cardHex: '#F4F4F5',
@@ -176,7 +212,7 @@ NOTIFY pgrst, 'reload schema';`;
     },
     {
       id: 'cyber',
-      name: 'Scuro Profondo (Dark)',
+      name: 'Scuro Profondo',
       description: 'Sfondo nero profondo, schede scure e finiture bianche ad alto contrasto',
       bgHex: '#090A0E',
       cardHex: '#121212',
@@ -187,7 +223,7 @@ NOTIFY pgrst, 'reload schema';`;
     },
     {
       id: 'midnight',
-      name: 'Midnight Blue (Oceano/Notte)',
+      name: 'Midnight Blue',
       description: 'Sfondo blu notte intenso (#0A1120), schede blu scuro (#131F37) e accenti azzurro ciano (#38BDF8)',
       bgHex: '#0A1120',
       cardHex: '#131F37',
@@ -198,7 +234,7 @@ NOTIFY pgrst, 'reload schema';`;
     },
     {
       id: 'earth',
-      name: 'Warm Earth (Sabbia/Caldo)',
+      name: 'Warm Earth',
       description: 'Sfondo color crema/sabbia (#FDFBF7), schede beige soft (#F3EFE6) e accenti terracotta (#C85A32)',
       bgHex: '#FDFBF7',
       cardHex: '#F3EFE6',
@@ -209,7 +245,7 @@ NOTIFY pgrst, 'reload schema';`;
     },
     {
       id: 'violet',
-      name: 'Ametista (Viola Profondo)',
+      name: 'Ametista Viola',
       description: 'Sfondo viola profondo (#0F0C1B), schede viola notte (#18132B) e accenti lavanda neon (#A78BFA)',
       bgHex: '#0F0C1B',
       cardHex: '#18132B',
@@ -544,7 +580,7 @@ NOTIFY pgrst, 'reload schema';`;
         </div>
       </div>
 
-      {/* SECURITY SECTION */}
+      {/* SECURITY & BIOMETRICS SECTION */}
       <div className="glass-panel rounded-[20px] p-5 space-y-4 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -571,6 +607,143 @@ NOTIFY pgrst, 'reload schema';`;
             <div className="w-11 h-6 bg-[var(--bg-subtle)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[var(--border-solid)] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5B67CA]" />
           </label>
         </div>
+
+        {/* PIN Configuration Details (when PIN is enabled) */}
+        {pinEnabled && (
+          <div className="pt-3 border-t border-[var(--border-subtle)] space-y-4">
+            {/* PIN Code Setting / Editing Box */}
+            <div className="bg-[var(--bg-subtle)] rounded-2xl p-4 border border-[var(--border-solid)] space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <KeyRound className="w-4 h-4 text-[#5B67CA] stroke-[2.5]" />
+                  <span className="text-xs font-black text-[var(--text-primary)]">
+                    Codice PIN a 4 Cifre
+                  </span>
+                </div>
+                {pinCode && !isEditingAppPin && (
+                  <span className="text-[11px] font-black text-emerald-600 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                    Configurato
+                  </span>
+                )}
+              </div>
+
+              {isEditingAppPin || !pinCode ? (
+                <form onSubmit={handleSaveAppPinSubmit} className="space-y-3">
+                  <div className="relative">
+                    <input
+                      type={showAppPinPlain ? 'text' : 'password'}
+                      maxLength={4}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={appPinDraft}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                        setAppPinDraft(val);
+                        if (appPinError) setAppPinError(null);
+                      }}
+                      placeholder="••••"
+                      className="w-full bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-[var(--text-muted)] border border-[var(--border-solid)] rounded-xl px-4 py-2.5 text-center text-xl font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-[#5B67CA]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowAppPinPlain(!showAppPinPlain)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1"
+                      title={showAppPinPlain ? 'Nascondi PIN' : 'Mostra PIN'}
+                    >
+                      {showAppPinPlain ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+
+                  {appPinError && (
+                    <p className="text-[11px] font-bold text-rose-500 text-center">{appPinError}</p>
+                  )}
+
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="submit"
+                      disabled={appPinDraft.length !== 4}
+                      className="flex-1 py-2.5 rounded-xl bg-[#5B67CA] text-white text-xs font-black hover:bg-[#4d57b2] active:scale-98 transition-all disabled:opacity-40 cursor-pointer shadow-xs"
+                    >
+                      {pinCode ? 'Aggiorna PIN' : 'Salva PIN'}
+                    </button>
+                    {pinCode && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingAppPin(false);
+                          setAppPinDraft('');
+                          setAppPinError(null);
+                        }}
+                        className="px-4 py-2.5 rounded-xl border border-[var(--border-solid)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] text-xs font-bold transition-all cursor-pointer"
+                      >
+                        Annulla
+                      </button>
+                    )}
+                  </div>
+                </form>
+              ) : (
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-mono font-bold tracking-widest text-[var(--text-primary)]">
+                      ••••
+                    </span>
+                    <span className="text-[11px] font-bold text-[var(--text-secondary)]">
+                      (PIN a 4 cifre attivo)
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditingAppPin(true);
+                        setAppPinDraft('');
+                      }}
+                      className="text-xs font-bold text-[#5B67CA] hover:underline px-2 py-1"
+                    >
+                      Modifica
+                    </button>
+                    {onLockApp && (
+                      <button
+                        type="button"
+                        onClick={onLockApp}
+                        className="px-2.5 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-solid)] text-[11px] font-bold text-[var(--text-primary)] hover:bg-[var(--bg-page)] active:scale-95 transition-all shadow-xs"
+                      >
+                        Blocca Ora
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Face ID / Touch ID Biometrics Toggle (Always shown or if supported) */}
+            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-solid)]">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 rounded-xl bg-violet-500/15 text-violet-500 border border-violet-500/30 shrink-0">
+                  <ScanFace className="w-4 h-4 stroke-[2.5]" />
+                </div>
+                <div>
+                  <span className="block text-xs font-black text-[var(--text-primary)]">
+                    Face ID / Touch ID
+                  </span>
+                  <span className="block text-[10px] font-bold text-[var(--text-secondary)]">
+                    Sblocca istantaneamente con riconoscimento biometrico
+                  </span>
+                </div>
+              </div>
+
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={biometricsEnabled}
+                  onChange={(e) => onToggleBiometrics && onToggleBiometrics(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-10 h-5 bg-[var(--bg-surface)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[var(--border-solid)] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600" />
+              </label>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* THEME SECTION */}
@@ -582,9 +755,6 @@ NOTIFY pgrst, 'reload schema';`;
           <div>
             <span className="block text-sm font-black text-[var(--text-primary)]">
               Tema Grafico e Palette
-            </span>
-            <span className="block text-xs font-bold text-[var(--text-secondary)]">
-              5 temi curati ad alto contrasto e modalità automatica per ogni condizione di luce
             </span>
           </div>
         </div>

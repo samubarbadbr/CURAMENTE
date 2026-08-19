@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { CbtEntry, Tag, ViewType, PeriodFilter, ThemeMode } from './types';
 import { DB, seedDefaultTagsIfNeeded, cleanupAndDeduplicateTags, createBlankEntry, openDatabase } from './services/db';
 import { SyncService } from './services/sync';
+import { checkBiometricsAvailability, registerBiometricCredential } from './lib/biometrics';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { LockScreen } from './components/LockScreen';
@@ -116,6 +117,9 @@ export default function App() {
   const [pinEnabled, setPinEnabled] = useState(false);
   const [pinCode, setPinCode] = useState<string>('');
   const [isLocked, setIsLocked] = useState(false);
+  const [biometricsEnabled, setBiometricsEnabled] = useState(false);
+  const [biometricCredentialId, setBiometricCredentialId] = useState<string>('');
+  const [isBiometricsSupported, setIsBiometricsSupported] = useState(false);
 
   // Cloud Sync state
   const [syncPin, setSyncPin] = useState<string>('');
@@ -415,12 +419,27 @@ export default function App() {
         // Load saved PIN settings
         const pinEnabledRow = await DB.get<{ key: string; value: boolean }>('settings', 'pin_enabled');
         const pinCodeRow = await DB.get<{ key: string; value: string }>('settings', 'pin_code');
+        const bioEnabledRow = await DB.get<{ key: string; value: boolean }>('settings', 'biometrics_enabled');
+        const bioCredRow = await DB.get<{ key: string; value: string }>('settings', 'biometric_credential_id');
+
+        const bioSupported = await checkBiometricsAvailability();
+        if (isMounted) {
+          setIsBiometricsSupported(bioSupported);
+        }
 
         if (pinEnabledRow?.value && pinCodeRow?.value) {
           if (isMounted) {
             setPinEnabled(true);
             setPinCode(pinCodeRow.value);
             setIsLocked(true);
+          }
+        }
+
+        if (bioEnabledRow?.value) {
+          if (isMounted) {
+            setBiometricsEnabled(true);
+            if (bioCredRow?.value) setBiometricCredentialId(bioCredRow.value);
+            if (pinEnabledRow?.value) setIsLocked(true);
           }
         }
 
@@ -643,24 +662,77 @@ export default function App() {
     }
   };
 
-  // PIN settings toggle
+  // PIN and Biometrics Settings Handlers
+  const handleSavePin = async (newPin: string): Promise<boolean> => {
+    if (!newPin || !/^\d{4}$/.test(newPin)) {
+      showToast('PIN non valido. Inserisci esattamente 4 cifre.');
+      return false;
+    }
+    try {
+      await DB.put('settings', { key: 'pin_enabled', value: true });
+      await DB.put('settings', { key: 'pin_code', value: newPin });
+      setPinEnabled(true);
+      setPinCode(newPin);
+      showToast('PIN a 4 cifre salvato');
+      return true;
+    } catch (err) {
+      console.error(err);
+      showToast('Errore salvataggio PIN');
+      return false;
+    }
+  };
+
   const handleTogglePin = async (enabled: boolean) => {
     if (enabled) {
-      const pin = window.prompt('Imposta un PIN a 4 cifre per sbloccare la tua app:');
-      if (!pin || !/^\d{4}$/.test(pin)) {
-        showToast('PIN non valido. Inserisci esattamente 4 cifre.');
-        return;
-      }
       await DB.put('settings', { key: 'pin_enabled', value: true });
-      await DB.put('settings', { key: 'pin_code', value: pin });
       setPinEnabled(true);
-      setPinCode(pin);
-      showToast('Protezione con PIN attivata');
+      if (!pinCode) {
+        showToast('Imposta un PIN a 4 cifre per completare la protezione');
+      } else {
+        showToast('Protezione con PIN attivata');
+      }
     } else {
       await DB.put('settings', { key: 'pin_enabled', value: false });
+      await DB.put('settings', { key: 'biometrics_enabled', value: false });
       setPinEnabled(false);
-      setPinCode('');
-      showToast('Protezione con PIN disattivata');
+      setBiometricsEnabled(false);
+      showToast('Protezione PIN e biometrica disattivata');
+    }
+  };
+
+  const handleToggleBiometrics = async (enabled: boolean): Promise<boolean> => {
+    if (enabled) {
+      try {
+        const res = await registerBiometricCredential();
+        if (res.success && res.credentialId) {
+          await DB.put('settings', { key: 'biometrics_enabled', value: true });
+          await DB.put('settings', { key: 'biometric_credential_id', value: res.credentialId });
+          setBiometricsEnabled(true);
+          setBiometricCredentialId(res.credentialId);
+          showToast('Face ID / Riconoscimento biometrico configurato con successo!');
+          return true;
+        } else {
+          showToast(res.error || 'Face ID non disponibile o annullato.');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Errore configurazione Face ID');
+        return false;
+      }
+    } else {
+      await DB.put('settings', { key: 'biometrics_enabled', value: false });
+      setBiometricsEnabled(false);
+      showToast('Sblocco con Face ID disattivato');
+      return true;
+    }
+  };
+
+  const handleLockAppNow = () => {
+    if (pinCode || biometricsEnabled) {
+      setIsLocked(true);
+      showToast('Applicazione bloccata');
+    } else {
+      showToast('Configura prima un PIN per bloccare l\'app');
     }
   };
 
@@ -1020,6 +1092,8 @@ export default function App() {
       {isLocked && (
         <LockScreen
           correctPin={pinCode}
+          biometricsEnabled={biometricsEnabled}
+          biometricCredentialId={biometricCredentialId}
           onUnlock={() => setIsLocked(false)}
         />
       )}
@@ -1111,7 +1185,13 @@ export default function App() {
               {currentView === 'settings' && (
                 <SettingsView
                   pinEnabled={pinEnabled}
+                  pinCode={pinCode}
                   onTogglePin={handleTogglePin}
+                  onSavePin={handleSavePin}
+                  biometricsEnabled={biometricsEnabled}
+                  onToggleBiometrics={handleToggleBiometrics}
+                  isBiometricsSupported={isBiometricsSupported}
+                  onLockApp={handleLockAppNow}
                   themeMode={themeMode}
                   onThemeChange={(m) => {
                     setThemeMode(m);

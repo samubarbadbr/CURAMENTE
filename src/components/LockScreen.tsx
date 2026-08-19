@@ -1,14 +1,44 @@
-import React, { useState } from 'react';
-import { Delete, ShieldAlert, Brain } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Delete, ShieldAlert, Brain, ScanFace } from 'lucide-react';
+import { verifyBiometrics } from '../lib/biometrics';
 
 interface LockScreenProps {
   correctPin: string;
+  biometricsEnabled?: boolean;
+  biometricCredentialId?: string;
   onUnlock: () => void;
 }
 
-export const LockScreen: React.FC<LockScreenProps> = ({ correctPin, onUnlock }) => {
+export const LockScreen: React.FC<LockScreenProps> = ({
+  correctPin,
+  biometricsEnabled = false,
+  biometricCredentialId,
+  onUnlock,
+}) => {
   const [pinAttempt, setPinAttempt] = useState('');
   const [hasError, setHasError] = useState(false);
+  const [isVerifyingBio, setIsVerifyingBio] = useState(false);
+
+  // Trigger biometric check on mount if enabled
+  useEffect(() => {
+    if (biometricsEnabled) {
+      handleBiometricUnlock();
+    }
+  }, [biometricsEnabled]);
+
+  const handleBiometricUnlock = async () => {
+    setIsVerifyingBio(true);
+    try {
+      const res = await verifyBiometrics(biometricCredentialId);
+      if (res.success) {
+        onUnlock();
+      }
+    } catch (err) {
+      console.warn('Biometric unlock cancelled or failed:', err);
+    } finally {
+      setIsVerifyingBio(false);
+    }
+  };
 
   const handleKeyPress = (num: string) => {
     setHasError(false);
@@ -44,7 +74,9 @@ export const LockScreen: React.FC<LockScreenProps> = ({ correctPin, onUnlock }) 
 
         <div>
           <h1 className="text-2xl font-black tracking-tight text-[var(--text-primary)]">Diariamente</h1>
-          <p className="text-sm font-bold opacity-80 text-[var(--text-secondary)] mt-1">Inserisci il PIN a 4 cifre per accedere</p>
+          <p className="text-sm font-bold opacity-80 text-[var(--text-secondary)] mt-1">
+            {biometricsEnabled ? 'Sblocca con Face ID o inserisci il PIN' : 'Inserisci il PIN a 4 cifre per accedere'}
+          </p>
         </div>
 
         {/* PIN Dot Indicators */}
@@ -85,7 +117,23 @@ export const LockScreen: React.FC<LockScreenProps> = ({ correctPin, onUnlock }) 
               {num}
             </button>
           ))}
-          <div className="w-16 h-16" />
+
+          {/* Bottom Left: Face ID / Biometrics button */}
+          {biometricsEnabled ? (
+            <button
+              type="button"
+              onClick={handleBiometricUnlock}
+              disabled={isVerifyingBio}
+              className="w-16 h-16 mx-auto rounded-full bg-[var(--bg-surface)] border border-[var(--border-solid)] text-[var(--accent-primary)] hover:bg-[var(--bg-subtle)] active:scale-90 transition-all duration-150 flex items-center justify-center shadow-md cursor-pointer disabled:opacity-50"
+              aria-label="Sblocca con Face ID o Impronta"
+              title="Sblocca con Face ID"
+            >
+              <ScanFace className={`w-7 h-7 stroke-[2.2] ${isVerifyingBio ? 'animate-pulse' : ''}`} />
+            </button>
+          ) : (
+            <div className="w-16 h-16" />
+          )}
+
           <button
             type="button"
             onClick={() => handleKeyPress('0')}
@@ -93,6 +141,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({ correctPin, onUnlock }) 
           >
             0
           </button>
+
           <button
             type="button"
             onClick={handleDelete}
