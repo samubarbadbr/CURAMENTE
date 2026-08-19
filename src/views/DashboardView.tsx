@@ -61,99 +61,132 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
     const width = 360;
     const height = 180;
-    const padding = 28;
+    const paddingLeft = 32;
+    const paddingRight = 20;
+    const paddingTop = 24;
+    const paddingBottom = 28;
+
     const values = chronEntries.map((e) => Number(e.overallAnxietyLevel) || 0);
-    const stepX = values.length > 1 ? (width - padding * 2) / (values.length - 1) : 0;
+    const chartW = width - paddingLeft - paddingRight;
+    const chartH = height - paddingTop - paddingBottom;
+    const stepX = values.length > 1 ? chartW / (values.length - 1) : 0;
 
     const points = values.map((v, i) => {
-      const x = values.length === 1 ? width / 2 : padding + i * stepX;
-      const y = height - padding - (Math.min(100, Math.max(0, v)) / 100) * (height - padding * 2);
-      return { x, y, v, date: new Date(chronEntries[i].eventDatetime) };
+      const x = values.length === 1 ? paddingLeft + chartW / 2 : paddingLeft + i * stepX;
+      const y = paddingTop + chartH - (Math.min(100, Math.max(0, v)) / 100) * chartH;
+      const dateObj = new Date(chronEntries[i].eventDatetime);
+      const dateLabel = dateObj.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+      return { x, y, v, dateLabel };
     });
 
     const pathD = points.map((p, i) => (i === 0 ? `M ${p.x},${p.y}` : `L ${p.x},${p.y}`)).join(' ');
     const areaD = values.length === 1
       ? ''
-      : `${pathD} L ${points[points.length - 1].x},${height - padding} L ${points[0].x},${height - padding} Z`;
+      : `${pathD} L ${points[points.length - 1].x},${paddingTop + chartH} L ${points[0].x},${paddingTop + chartH} Z`;
 
     const gridValues = [0, 25, 50, 75, 100];
 
     return (
-      <div className="w-full overflow-x-auto">
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto min-w-[300px]">
-          <defs>
-            <linearGradient id="anxietyGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--accent-primary)" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="var(--accent-primary)" stopOpacity="0.0" />
-            </linearGradient>
-          </defs>
+      <div className="space-y-2">
+        <div className="w-full overflow-x-auto">
+          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto min-w-[300px]">
+            <defs>
+              <linearGradient id="anxietyGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#6366F1" stopOpacity="0.35" />
+                <stop offset="100%" stopColor="#6366F1" stopOpacity="0.0" />
+              </linearGradient>
+            </defs>
 
-          {/* Grid lines */}
-          {gridValues.map((gv) => {
-            const y = height - padding - (gv / 100) * (height - padding * 2);
-            return (
-              <g key={gv}>
-                <line
-                  x1={padding}
-                  y1={y}
-                  x2={width - padding}
-                  y2={y}
-                  stroke="var(--border-solid)"
+            {/* Grid lines & Y-axis scale */}
+            {gridValues.map((gv) => {
+              const y = paddingTop + chartH - (gv / 100) * chartH;
+              return (
+                <g key={gv}>
+                  <line
+                    x1={paddingLeft}
+                    y1={y}
+                    x2={width - paddingRight}
+                    y2={y}
+                    stroke="var(--border-solid)"
+                    strokeWidth="1"
+                    strokeDasharray="3 3"
+                  />
+                  <text
+                    x={paddingLeft - 6}
+                    y={y + 3}
+                    fontSize="9"
+                    textAnchor="end"
+                    fill="var(--text-secondary)"
+                    fontWeight="bold"
+                  >
+                    {gv}
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* Area under line */}
+            {areaD && <path d={areaD} fill="url(#anxietyGradient)" />}
+
+            {/* Main anxiety trend line */}
+            {values.length > 1 && (
+              <path
+                d={pathD}
+                fill="none"
+                stroke="#6366F1"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            )}
+
+            {/* Data points with numeric values */}
+            {points.map((p, i) => (
+              <g key={i}>
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r="4.5"
+                  fill="#6366F1"
+                  stroke="var(--bg-surface)"
+                  strokeWidth="2"
+                />
+                <rect
+                  x={p.x - 11}
+                  y={p.y - 19}
+                  width="22"
+                  height="13"
+                  rx="4"
+                  fill="var(--bg-surface)"
+                  stroke="#6366F1"
                   strokeWidth="1"
-                  strokeDasharray="3 3"
+                  className="shadow-xs"
                 />
                 <text
-                  x="4"
-                  y={y + 3}
+                  x={p.x}
+                  y={p.y - 10}
+                  fontSize="8.5"
+                  textAnchor="middle"
+                  fill="var(--text-primary)"
+                  fontWeight="bold"
+                >
+                  {p.v}
+                </text>
+                {/* X axis date label */}
+                <text
+                  x={p.x}
+                  y={height - 8}
                   fontSize="9"
+                  textAnchor="middle"
                   fill="var(--text-secondary)"
                   fontWeight="bold"
                 >
-                  {gv}
+                  {p.dateLabel}
                 </text>
               </g>
-            );
-          })}
-
-          {/* Area under line */}
-          {areaD && <path d={areaD} fill="url(#anxietyGradient)" />}
-
-          {/* Main anxiety trend line */}
-          {values.length > 1 && (
-            <path
-              d={pathD}
-              fill="none"
-              stroke="var(--accent-btn)"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          )}
-
-          {/* Data points */}
-          {points.map((p, i) => (
-            <g key={i}>
-              <circle
-                cx={p.x}
-                cy={p.y}
-                r="4.5"
-                fill="var(--accent-btn)"
-                stroke="var(--bg-surface)"
-                strokeWidth="2"
-              />
-              <text
-                x={p.x}
-                y={p.y - 8}
-                fontSize="9"
-                textAnchor="middle"
-                fill="var(--text-primary)"
-                fontWeight="bold"
-              >
-                {p.v}
-              </text>
-            </g>
-          ))}
-        </svg>
+            ))}
+          </svg>
+        </div>
       </div>
     );
   };
@@ -169,64 +202,209 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     }
 
     // Group by Day
-    const byDayMap = new Map<string, { control: number; reassurance: number }>();
+    const byDayMap = new Map<string, { control: number; reassurance: number; fullDate: string }>();
     chronEntries.forEach((e) => {
-      const key = new Date(e.eventDatetime).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
-      if (!byDayMap.has(key)) byDayMap.set(key, { control: 0, reassurance: 0 });
+      const d = new Date(e.eventDatetime);
+      const key = d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+      const fullDate = d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+      if (!byDayMap.has(key)) byDayMap.set(key, { control: 0, reassurance: 0, fullDate });
       const current = byDayMap.get(key)!;
       current.control += Number(e.symptomControlCount) || 0;
       current.reassurance += Number(e.reassuranceSeekingCount) || 0;
     });
 
-    const days = Array.from(byDayMap.keys());
-    const maxVal = Math.max(1, ...Array.from(byDayMap.values()).flatMap((b) => [b.control, b.reassurance]));
+    const dayKeys = Array.from(byDayMap.keys());
+    const dayEntriesList = Array.from(byDayMap.entries());
 
-    const width = Math.max(340, days.length * 54);
-    const height = 180;
-    const padding = 28;
-    const groupWidth = (width - padding * 2) / Math.max(1, days.length);
+    // Calculate max value with minimum scale ceiling of 5 to avoid giant distorted 100% bars
+    const rawMax = Math.max(0, ...Array.from(byDayMap.values()).flatMap((b) => [b.control, b.reassurance]));
+    const maxVal = Math.max(5, Math.ceil(rawMax * 1.25));
+
+    // Dynamic grid ticks (e.g. 0, 2, 4, 6 or 0, 5, 10)
+    const tickStep = maxVal <= 6 ? 1 : maxVal <= 12 ? 2 : Math.ceil(maxVal / 4);
+    const gridTicks: number[] = [];
+    for (let t = 0; t <= maxVal; t += tickStep) {
+      gridTicks.push(t);
+    }
+    if (gridTicks[gridTicks.length - 1] < maxVal) {
+      gridTicks.push(maxVal);
+    }
+
+    const width = Math.max(340, dayKeys.length * 70);
+    const height = 190;
+    const paddingLeft = 32;
+    const paddingRight = 20;
+    const paddingTop = 28;
+    const paddingBottom = 30;
+
+    const chartW = width - paddingLeft - paddingRight;
+    const chartH = height - paddingTop - paddingBottom;
+    const groupWidth = chartW / Math.max(1, dayKeys.length);
 
     return (
-      <div className="space-y-2">
+      <div className="space-y-4">
+        {/* Header KPI Summary Pills */}
+        <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-solid)]">
+          <div className="flex items-center space-x-2">
+            <span className="w-3 h-3 rounded-full bg-[#4F46E5] inline-block shadow-xs" />
+            <span className="text-xs font-bold text-[var(--text-primary)]">
+              Controlli Totali: <strong className="text-[#4F46E5] font-black">{totalControl}</strong>
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="w-3 h-3 rounded-full bg-[#F59E0B] inline-block shadow-xs" />
+            <span className="text-xs font-bold text-[var(--text-primary)]">
+              Rassicurazioni Totali: <strong className="text-[#F59E0B] font-black">{totalReassurance}</strong>
+            </span>
+          </div>
+        </div>
+
+        {/* SVG Bar Chart with Gridlines & Exact Values */}
         <div className="w-full overflow-x-auto">
           <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto min-w-[320px]">
-            {days.map((day, i) => {
-              const { control, reassurance } = byDayMap.get(day)!;
-              const groupX = padding + i * groupWidth;
-              const barW = Math.min(22, groupWidth * 0.35);
+            {/* Horizontal Gridlines & Y-Axis Scale Values */}
+            {gridTicks.map((tick) => {
+              const y = paddingTop + chartH - (tick / maxVal) * chartH;
+              return (
+                <g key={tick}>
+                  <line
+                    x1={paddingLeft}
+                    y1={y}
+                    x2={width - paddingRight}
+                    y2={y}
+                    stroke="var(--border-solid)"
+                    strokeWidth="1"
+                    strokeDasharray="3 3"
+                  />
+                  <text
+                    x={paddingLeft - 6}
+                    y={y + 3.5}
+                    fontSize="9"
+                    textAnchor="end"
+                    fill="var(--text-secondary)"
+                    fontWeight="bold"
+                  >
+                    {tick}
+                  </text>
+                </g>
+              );
+            })}
 
-              const hControl = (control / maxVal) * (height - padding * 2);
-              const hReassurance = (reassurance / maxVal) * (height - padding * 2);
+            {/* Day Groups */}
+            {dayKeys.map((day, i) => {
+              const { control, reassurance } = byDayMap.get(day)!;
+              const groupCenterX = paddingLeft + i * groupWidth + groupWidth / 2;
+              const barW = Math.min(22, Math.max(12, groupWidth * 0.28));
+              const barSpacing = 4;
+
+              const xControl = groupCenterX - barW - barSpacing / 2;
+              const xReassurance = groupCenterX + barSpacing / 2;
+
+              const hControl = (control / maxVal) * chartH;
+              const hReassurance = (reassurance / maxVal) * chartH;
+
+              const yControl = paddingTop + chartH - hControl;
+              const yReassurance = paddingTop + chartH - hReassurance;
 
               return (
                 <g key={day}>
-                  {/* Control Bar */}
-                  {hControl > 0 && (
-                    <rect
-                      x={groupX + groupWidth * 0.12}
-                      y={height - padding - hControl}
-                      width={barW}
-                      height={hControl}
-                      rx="4"
-                      fill="var(--accent-btn)"
-                    />
+                  {/* Subtle Base Placeholder for Control */}
+                  <rect
+                    x={xControl}
+                    y={paddingTop}
+                    width={barW}
+                    height={chartH}
+                    rx="4"
+                    fill="var(--border-solid)"
+                    opacity="0.15"
+                  />
+                  {/* Control Bar (Indigo) */}
+                  {control > 0 ? (
+                    <g>
+                      <rect
+                        x={xControl}
+                        y={yControl}
+                        width={barW}
+                        height={Math.max(4, hControl)}
+                        rx="4"
+                        fill="#4F46E5"
+                      />
+                      <text
+                        x={xControl + barW / 2}
+                        y={yControl - 5}
+                        fontSize="9.5"
+                        textAnchor="middle"
+                        fill="#4F46E5"
+                        fontWeight="900"
+                      >
+                        {control}
+                      </text>
+                    </g>
+                  ) : (
+                    <text
+                      x={xControl + barW / 2}
+                      y={paddingTop + chartH - 4}
+                      fontSize="8"
+                      textAnchor="middle"
+                      fill="var(--text-secondary)"
+                      opacity="0.6"
+                      fontWeight="bold"
+                    >
+                      0
+                    </text>
                   )}
-                  {/* Reassurance Bar */}
-                  {hReassurance > 0 && (
-                    <rect
-                      x={groupX + groupWidth * 0.52}
-                      y={height - padding - hReassurance}
-                      width={barW}
-                      height={hReassurance}
-                      rx="4"
-                      className="fill-amber-500"
-                    />
+
+                  {/* Subtle Base Placeholder for Reassurance */}
+                  <rect
+                    x={xReassurance}
+                    y={paddingTop}
+                    width={barW}
+                    height={chartH}
+                    rx="4"
+                    fill="var(--border-solid)"
+                    opacity="0.15"
+                  />
+                  {/* Reassurance Bar (Amber) */}
+                  {reassurance > 0 ? (
+                    <g>
+                      <rect
+                        x={xReassurance}
+                        y={yReassurance}
+                        width={barW}
+                        height={Math.max(4, hReassurance)}
+                        rx="4"
+                        fill="#F59E0B"
+                      />
+                      <text
+                        x={xReassurance + barW / 2}
+                        y={yReassurance - 5}
+                        fontSize="9.5"
+                        textAnchor="middle"
+                        fill="#F59E0B"
+                        fontWeight="900"
+                      >
+                        {reassurance}
+                      </text>
+                    </g>
+                  ) : (
+                    <text
+                      x={xReassurance + barW / 2}
+                      y={paddingTop + chartH - 4}
+                      fontSize="8"
+                      textAnchor="middle"
+                      fill="var(--text-secondary)"
+                      opacity="0.6"
+                      fontWeight="bold"
+                    >
+                      0
+                    </text>
                   )}
-                  {/* Day Label */}
+
+                  {/* Day Date Label */}
                   <text
-                    x={groupX + groupWidth / 2}
-                    y={height - 8}
-                    fontSize="9"
+                    x={groupCenterX}
+                    y={height - 10}
+                    fontSize="9.5"
                     textAnchor="middle"
                     fill="var(--text-primary)"
                     fontWeight="bold"
@@ -240,14 +418,41 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Legend */}
-        <div className="flex items-center justify-center space-x-6 text-xs font-black text-[var(--text-primary)] pt-1">
+        <div className="flex items-center justify-center space-x-6 text-xs font-black text-[var(--text-primary)] pt-0.5">
           <div className="flex items-center space-x-1.5">
-            <span className="w-3 h-3 rounded-sm bg-[var(--accent-btn)] inline-block" />
-            <span>Check sintomi</span>
+            <span className="w-3 h-3 rounded-md bg-[#4F46E5] inline-block shadow-xs" />
+            <span>Check sintomi (corpo/sensazioni)</span>
           </div>
           <div className="flex items-center space-x-1.5">
-            <span className="w-3 h-3 rounded-sm bg-amber-500 inline-block" />
-            <span>Rassicurazioni</span>
+            <span className="w-3 h-3 rounded-md bg-[#F59E0B] inline-block shadow-xs" />
+            <span>Richieste rassicurazioni</span>
+          </div>
+        </div>
+
+        {/* Daily Breakdown Cards */}
+        <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
+          <span className="block text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
+            Dettaglio Giornaliero
+          </span>
+          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            {dayEntriesList.map(([key, data]) => (
+              <div
+                key={key}
+                className="p-2.5 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] flex items-center justify-between text-xs"
+              >
+                <div className="flex items-center space-x-2">
+                  <span className="font-bold text-[var(--text-primary)] capitalize">{data.fullDate}</span>
+                </div>
+                <div className="flex items-center space-x-2 font-bold">
+                  <span className="px-2 py-0.5 rounded-md bg-[#4F46E5]/15 text-[#4F46E5] border border-[#4F46E5]/30">
+                    {data.control} {data.control === 1 ? 'controllo' : 'controlli'}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-[#F59E0B]/15 text-[#F59E0B] border border-[#F59E0B]/30">
+                    {data.reassurance} {data.reassurance === 1 ? 'rassicurazione' : 'rassicurazioni'}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -383,28 +588,44 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Chart 1: Overall Anxiety Trend */}
       <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)] flex items-center space-x-2">
-            <BarChart3 className="w-4 h-4 text-[var(--accent-primary)] stroke-[2.5]" />
-            <span>Andamento Ansia Complessiva</span>
-          </h3>
-          <span className="text-[10px] font-extrabold text-[var(--text-secondary)]">Scala 0-100</span>
+          <div>
+            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)] flex items-center space-x-2">
+              <BarChart3 className="w-4 h-4 text-[#6366F1] stroke-[2.5]" />
+              <span>Andamento Picco d'Ansia</span>
+            </h3>
+            <p className="text-[11px] font-bold text-[var(--text-secondary)] mt-0.5">
+              Intensità dell'ansia (scala 0-100) per ciascun episodio registrato
+            </p>
+          </div>
         </div>
         {renderAnxietyChart()}
       </div>
 
       {/* Chart 2: Control Check vs Reassurance Requests */}
       <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
-        <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-          Frequenza Controllo e Rassicurazioni
-        </h3>
+        <div>
+          <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)] flex items-center space-x-2">
+            <ShieldAlert className="w-4 h-4 text-[#4F46E5] stroke-[2.5]" />
+            <span>Controlli Sintomi & Richieste Rassicurazioni</span>
+          </h3>
+          <p className="text-[11px] font-bold text-[var(--text-secondary)] mt-0.5">
+            Conteggio giornaliero di verifiche fisiche/sintomi (blu) e richieste di rassicurazione esterne (arancione)
+          </p>
+        </div>
         {renderBehaviorsChart()}
       </div>
 
       {/* Chart 3: Avoidance Frequency List */}
       <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
-        <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-          Evitamenti per Tipologia
-        </h3>
+        <div>
+          <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)] flex items-center space-x-2">
+            <Ban className="w-4 h-4 text-rose-500 stroke-[2.5]" />
+            <span>Evitamenti per Tipologia</span>
+          </h3>
+          <p className="text-[11px] font-bold text-[var(--text-secondary)] mt-0.5">
+            Situazioni, luoghi o attività evitate e relativo impatto percentuale
+          </p>
+        </div>
         {renderAvoidanceList()}
       </div>
     </div>
