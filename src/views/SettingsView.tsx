@@ -22,7 +22,8 @@ import {
   Database,
   Copy,
   Check,
-  Laptop
+  Laptop,
+  Sparkles
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -44,6 +45,7 @@ interface SettingsViewProps {
   allTags: Tag[];
   onDeleteCustomTag: (tagId: string) => Promise<void>;
   onDeleteAllData: () => void;
+  onShowSplash?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -65,6 +67,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   allTags,
   onDeleteCustomTag,
   onDeleteAllData,
+  onShowSplash,
 }) => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -651,6 +654,26 @@ NOTIFY pgrst, 'reload schema';`;
           </div>
         )}
       </div>
+
+      {/* INTRO SCREEN QUICK ACCESS */}
+      {onShowSplash && (
+        <div className="glass-panel rounded-[20px] p-2 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
+          <button
+            type="button"
+            onClick={onShowSplash}
+            className="w-full flex items-center justify-between p-3.5 text-left text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] active:scale-98 rounded-2xl transition-all duration-150 cursor-pointer"
+          >
+            <div className="flex items-center space-x-3">
+              <Sparkles className="w-4 h-4 text-[var(--accent-primary)] stroke-[2.5]" />
+              <div>
+                <span className="text-xs font-black block">Mostra Schermata di Copertina</span>
+                <span className="text-[11px] font-bold text-[var(--text-secondary)]">Rivedi la pagina introduttiva di benvenuto</span>
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
+          </button>
+        </div>
+      )}
 
       {/* DANGER ZONE */}
       <div className="glass-panel rounded-[20px] p-2 border border-rose-500/40 bg-[var(--bg-surface)] shadow-sm">

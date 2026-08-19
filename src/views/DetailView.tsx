@@ -116,7 +116,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
             <MapPin className="w-3.5 h-3.5" />
             <span>Situazione</span>
           </div>
-          <p className="text-sm font-black text-[var(--text-primary)] leading-relaxed">
+          <p className="text-sm font-bold text-[var(--text-primary)] leading-relaxed break-words whitespace-pre-wrap">
             {entry.situation || <span className="italic font-bold text-[var(--text-muted)]">Non specificata</span>}
           </p>
 
@@ -180,7 +180,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
             <AlertCircle className="w-3.5 h-3.5" />
             <span>Fattori Scatenanti / Trigger</span>
           </div>
-          <p className="text-sm font-black text-[var(--text-primary)] leading-relaxed">
+          <p className="text-sm font-bold text-[var(--text-primary)] leading-relaxed break-words whitespace-pre-wrap">
             {entry.triggerFactors || <span className="italic font-bold text-[var(--text-muted)]">Nessun trigger indicato</span>}
           </p>
         </div>
@@ -217,7 +217,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
               Convinzione {entry.thoughtBeliefLevel}%
             </span>
           </div>
-          <p className="text-sm font-black text-[var(--text-primary)] leading-relaxed">
+          <p className="text-sm font-bold text-[var(--text-primary)] leading-relaxed break-words whitespace-pre-wrap">
             {entry.negativeThought || <span className="italic font-bold text-[var(--text-muted)]">Nessun pensiero specificato</span>}
           </p>
         </div>
@@ -248,7 +248,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
             ) : null}
           </div>
           {entry.physicalSymptomsText && (
-            <p className="text-xs font-bold text-[var(--text-primary)] pt-1 leading-relaxed">
+            <p className="text-xs font-bold text-[var(--text-primary)] pt-1 leading-relaxed break-words whitespace-pre-wrap">
               {entry.physicalSymptomsText}
             </p>
           )}
@@ -262,7 +262,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
                 <span className="text-xs font-black text-[var(--text-primary)] uppercase tracking-wider block mb-1">
                   Pensieri Negativi (Approfondimento)
                 </span>
-                <p className="text-xs font-bold text-[var(--text-primary)] leading-relaxed">
+                <p className="text-xs font-bold text-[var(--text-primary)] leading-relaxed break-words whitespace-pre-wrap">
                   {entry.negativeThoughtsExtended}
                 </p>
               </div>
@@ -290,7 +290,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
                   <ShieldCheck className="w-3.5 h-3.5" />
                   <span>Comportamenti Protettivi / Sicurezza</span>
                 </div>
-                <p className="text-xs font-bold text-[var(--text-primary)] leading-relaxed">
+                <p className="text-xs font-bold text-[var(--text-primary)] leading-relaxed break-words whitespace-pre-wrap">
                   {entry.safetyBehaviors}
                 </p>
               </div>
@@ -302,7 +302,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
                   <Ban className="w-3.5 h-3.5" />
                   <span>Evitamenti Messia in Atto</span>
                 </div>
-                <p className="text-xs font-bold text-[var(--text-primary)] leading-relaxed">
+                <p className="text-xs font-bold text-[var(--text-primary)] leading-relaxed break-words whitespace-pre-wrap">
                   {entry.avoidanceBehaviors}
                 </p>
               </div>
@@ -321,21 +321,21 @@ export const DetailView: React.FC<DetailViewProps> = ({
             {entry.evidenceForThought && (
               <div className="space-y-1">
                 <span className="text-[11px] font-black text-[var(--text-secondary)] block">Prove a favore:</span>
-                <p className="text-xs font-bold text-[var(--text-primary)] leading-relaxed">{entry.evidenceForThought}</p>
+                <p className="text-xs font-bold text-[var(--text-primary)] leading-relaxed break-words whitespace-pre-wrap">{entry.evidenceForThought}</p>
               </div>
             )}
 
             {entry.evidenceAgainstThought && (
               <div className="space-y-1">
                 <span className="text-[11px] font-black text-[var(--text-secondary)] block">Prove contrarie:</span>
-                <p className="text-xs font-bold text-[var(--text-primary)] leading-relaxed">{entry.evidenceAgainstThought}</p>
+                <p className="text-xs font-bold text-[var(--text-primary)] leading-relaxed break-words whitespace-pre-wrap">{entry.evidenceAgainstThought}</p>
               </div>
             )}
 
             {entry.alternativeThought && (
               <div className="p-3 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] space-y-1">
                 <span className="text-[11px] font-black text-[var(--accent-primary)] block uppercase">Pensiero Alternativo:</span>
-                <p className="text-xs font-black text-[var(--text-primary)] leading-relaxed">{entry.alternativeThought}</p>
+                <p className="text-xs font-black text-[var(--text-primary)] leading-relaxed break-words whitespace-pre-wrap">{entry.alternativeThought}</p>
               </div>
             )}
           </div>

@@ -262,8 +262,8 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               rows={3}
               value={draft.situation}
               onChange={(e) => updateDraft('situation', e.target.value)}
-              placeholder="Descrivi cosa stava succedendo in quel momento..."
-              className="w-full px-3.5 py-2.5 text-sm font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-none placeholder:text-[var(--text-muted)]"
+              placeholder="Descrivi cosa stava succedendo in quel momento (luogo, persone presenti, attività)..."
+              className="w-full min-h-[95px] px-3.5 py-3 text-sm font-medium rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-y break-words whitespace-pre-wrap placeholder:text-[var(--text-muted)] leading-relaxed"
             />
 
             {/* SEZIONE FOTO STILIZZATA */}
@@ -377,11 +377,11 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               Fattori Scatenanti / Trigger
             </label>
             <textarea
-              rows={2}
+              rows={3}
               value={draft.triggerFactors}
               onChange={(e) => updateDraft('triggerFactors', e.target.value)}
-              placeholder="Cosa ha innescato la reazione d'ansia?"
-              className="w-full px-3.5 py-2.5 text-sm font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-none placeholder:text-[var(--text-muted)]"
+              placeholder="Cosa ha innescato la reazione d'ansia o il disagio?"
+              className="w-full min-h-[85px] px-3.5 py-3 text-sm font-medium rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-y break-words whitespace-pre-wrap placeholder:text-[var(--text-muted)] leading-relaxed"
             />
           </div>
 
@@ -407,11 +407,11 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                 Pensiero Negativo Automatico
               </label>
               <textarea
-                rows={2}
+                rows={3}
                 value={draft.negativeThought}
                 onChange={(e) => updateDraft('negativeThought', e.target.value)}
                 placeholder="Cosa hai pensato in quel momento? Cosa temevi accadesse?"
-                className="w-full px-3.5 py-2.5 text-sm font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-none placeholder:text-[var(--text-muted)]"
+                className="w-full min-h-[90px] px-3.5 py-3 text-sm font-medium rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-y break-words whitespace-pre-wrap placeholder:text-[var(--text-muted)] leading-relaxed"
               />
             </div>
 
@@ -462,11 +462,11 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               placeholder="Aggiungi sintomo personalizzato..."
             />
             <textarea
-              rows={2}
+              rows={3}
               value={draft.physicalSymptomsText}
               onChange={(e) => updateDraft('physicalSymptomsText', e.target.value)}
-              placeholder="Dettagli aggiuntivi sui sintomi fisici (es. formicolio, vertigini)..."
-              className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-none placeholder:text-[var(--text-muted)]"
+              placeholder="Dettagli aggiuntivi sui sintomi fisici e sensazioni corporee (es. formicolio, vertigini, battito accelerato)..."
+              className="w-full min-h-[85px] px-3.5 py-3 text-sm font-medium rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-y break-words whitespace-pre-wrap placeholder:text-[var(--text-muted)] leading-relaxed"
             />
           </div>
 
@@ -481,7 +481,7 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                 value={draft.negativeThoughtsExtended}
                 onChange={(e) => updateDraft('negativeThoughtsExtended', e.target.value)}
                 placeholder="Approfondisci i pensieri negativi o catastrofici ricorrenti..."
-                className="w-full px-3.5 py-2.5 text-sm font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-none placeholder:text-[var(--text-muted)]"
+                className="w-full min-h-[90px] px-3.5 py-3 text-sm font-medium rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-y break-words whitespace-pre-wrap placeholder:text-[var(--text-muted)] leading-relaxed"
               />
             </div>
 
@@ -508,11 +508,11 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               Controllo dei Sintomi
             </label>
             <textarea
-              rows={2}
+              rows={3}
               value={draft.symptomControlDescription}
               onChange={(e) => updateDraft('symptomControlDescription', e.target.value)}
-              placeholder="Quali azioni di controllo hai effettuato? (es. misurare il battito)"
-              className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-none placeholder:text-[var(--text-muted)]"
+              placeholder="Quali azioni di controllo hai effettuato? (es. misurare il battito, guardarsi allo specchio, toccarsi il petto...)"
+              className="w-full min-h-[85px] px-3.5 py-3 text-sm font-medium rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-y break-words whitespace-pre-wrap placeholder:text-[var(--text-muted)] leading-relaxed"
             />
             <CounterInput
               label="Numero di check o misurazioni"
@@ -526,12 +526,12 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
             <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
               Ricerca di Rassicurazioni
             </label>
-            <input
-              type="text"
+            <textarea
+              rows={3}
               value={draft.reassuranceSeekingType}
               onChange={(e) => updateDraft('reassuranceSeekingType', e.target.value)}
-              placeholder="Tipo di richiesta (es. chiedere conferme ai familiari, internet...)"
-              className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none placeholder:text-[var(--text-muted)]"
+              placeholder="Tipo di richiesta o rassicurazione cercata (es. chiedere conferme ai familiari, cercare su Google, chiamare il medico...)"
+              className="w-full min-h-[85px] px-3.5 py-3 text-sm font-medium rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-y break-words whitespace-pre-wrap placeholder:text-[var(--text-muted)] leading-relaxed"
             />
             <CounterInput
               label="Numero di volte"
@@ -545,12 +545,12 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
             <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
               Evitamenti
             </label>
-            <input
-              type="text"
+            <textarea
+              rows={3}
               value={draft.avoidanceType}
               onChange={(e) => updateDraft('avoidanceType', e.target.value)}
-              placeholder="Situazione o luogo evitato..."
-              className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none placeholder:text-[var(--text-muted)]"
+              placeholder="Situazione, luogo, persona o attività evitata a causa dell'ansia..."
+              className="w-full min-h-[85px] px-3.5 py-3 text-sm font-medium rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-y break-words whitespace-pre-wrap placeholder:text-[var(--text-muted)] leading-relaxed"
             />
             <CounterInput
               label="Numero di evitamenti"
@@ -576,11 +576,11 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               Note Aggiuntive
             </label>
             <textarea
-              rows={2}
+              rows={3}
               value={draft.notes}
               onChange={(e) => updateDraft('notes', e.target.value)}
-              placeholder="Altre osservazioni per te o la psicologa..."
-              className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-none placeholder:text-[var(--text-muted)]"
+              placeholder="Altre riflessioni, note o osservazioni utili per te o la psicologa..."
+              className="w-full min-h-[90px] px-3.5 py-3 text-sm font-medium rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-y break-words whitespace-pre-wrap placeholder:text-[var(--text-muted)] leading-relaxed"
             />
           </div>
 

@@ -8,6 +8,7 @@ import { BottomNav } from './components/BottomNav';
 import { LockScreen } from './components/LockScreen';
 import { Toast } from './components/Toast';
 import { ConfirmModal } from './components/ConfirmModal';
+import { SplashScreen } from './components/SplashScreen';
 import { TimelineView } from './views/TimelineView';
 import { EntryFormView } from './views/EntryFormView';
 import { DetailView } from './views/DetailView';
@@ -24,23 +25,30 @@ const viewOrder: Record<ViewType, number> = {
 
 const pageVariants = {
   enter: (dir: number) => ({
-    x: dir > 0 ? 36 : dir < 0 ? -36 : 0,
+    x: dir > 0 ? 30 : dir < 0 ? -30 : 0,
     opacity: 0,
+    scale: 0.98,
+    filter: 'blur(4px)',
   }),
   center: {
     x: 0,
     opacity: 1,
+    scale: 1,
+    filter: 'blur(0px)',
   },
   exit: (dir: number) => ({
-    x: dir < 0 ? 36 : dir > 0 ? -36 : 0,
+    x: dir < 0 ? 30 : dir > 0 ? -30 : 0,
     opacity: 0,
+    scale: 0.98,
+    filter: 'blur(4px)',
   }),
 };
 
 const pageTransition = {
-  type: 'tween',
-  ease: [0.25, 1, 0.5, 1],
-  duration: 0.22,
+  type: 'spring',
+  stiffness: 340,
+  damping: 30,
+  mass: 0.75,
 };
 
 export default function App() {
@@ -76,6 +84,22 @@ export default function App() {
       return false;
     }
   });
+
+  // Splash Screen / Intro Cover Screen state
+  const [showSplash, setShowSplash] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('diariamente_splash_dismissed') !== 'true';
+    } catch {
+      return true;
+    }
+  });
+
+  const handleDismissSplash = () => {
+    setShowSplash(false);
+    try {
+      sessionStorage.setItem('diariamente_splash_dismissed', 'true');
+    } catch {}
+  };
 
   const handleTogglePrivacyMode = () => {
     setIsPrivacyModeEnabled((prev) => {
@@ -974,10 +998,10 @@ export default function App() {
 
   if (!isDbReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#EBF0EC] dark:bg-[#121915] text-[#15251C] dark:text-[#EEF3EF]">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-page)] text-[var(--text-primary)]">
         <div className="text-center space-y-3">
-          <div className="w-10 h-10 border-4 border-[#5B67CA] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-bold tracking-wider uppercase text-[#15251C] dark:text-[#A7B6AC]">Inizializzazione Curamente...</p>
+          <div className="w-10 h-10 border-4 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs font-bold tracking-wider uppercase text-[var(--text-primary)]">Inizializzazione Diariamente...</p>
         </div>
       </div>
     );
@@ -985,6 +1009,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen w-full app-root-container flex flex-col font-sans transition-colors duration-200">
+      {/* Splash Screen / Intro Cover Screen */}
+      <AnimatePresence>
+        {showSplash && (
+          <SplashScreen onStart={handleDismissSplash} />
+        )}
+      </AnimatePresence>
+
       {/* Lock screen overlay if PIN lock is enabled */}
       {isLocked && (
         <LockScreen
@@ -994,7 +1025,16 @@ export default function App() {
       )}
 
       {/* Main App Container */}
-      <div className="flex-1 w-full max-w-2xl lg:max-w-3xl mx-auto flex flex-col relative">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, filter: 'blur(8px)' }}
+        animate={{
+          opacity: showSplash ? 0 : 1,
+          scale: showSplash ? 0.96 : 1,
+          filter: showSplash ? 'blur(8px)' : 'blur(0px)',
+        }}
+        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+        className="flex-1 w-full max-w-2xl lg:max-w-3xl mx-auto flex flex-col relative"
+      >
         <Header
           currentView={currentView}
           themeMode={themeMode}
@@ -1003,6 +1043,7 @@ export default function App() {
           isOnline={isOnline}
           isPrivacyModeEnabled={isPrivacyModeEnabled}
           onTogglePrivacyMode={handleTogglePrivacyMode}
+          onShowSplash={() => setShowSplash(true)}
         />
 
         <main className="flex-1 px-4 sm:px-6 pt-3 pb-24 overflow-x-hidden">
@@ -1091,12 +1132,16 @@ export default function App() {
                   allTags={allTags}
                   onDeleteCustomTag={handleDeleteCustomTag}
                   onDeleteAllData={handleDeleteAllData}
+                  onShowSplash={() => setShowSplash(true)}
                 />
               )}
             </motion.div>
           </AnimatePresence>
         </main>
+      </motion.div>
 
+      {/* Permanently Fixed Bottom Navigation */}
+      {!showSplash && (
         <BottomNav
           currentView={currentView}
           onSelectView={(view) => {
@@ -1105,7 +1150,7 @@ export default function App() {
             if (view === 'dashboard') loadEntries(dashPeriod);
           }}
         />
-      </div>
+      )}
 
       <Toast message={toastMsg} />
 

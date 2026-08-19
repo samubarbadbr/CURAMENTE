@@ -103,9 +103,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               </span>
             )}
           </div>
-          <p className="text-xs font-bold text-[var(--text-secondary)]">
-            Le tue registrazioni quotidiane, dalla più recente
-          </p>
         </div>
 
         {/* Action Controls (Privacy Toggle + Filter dropdown) */}

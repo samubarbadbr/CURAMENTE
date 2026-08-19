@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 export interface DropdownOption<T extends string = string> {
   value: T;
@@ -44,37 +45,52 @@ export function CustomDropdown<T extends string = string>({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="custom-dropdown-btn w-full inline-flex items-center justify-between gap-2.5 px-4 py-2.5 min-h-[44px] text-xs font-black rounded-[12px] border border-[var(--border-solid)] bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm hover:bg-[var(--bg-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--ring-color)] transition-all duration-150 cursor-pointer active:scale-98"
+        className="w-full inline-flex items-center justify-between gap-2.5 px-3.5 sm:px-4 py-2.5 min-h-[44px] text-xs font-bold rounded-2xl border border-[var(--border-solid)] bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm hover:bg-[var(--bg-subtle)] focus:outline-none transition-all duration-150 cursor-pointer active:scale-95 select-none"
       >
         <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
-        <ChevronDown className={`w-4 h-4 text-[var(--text-primary)] transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown
+          className={`w-4 h-4 text-[var(--text-secondary)] transition-transform duration-200 shrink-0 ${
+            isOpen ? 'rotate-180' : ''
+          }`}
+        />
       </button>
 
-      {isOpen && (
-        <div className="dropdown-menu absolute right-0 mt-1.5 w-full min-w-[170px] z-50 rounded-[12px] border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-xl p-1.5 animate-fade-in space-y-0.5">
-          {options.map((option) => {
-            const isSelected = option.value === value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => {
-                  onChange(option.value);
-                  setIsOpen(false);
-                }}
-                className={`w-full flex items-center justify-between px-3 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer text-left ${
-                  isSelected
-                    ? 'bg-[var(--nav-active-bg)] text-[var(--nav-active-text)] font-black'
-                    : 'text-[var(--text-primary)] hover:bg-[var(--bg-subtle)]'
-                }`}
-              >
-                <span className="truncate">{option.label}</span>
-                {isSelected && <Check className="w-3.5 h-3.5 text-[var(--nav-active-text)] shrink-0 ml-1.5 stroke-[3]" />}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.94, y: -6 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.94, y: -6 }}
+            transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }}
+            className="absolute right-0 mt-2 w-full min-w-[190px] z-[100] rounded-2xl border border-white/20 bg-[#161822] text-white shadow-2xl p-1.5 backdrop-blur-2xl space-y-0.5 overflow-hidden"
+            style={{
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+            }}
+          >
+            {options.map((option) => {
+              const isSelected = option.value === value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    onChange(option.value);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 text-xs font-semibold rounded-xl transition-colors cursor-pointer text-left ${
+                    isSelected
+                      ? 'bg-white text-[#090A0E] font-bold shadow-xs'
+                      : 'text-zinc-200 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  <span className="truncate">{option.label}</span>
+                  {isSelected && <Check className="w-3.5 h-3.5 text-[#090A0E] shrink-0 ml-2 stroke-[3]" />}
+                </button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
