@@ -1,16 +1,22 @@
 {
-  "short_name": "DiarioMente",
-  "name": "Diario Mente",
+  "short_name": "Diariamente",
+  "name": "Diariamente",
   "icons": [
     {
-      "src": "./favicon.svg",
-      "sizes": "192x192 512x512",
-      "type": "image/svg+xml",
+      "src": "./apple-touch-icon.png",
+      "sizes": "180x180 192x192 512x512",
+      "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ],
   "start_url": "./",
-  "background_color": "#EBF0EC",
-  "theme_color": "#EBF0EC",
+  "background_color": "#07080B",
+  "theme_color": "#07080B",
   "display": "standalone"
 }
