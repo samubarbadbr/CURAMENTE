@@ -142,7 +142,7 @@ export const CustomQuestionModal: React.FC<CustomQuestionModalProps> = ({
           <div className="flex items-start justify-between gap-3 border-b border-[var(--border-solid)] pb-4">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] flex items-center justify-center shrink-0">
-                <HelpCircle className="w-5.5 h-5.5 text-[var(--accent-primary)] stroke-[2.2]" />
+                <HelpCircle className="w-5 h-5 text-[var(--accent-primary)] stroke-[2.2]" />
               </div>
               <div>
                 <h3 className="text-lg font-black tracking-tight text-[var(--text-primary)]">

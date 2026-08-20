@@ -126,29 +126,24 @@ export const CustomQuestionsView: React.FC<CustomQuestionsViewProps> = ({
     <div className="space-y-6 pb-28 animate-fade-in">
       {/* Top Header Row with Metallic Nuova Domanda button */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
-        <div className="space-y-1">
-          <div className="flex items-center space-x-3">
-            {onBackToDiary && (
-              <button
-                type="button"
-                onClick={onBackToDiary}
-                className="p-2 rounded-full bg-[var(--bg-subtle)] border border-[var(--border-solid)] text-[var(--text-primary)] hover:bg-[var(--bg-surface)] active:scale-95 transition-all cursor-pointer mr-1"
-                title="Torna al diario"
-              >
-                <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
-              </button>
-            )}
-            <div className="w-10 h-10 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-solid)] flex items-center justify-center shadow-sm shrink-0">
-              <HelpCircle className="w-5.5 h-5.5 text-[var(--accent-primary)] stroke-[2.2]" />
-            </div>
-            <div>
-              <h2 className="text-xl sm:text-2xl font-black text-[var(--text-primary)] tracking-tight">
-                Editor Domande Custom
-              </h2>
-              <p className="text-xs font-bold text-[var(--text-secondary)]">
-                {activeCount} su {questions.length} domande attive nel diario quotidiano
-              </p>
-            </div>
+        <div className="flex items-center space-x-3">
+          {onBackToDiary && (
+            <button
+              type="button"
+              onClick={onBackToDiary}
+              className="p-2.5 rounded-full bg-[var(--bg-subtle)] border border-[var(--border-solid)] text-[var(--text-primary)] hover:bg-[var(--bg-surface)] active:scale-95 transition-all cursor-pointer mr-0.5"
+              title="Torna al diario"
+            >
+              <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
+            </button>
+          )}
+          <div className="space-y-0.5">
+            <h2 className="text-2xl font-black text-[var(--text-primary)] tracking-tight">
+              Editor Domande Custom
+            </h2>
+            <p className="text-xs font-bold text-[var(--text-secondary)]">
+              {activeCount} su {questions.length} domande attive nel diario quotidiano
+            </p>
           </div>
         </div>
 
