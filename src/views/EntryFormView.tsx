@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { CbtEntry, FormTab, Tag } from '../types';
+import { CbtEntry, FormTab, Tag, CustomQuestion } from '../types';
+import { CustomQuestionsService } from '../services/customQuestions';
 import { TagPicker } from '../components/TagPicker';
 import { GradientSlider } from '../components/GradientSlider';
 import {
@@ -16,6 +17,17 @@ import {
   Image as ImageIcon,
   ChevronRight,
   ChevronLeft,
+  Sparkles,
+  Heart,
+  TrendingUp,
+  Smile,
+  Briefcase,
+  Lightbulb,
+  Check,
+  AlignLeft,
+  Sliders,
+  ToggleLeft,
+  Settings2,
 } from 'lucide-react';
 
 interface EntryFormViewProps {
@@ -25,6 +37,7 @@ interface EntryFormViewProps {
   onSave: (entry: CbtEntry) => Promise<void>;
   onCancel: () => void;
   onAddCustomTag: (category: 'emotion' | 'physical_symptom', label: string) => Promise<void>;
+  onOpenCustomQuestions?: () => void;
 }
 
 // Client-side image resize helper to keep IndexedDB and base64 sync fast & lightweight
@@ -79,12 +92,29 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
   onSave,
   onCancel,
   onAddCustomTag,
+  onOpenCustomQuestions,
 }) => {
-  const [draft, setDraft] = useState<CbtEntry>({ ...initialDraft });
+  const [draft, setDraft] = useState<CbtEntry>({
+    ...initialDraft,
+    customAnswers: initialDraft.customAnswers || {},
+  });
   const [activeTab, setActiveTab] = useState<FormTab>('section_a');
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   const [isPhotoObscured, setIsPhotoObscured] = useState(false);
+
+  // Custom questions reactive state
+  const [customQuestions, setCustomQuestions] = useState<CustomQuestion[]>(() =>
+    CustomQuestionsService.getApplicableQuestionsForDate(initialDraft.eventDatetime)
+  );
+
+  useEffect(() => {
+    const handleQuestionsUpdate = () => {
+      setCustomQuestions(CustomQuestionsService.getApplicableQuestionsForDate(draft.eventDatetime));
+    };
+    window.addEventListener('custom_questions_updated', handleQuestionsUpdate);
+    return () => window.removeEventListener('custom_questions_updated', handleQuestionsUpdate);
+  }, [draft.eventDatetime]);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -115,6 +145,16 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
   const handleSwitchTab = (tab: FormTab) => {
     setActiveTab(tab);
     scrollToTop();
+  };
+
+  const handleCustomAnswerChange = (questionId: string, val: string | number | boolean) => {
+    setDraft((prev) => ({
+      ...prev,
+      customAnswers: {
+        ...(prev.customAnswers || {}),
+        [questionId]: val,
+      },
+    }));
   };
 
   // Helper to update draft fields
@@ -422,6 +462,136 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               onChange={(val) => updateDraft('thoughtBeliefLevel', val)}
             />
           </div>
+
+          {/* Domande e Riflessioni Custom */}
+          {customQuestions.length > 0 && (
+            <div className="glass-panel rounded-[20px] p-5 space-y-4 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
+              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2.5">
+                <div className="flex items-center space-x-2">
+                  <div className="p-1.5 rounded-lg bg-indigo-500/15 text-indigo-400">
+                    <Sparkles className="w-4 h-4 stroke-[2.5]" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+                      Riflessioni &amp; Domande Guidate
+                    </h3>
+                    <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                      Domande attive per oggi ({customQuestions.length})
+                    </p>
+                  </div>
+                </div>
+
+                {onOpenCustomQuestions && (
+                  <button
+                    type="button"
+                    onClick={onOpenCustomQuestions}
+                    className="text-[11px] font-black text-indigo-400 hover:text-indigo-300 flex items-center space-x-1 transition-colors cursor-pointer"
+                  >
+                    <Settings2 className="w-3.5 h-3.5" />
+                    <span>Personalizza</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-4 pt-1">
+                {customQuestions.map((q) => {
+                  const currentValue = draft.customAnswers?.[q.id];
+
+                  return (
+                    <div
+                      key={q.id}
+                      className="p-3.5 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] space-y-2.5"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <label className="text-xs font-black text-[var(--text-primary)] leading-tight">
+                          {q.prompt}
+                        </label>
+                        <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                          {q.category}
+                        </span>
+                      </div>
+
+                      {/* 1. Free text response */}
+                      {q.responseType === 'text' && (
+                        <textarea
+                          rows={2}
+                          value={typeof currentValue === 'string' ? currentValue : ''}
+                          onChange={(e) => handleCustomAnswerChange(q.id, e.target.value)}
+                          placeholder="Scrivi qui la tua risposta..."
+                          className="w-full min-h-[60px] px-3 py-2 text-xs font-medium rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-indigo-500 outline-none resize-y placeholder:text-[var(--text-muted)]"
+                        />
+                      )}
+
+                      {/* 2. Scale 1-5 or 1-10 response */}
+                      {(q.responseType === 'scale_5' || q.responseType === 'scale_10') && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-[10px] font-bold text-[var(--text-secondary)] px-1">
+                            <span>Min (1)</span>
+                            <span className="font-black text-indigo-400">
+                              {typeof currentValue === 'number' ? `Punteggio: ${currentValue}` : 'Non selezionato'}
+                            </span>
+                            <span>Max ({q.responseType === 'scale_5' ? 5 : 10})</span>
+                          </div>
+                          <div className="grid grid-cols-5 sm:grid-cols-10 gap-1">
+                            {Array.from(
+                              { length: q.responseType === 'scale_5' ? 5 : 10 },
+                              (_, i) => i + 1
+                            ).map((score) => {
+                              const isSelected = currentValue === score;
+                              return (
+                                <button
+                                  key={score}
+                                  type="button"
+                                  onClick={() => handleCustomAnswerChange(q.id, score)}
+                                  className={`py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                                    isSelected
+                                      ? 'bg-indigo-600 text-white shadow-[0_0_12px_rgba(99,102,241,0.5)] scale-105'
+                                      : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-solid)]'
+                                  }`}
+                                >
+                                  {score}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 3. Boolean Yes/No response */}
+                      {q.responseType === 'boolean' && (
+                        <div className="flex items-center space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => handleCustomAnswerChange(q.id, true)}
+                            className={`flex-1 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
+                              currentValue === true
+                                ? 'bg-emerald-600 text-white shadow-md font-black'
+                                : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-solid)]'
+                            }`}
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Sì</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCustomAnswerChange(q.id, false)}
+                            className={`flex-1 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
+                              currentValue === false
+                                ? 'bg-zinc-600 text-white shadow-md font-black'
+                                : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-solid)]'
+                            }`}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>No</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Navigation & Action to Section B */}
           <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">

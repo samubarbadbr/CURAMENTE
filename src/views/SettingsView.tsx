@@ -24,6 +24,7 @@ import {
   Check,
   Laptop,
   Sparkles,
+  HelpCircle,
   UploadCloud,
   DownloadCloud,
   Loader2,
@@ -58,6 +59,7 @@ interface SettingsViewProps {
   onDeleteCustomTag: (tagId: string) => Promise<void>;
   onDeleteAllData: () => void;
   onShowSplash?: () => void;
+  onNavigateToCustomQuestions?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -86,6 +88,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onDeleteCustomTag,
   onDeleteAllData,
   onShowSplash,
+  onNavigateToCustomQuestions,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pinInput, setPinInput] = useState(syncPin);
@@ -811,6 +814,36 @@ NOTIFY pgrst, 'reload schema';`;
           })}
         </div>
       </div>
+
+      {/* CUSTOM QUESTIONS EDITOR SHORTCUT */}
+      {onNavigateToCustomQuestions && (
+        <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center space-x-3">
+              <div className="p-2.5 rounded-2xl bg-[#5B67CA]/15 text-[#5B67CA] border border-[#5B67CA]/30 shrink-0">
+                <HelpCircle className="w-5 h-5 stroke-[2.5]" />
+              </div>
+              <div>
+                <span className="block text-sm font-black text-[var(--text-primary)]">
+                  Editor Domande Custom
+                </span>
+                <span className="block text-xs font-bold text-[var(--text-secondary)]">
+                  Crea, modifica e attiva domande di riflessione personalizzate per il tuo diario
+                </span>
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onNavigateToCustomQuestions}
+            className="w-full flex items-center justify-center space-x-2 py-3 px-4 rounded-xl bg-[#5B67CA] hover:bg-[#4A55B8] active:scale-98 text-white text-xs font-black transition-all cursor-pointer shadow-md"
+          >
+            <HelpCircle className="w-4 h-4" />
+            <span>Gestisci Domande Personalizzate</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* CUSTOM TAG MANAGEMENT */}
       <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">

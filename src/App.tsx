@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { CbtEntry, Tag, ViewType, PeriodFilter, ThemeMode } from './types';
+import { CbtEntry, Tag, ViewType, PeriodFilter, ThemeMode, CustomQuestion } from './types';
 import { DB, seedDefaultTagsIfNeeded, cleanupAndDeduplicateTags, createBlankEntry, openDatabase } from './services/db';
 import { SyncService } from './services/sync';
 import { checkBiometricsAvailability, registerBiometricCredential } from './lib/biometrics';
@@ -15,12 +15,15 @@ import { EntryFormView } from './views/EntryFormView';
 import { DetailView } from './views/DetailView';
 import { DashboardView } from './views/DashboardView';
 import { SettingsView } from './views/SettingsView';
+import { CustomQuestionsView } from './views/CustomQuestionsView';
+import { CustomQuestionsService } from './services/customQuestions';
 
 const viewOrder: Record<ViewType, number> = {
   timeline: 0,
   entry: 0.5,
   detail: 0.5,
   dashboard: 1,
+  custom_questions: 1.5,
   settings: 2,
 };
 
@@ -1068,6 +1071,41 @@ export default function App() {
 
   const selectedDetailEntry = entries.find((e) => e.id === detailEntryId);
 
+  // Custom Questions State & Handlers
+  const [customQuestions, setCustomQuestions] = useState<CustomQuestion[]>(() =>
+    CustomQuestionsService.load()
+  );
+
+  const handleCreateCustomQuestion = (data: Omit<CustomQuestion, 'id' | 'createdAt' | 'isDefault'>) => {
+    CustomQuestionsService.create(data);
+    setCustomQuestions(CustomQuestionsService.load());
+    showToast('Nuova domanda personalizzata aggiunta!');
+  };
+
+  const handleUpdateCustomQuestion = (q: CustomQuestion) => {
+    CustomQuestionsService.update(q);
+    setCustomQuestions(CustomQuestionsService.load());
+    showToast('Domanda aggiornata con successo!');
+  };
+
+  const handleDeleteCustomQuestion = (id: string) => {
+    CustomQuestionsService.delete(id);
+    setCustomQuestions(CustomQuestionsService.load());
+    showToast('Domanda eliminata');
+  };
+
+  const handleToggleCustomQuestion = (id: string, isEnabled: boolean) => {
+    CustomQuestionsService.toggle(id, isEnabled);
+    setCustomQuestions(CustomQuestionsService.load());
+    showToast(isEnabled ? 'Domanda attivata nel diario' : 'Domanda disattivata dal diario');
+  };
+
+  const handleResetCustomQuestionsDefaults = () => {
+    const res = CustomQuestionsService.resetToDefaults();
+    setCustomQuestions(res);
+    showToast('Domande predefinite ripristinate!');
+  };
+
   if (!isDbReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--bg-page)] text-[var(--text-primary)]">
@@ -1160,6 +1198,7 @@ export default function App() {
                     setEntryDraft(null);
                   }}
                   onAddCustomTag={handleAddCustomTag}
+                  onOpenCustomQuestions={() => navigateToView('custom_questions')}
                 />
               )}
 
@@ -1179,6 +1218,18 @@ export default function App() {
                   dashPeriod={dashPeriod}
                   onPeriodChange={(p) => setDashPeriod(p)}
                   onExportReport={handleExportPdfReport}
+                />
+              )}
+
+              {currentView === 'custom_questions' && (
+                <CustomQuestionsView
+                  questions={customQuestions}
+                  onCreateQuestion={handleCreateCustomQuestion}
+                  onUpdateQuestion={handleUpdateCustomQuestion}
+                  onDeleteQuestion={handleDeleteCustomQuestion}
+                  onToggleQuestion={handleToggleCustomQuestion}
+                  onResetDefaults={handleResetCustomQuestionsDefaults}
+                  onBack={() => navigateToView('timeline')}
                 />
               )}
 
@@ -1213,6 +1264,7 @@ export default function App() {
                   onDeleteCustomTag={handleDeleteCustomTag}
                   onDeleteAllData={handleDeleteAllData}
                   onShowSplash={() => setShowSplash(true)}
+                  onNavigateToCustomQuestions={() => navigateToView('custom_questions')}
                 />
               )}
             </motion.div>

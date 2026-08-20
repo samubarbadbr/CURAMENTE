@@ -5,6 +5,31 @@ export interface Tag {
   isCustom: number; // 0 or 1
 }
 
+export type QuestionCategory =
+  | 'Gratitudine'
+  | 'Crescita'
+  | 'Mood'
+  | 'Lavoro'
+  | 'Salute'
+  | 'Riflessione'
+  | 'Altro';
+
+export type QuestionResponseType = 'text' | 'scale_5' | 'scale_10' | 'boolean';
+
+export type QuestionFrequency = 'daily' | 'weekdays' | 'weekend';
+
+export interface CustomQuestion {
+  id: string;
+  prompt: string;
+  category: QuestionCategory;
+  responseType: QuestionResponseType;
+  frequency: QuestionFrequency;
+  isEnabled: boolean; // On/Off toggle
+  isDefault?: boolean;
+  createdAt: string;
+  order?: number;
+}
+
 export interface CbtEntry {
   id: string;
   createdAt: string;
@@ -28,6 +53,7 @@ export interface CbtEntry {
   overallAnxietyLevel: number; // 0-100
   photo?: string; // Base64 encoded image for multi-device sync
   notes: string;
+  customAnswers?: Record<string, string | number | boolean>;
 }
 
 export interface AppSettings {
@@ -35,7 +61,8 @@ export interface AppSettings {
   value: any;
 }
 
-export type ViewType = 'timeline' | 'entry' | 'detail' | 'dashboard' | 'settings';
+export type ViewType = 'timeline' | 'entry' | 'detail' | 'dashboard' | 'custom_questions' | 'settings';
 export type FormTab = 'section_a' | 'section_b';
 export type PeriodFilter = '7' | '14' | '30' | '90' | 'all';
 export type ThemeMode = 'cyber' | 'minimal' | 'midnight' | 'earth' | 'violet' | 'auto';
+

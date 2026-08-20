@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, BarChart3, Settings } from 'lucide-react';
+import { Clock, BarChart3, Settings, HelpCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { ViewType } from '../types';
 
@@ -12,6 +12,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentView, onSelectView 
   const navItems = [
     { id: 'timeline' as ViewType, label: 'Timeline', icon: Clock },
     { id: 'dashboard' as ViewType, label: 'Dashboard', icon: BarChart3 },
+    { id: 'custom_questions' as ViewType, label: 'Domande', icon: HelpCircle },
     { id: 'settings' as ViewType, label: 'Impostazioni', icon: Settings },
   ];
 

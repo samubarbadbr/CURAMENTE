@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CbtEntry, Tag } from '../types';
+import { CustomQuestionsService } from '../services/customQuestions';
 import {
   ArrowLeft,
   Pencil,
@@ -15,6 +16,9 @@ import {
   Eye,
   EyeOff,
   Image as ImageIcon,
+  Sparkles,
+  Check,
+  X,
 } from 'lucide-react';
 
 interface DetailViewProps {
@@ -33,6 +37,8 @@ export const DetailView: React.FC<DetailViewProps> = ({
   onDelete,
 }) => {
   const [isPhotoObscured, setIsPhotoObscured] = useState(false);
+  const allQuestions = CustomQuestionsService.load();
+
   const getTagLabels = (tagIds: string[]) => {
     if (!tagIds || !tagIds.length) return [];
     return tagIds
@@ -47,6 +53,10 @@ export const DetailView: React.FC<DetailViewProps> = ({
     dateStyle: 'full',
     timeStyle: 'short',
   });
+
+  const customAnswerEntries = Object.entries(entry.customAnswers || {}).filter(
+    ([_, val]) => val !== undefined && val !== ''
+  );
 
   return (
     <div className="space-y-5 pb-28 animate-fade-in">
@@ -221,6 +231,65 @@ export const DetailView: React.FC<DetailViewProps> = ({
             {entry.negativeThought || <span className="italic font-bold text-[var(--text-muted)]">Nessun pensiero specificato</span>}
           </p>
         </div>
+
+        {/* Risposte alle Domande Custom */}
+        {customAnswerEntries.length > 0 && (
+          <div className="glass-panel rounded-[20px] p-4 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
+            <div className="flex items-center space-x-2 text-xs font-black text-indigo-400 uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Riflessioni &amp; Domande Guidate</span>
+            </div>
+
+            <div className="space-y-3 pt-1">
+              {customAnswerEntries.map(([qId, answer]) => {
+                const question = allQuestions.find((q) => q.id === qId);
+                const prompt = question?.prompt || 'Domanda Personalizzata';
+                const category = question?.category || 'Riflessione';
+
+                return (
+                  <div
+                    key={qId}
+                    className="p-3 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] space-y-1.5"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-xs font-black text-[var(--text-primary)] leading-tight">
+                        {prompt}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 shrink-0">
+                        {category}
+                      </span>
+                    </div>
+
+                    {/* Format response based on type */}
+                    <div className="pt-0.5">
+                      {typeof answer === 'boolean' ? (
+                        <span
+                          className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-black ${
+                            answer
+                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                              : 'bg-zinc-500/15 text-zinc-400 border border-zinc-500/30'
+                          }`}
+                        >
+                          {answer ? <Check className="w-3 h-3 stroke-[3]" /> : <X className="w-3 h-3 stroke-[3]" />}
+                          <span>{answer ? 'Sì' : 'No'}</span>
+                        </span>
+                      ) : typeof answer === 'number' ? (
+                        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 text-xs font-black">
+                          <span>Punteggio Valutazione:</span>
+                          <span className="text-sm font-black text-white">{answer}</span>
+                        </div>
+                      ) : (
+                        <p className="text-xs font-bold text-[var(--text-primary)] leading-relaxed break-words whitespace-pre-wrap">
+                          {String(answer)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* SEZIONE B Cards */}
