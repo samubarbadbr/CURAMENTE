@@ -1,22 +1,30 @@
 {
   "short_name": "Diariamente",
-  "name": "Diariamente",
+  "name": "Diariamente - Diario & Riflessione",
+  "description": "Diario personale quotidiano per riflessione, gratitudine e tracking del focus",
   "icons": [
     {
-      "src": "./apple-touch-icon.png",
-      "sizes": "180x180 192x192 512x512",
+      "src": "./icon-192.png",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "./favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
       "purpose": "any"
     }
   ],
   "start_url": "./",
   "background_color": "#07080B",
   "theme_color": "#07080B",
-  "display": "standalone"
+  "display": "standalone",
+  "orientation": "portrait"
 }
