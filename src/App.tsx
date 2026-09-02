@@ -17,6 +17,8 @@ import { DashboardView } from './views/DashboardView';
 import { SettingsView } from './views/SettingsView';
 import { CustomQuestionsView } from './views/CustomQuestionsView';
 import { CustomQuestionsService } from './services/customQuestions';
+import { TherapistExportModal } from './components/TherapistExportModal';
+import { generateTherapistCsv } from './services/therapistReportGenerator';
 
 const viewOrder: Record<ViewType, number> = {
   timeline: 0,
@@ -145,6 +147,9 @@ export default function App() {
     message: '',
     onConfirm: () => {},
   });
+
+  // Therapist Report Export Modal state
+  const [isTherapistExportModalOpen, setIsTherapistExportModalOpen] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -762,150 +767,38 @@ export default function App() {
     showToast('Backup JSON scaricato');
   };
 
-  // Export Plain Text (.TXT)
-  const handleExportTxt = async () => {
-    const allEntries = await DB.getAll<CbtEntry>('entries');
-    allEntries.sort((a, b) => new Date(b.eventDatetime).getTime() - new Date(a.eventDatetime).getTime());
-
-    if (allEntries.length === 0) {
-      showToast('Nessuna registrazione da esportare');
-      return;
-    }
-
-    const tagMap = new Map(allTags.map((t) => [t.id, t.label]));
-
-    let txtContent = `==================================================\n`;
-    txtContent += `DIARIAMENTE - REGISTRO E MONITORAGGIO PERSONALE\n`;
-    txtContent += `Data Esportazione: ${new Date().toLocaleString('it-IT')}\n`;
-    txtContent += `Totale Registrazioni: ${allEntries.length}\n`;
-    txtContent += `==================================================\n\n`;
-
-    allEntries.forEach((entry, idx) => {
-      const dateStr = new Date(entry.eventDatetime).toLocaleString('it-IT', {
-        dateStyle: 'full',
-        timeStyle: 'short',
-      });
-      const emotions = entry.emotionTagIds.map((id) => tagMap.get(id) || id).join(', ');
-      const symptoms = entry.physicalSymptomTagIds.map((id) => tagMap.get(id) || id).join(', ');
-
-      txtContent += `--------------------------------------------------\n`;
-      txtContent += `REGISTRAZIONE #${allEntries.length - idx}\n`;
-      txtContent += `Data e Ora Evento: ${dateStr}\n`;
-      txtContent += `Situazione: ${entry.situation || 'N/D'}\n`;
-      txtContent += `Fattori Scatenanti: ${entry.triggerFactors || 'N/D'}\n`;
-      txtContent += `Pensiero Automatico Negativo: ${entry.negativeThought || 'N/D'}\n`;
-      txtContent += `Livello Credenza Iniziale: ${entry.thoughtBeliefLevel}%\n`;
-      txtContent += `Intensità del Pensiero: ${entry.negativeThoughtsIntensity}%\n`;
-      txtContent += `Emozioni Provate: ${emotions || 'Nessuna'}\n`;
-      txtContent += `Sintomi Fisici: ${symptoms || 'Nessuno'}\n`;
-      if (entry.physicalSymptomsText) txtContent += `Dettaglio Sintomi Fisici: ${entry.physicalSymptomsText}\n`;
-      txtContent += `Attenzione sul Corpo: ${entry.bodyFocusedAttentionLevel}%\n`;
-      txtContent += `Sintomi Controllati: ${entry.symptomControlDescription || 'Nessuno'}\n`;
-      txtContent += `Check di Controllo: ${entry.symptomControlCount} volte\n`;
-      txtContent += `Rassicurazioni Cercate: ${entry.reassuranceSeekingType || 'Nessuna'} (${entry.reassuranceSeekingCount} volte)\n`;
-      txtContent += `Evitamenti Messi in Atto: ${entry.avoidanceType || 'Nessuno'} (${entry.avoidanceCount} volte)\n`;
-      txtContent += `Ansia Complessiva: ${entry.overallAnxietyLevel} / 100\n`;
-      if (entry.notes) txtContent += `Note & Riflessioni: ${entry.notes}\n`;
-      txtContent += `--------------------------------------------------\n\n`;
-    });
-
-    const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `curamente-registrazioni-${new Date().toISOString().slice(0, 10)}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    showToast('File TXT scaricato con successo');
-  };
-
-  // Export Spreadsheet (.CSV) with UTF-8 BOM, strict quoting and double-quote escaping
+  // Export Spreadsheet (.CSV) formatted for therapist review: Data | Categoria | Domanda | Risposta | Valore (0-100)
   const handleExportCsv = async () => {
     const allEntries = await DB.getAll<CbtEntry>('entries');
-    allEntries.sort((a, b) => new Date(b.eventDatetime).getTime() - new Date(a.eventDatetime).getTime());
-
     if (allEntries.length === 0) {
       showToast('Nessuna registrazione da esportare');
       return;
     }
 
-    const tagMap = new Map(allTags.map((t) => [t.id, t.label]));
-
-    const headers = [
-      'ID',
-      'Data e Ora',
-      'Situazione',
-      'Fattori Scatenanti',
-      'Pensiero Negativo Automatico',
-      'Credenza nel Pensiero (%)',
-      'Intensita Pensiero (%)',
-      'Emozioni',
-      'Sintomi Fisici',
-      'Dettaglio Sintomi Fisici',
-      'Attenzione al Corpo (%)',
-      'Sintomi Controllati',
-      'Numero Controlli',
-      'Tipo Rassicurazioni',
-      'Numero Rassicurazioni',
-      'Tipo Evitamento',
-      'Numero Evitamenti',
-      'Ansia Complessiva (%)',
-      'Note e Riflessioni',
-    ];
-
-    const escapeCsvField = (field: unknown): string => {
-      if (field === null || field === undefined) {
-        return '""';
-      }
-      const text = String(field).replace(/"/g, '""');
-      return `"${text}"`;
-    };
-
-    // UTF-8 BOM prefix (\uFEFF) ensures Excel and third-party apps correctly render accented characters
-    let csvContent = '\uFEFF';
-    csvContent += headers.map(escapeCsvField).join(',') + '\r\n';
-
-    allEntries.forEach((entry) => {
-      const emotionLabels = (entry.emotionTagIds || []).map((id) => tagMap.get(id) || id).join('; ');
-      const symptomLabels = (entry.physicalSymptomTagIds || []).map((id) => tagMap.get(id) || id).join('; ');
-
-      const row = [
-        entry.id,
-        entry.eventDatetime,
-        entry.situation || '',
-        entry.triggerFactors || '',
-        entry.negativeThought || '',
-        entry.thoughtBeliefLevel ?? 0,
-        entry.negativeThoughtsIntensity ?? 0,
-        emotionLabels,
-        symptomLabels,
-        entry.physicalSymptomsText || '',
-        entry.bodyFocusedAttentionLevel ?? 0,
-        entry.symptomControlDescription || '',
-        entry.symptomControlCount ?? 0,
-        entry.reassuranceSeekingType || '',
-        entry.reassuranceSeekingCount ?? 0,
-        entry.avoidanceType || '',
-        entry.avoidanceCount ?? 0,
-        entry.overallAnxietyLevel ?? 0,
-        entry.notes || '',
-      ];
-
-      csvContent += row.map(escapeCsvField).join(',') + '\r\n';
+    const csvContent = generateTherapistCsv(allEntries, allTags, customQuestions, {
+      patientName: localStorage.getItem('diariamente_patient_name') || '',
+      period: 'all',
+      includeMetrics: true,
+      includeSituationTriggers: true,
+      includeThoughts: true,
+      includeEmotionsSymptoms: true,
+      includeBehaviors: true,
+      includeCustomQuestions: true,
+      includeNotes: true,
+      includeSummaryTable: true,
+      sortOrder: 'asc',
     });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `diariamente-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `diariamente-tabella-seduta-${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-    showToast('File CSV scaricato con successo');
+    showToast('File CSV/Excel scaricato con successo');
   };
 
   // Import JSON Backup
@@ -971,102 +864,6 @@ export default function App() {
         showToast('Tutti i dati sono stati azzerati');
       },
     });
-  };
-
-  // Printable Therapist Session Report PDF Export
-  const handleExportPdfReport = async () => {
-    const reportEntries = await DB.getAll<CbtEntry>('entries');
-    reportEntries.sort((a, b) => new Date(a.eventDatetime).getTime() - new Date(b.eventDatetime).getTime());
-
-    if (reportEntries.length === 0) {
-      showToast('Nessuna registrazione disponibile per il report');
-      return;
-    }
-
-    const printWin = window.open('', '_blank');
-    if (!printWin) {
-      showToast('Abilita i popup nel browser per generare il report');
-      return;
-    }
-
-    const rowsHtml = reportEntries
-      .map((e) => {
-        const d = new Date(e.eventDatetime).toLocaleString('it-IT', {
-          dateStyle: 'short',
-          timeStyle: 'short',
-        });
-        const emotionLabels = (e.emotionTagIds || [])
-          .map((id) => allTags.find((t) => t.id === id)?.label)
-          .filter(Boolean)
-          .join(', ');
-
-        return `
-          <tr>
-            <td><strong>${d}</strong></td>
-            <td>${e.situation || '—'}</td>
-            <td>${emotionLabels || '—'}</td>
-            <td>${e.negativeThought || '—'} (${e.thoughtBeliefLevel}%)</td>
-            <td><strong style="color:${e.overallAnxietyLevel > 60 ? '#C97B7B' : '#7B8CDE'}">${e.overallAnxietyLevel}/100</strong></td>
-            <td>${e.symptomControlCount} check</td>
-            <td>${e.reassuranceSeekingCount} volte</td>
-            <td>${e.avoidanceCount} volte</td>
-          </tr>
-        `;
-      })
-      .join('');
-
-    printWin.document.write(`
-      <!DOCTYPE html>
-      <html lang="it">
-      <head>
-        <meta charset="UTF-8">
-        <title>Report Registrazioni - Diariamente</title>
-        <style>
-          body { font-family: system-ui, -apple-system, sans-serif; color: #1a201c; padding: 32px; background: #fff; }
-          .header { border-bottom: 2px solid #7B8CDE; padding-bottom: 16px; margin-bottom: 24px; }
-          h1 { margin: 0 0 4px 0; color: #212823; font-size: 24px; }
-          .subtitle { margin: 0; color: #5A675E; font-size: 13px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
-          th { background: #EBF1EC; text-align: left; padding: 8px 10px; border-bottom: 2px solid #8B9B90; color: #212823; font-weight: bold; }
-          td { padding: 8px 10px; border-bottom: 1px solid #E3E9E4; vertical-align: top; }
-          .footer { margin-top: 32px; font-size: 11px; color: #88968C; border-top: 1px solid #E3E9E4; padding-top: 12px; }
-          @media print { body { padding: 0; } }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>Diariamente — Report Consultazione & Monitoraggio</h1>
-          <p class="subtitle">Generato il ${new Date().toLocaleDateString('it-IT')} — Totale voci registrate: ${reportEntries.length}</p>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Data/Ora</th>
-              <th>Situazione</th>
-              <th>Emozioni</th>
-              <th>Pensiero Automatico</th>
-              <th>Ansia</th>
-              <th>Controllo</th>
-              <th>Rassicurazioni</th>
-              <th>Evitamenti</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml}
-          </tbody>
-        </table>
-        <div class="footer">
-          Documento riservato generato da Curamente PWA. Tutti i dati sono elaborati in modo sicuro.
-        </div>
-        <script>
-          window.onload = function() {
-            setTimeout(function() { window.print(); }, 400);
-          };
-        <\/script>
-      </body>
-      </html>
-    `);
-    printWin.document.close();
   };
 
   const selectedDetailEntry = entries.find((e) => e.id === detailEntryId);
@@ -1217,7 +1014,7 @@ export default function App() {
                   entries={entries}
                   dashPeriod={dashPeriod}
                   onPeriodChange={(p) => setDashPeriod(p)}
-                  onExportReport={handleExportPdfReport}
+                  onExportReport={() => setIsTherapistExportModalOpen(true)}
                 />
               )}
 
@@ -1257,7 +1054,7 @@ export default function App() {
                   onManualSyncPull={() => handleSyncPull(syncPin, true)}
                   onTestConnection={handleTestConnection}
                   onExportJson={handleExportJson}
-                  onExportTxt={handleExportTxt}
+                  onExportTherapistReport={() => setIsTherapistExportModalOpen(true)}
                   onExportCsv={handleExportCsv}
                   onImportJson={handleImportJson}
                   allTags={allTags}
@@ -1293,6 +1090,15 @@ export default function App() {
         isDanger={confirmModal.isDanger}
         onConfirm={confirmModal.onConfirm}
         onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+      />
+
+      <TherapistExportModal
+        isOpen={isTherapistExportModalOpen}
+        onClose={() => setIsTherapistExportModalOpen(false)}
+        entries={entries}
+        allTags={allTags}
+        customQuestions={customQuestions}
+        onShowToast={showToast}
       />
     </div>
   );

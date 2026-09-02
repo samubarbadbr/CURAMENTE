@@ -11,6 +11,7 @@ import {
   ChevronRight,
   FileText,
   Table,
+  Printer,
   Smartphone,
   Monitor,
   ArrowLeftRight,
@@ -52,7 +53,7 @@ interface SettingsViewProps {
   onManualSyncPull?: () => Promise<void>;
   onTestConnection?: () => Promise<void>;
   onExportJson: () => void;
-  onExportTxt: () => void;
+  onExportTherapistReport: () => void;
   onExportCsv: () => void;
   onImportJson: (file: File) => void;
   allTags: Tag[];
@@ -81,7 +82,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onManualSyncPull,
   onTestConnection,
   onExportJson,
-  onExportTxt,
+  onExportTherapistReport,
   onExportCsv,
   onImportJson,
   allTags,
@@ -538,46 +539,55 @@ NOTIFY pgrst, 'reload schema';`;
         {/* Additional Formats Header */}
         <div className="pt-2 border-t border-[var(--border-solid)]">
           <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)] block mb-2">
-            Altri Formati di Esportazione
+            Condivisione Clinica &amp; Altri Formati
           </span>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <button
               type="button"
-              onClick={onExportTxt}
-              className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-subtle)] hover:opacity-90 border border-[var(--border-solid)] text-left transition-all cursor-pointer"
+              onClick={onExportTherapistReport}
+              className="flex items-center justify-between p-3.5 rounded-2xl bg-[var(--bg-subtle)] hover:border-[#5B67CA]/50 border border-[var(--border-solid)] text-left transition-all cursor-pointer group shadow-xs active:scale-98"
             >
-              <div className="flex items-center space-x-2.5">
-                <FileText className="w-4 h-4 text-emerald-500 stroke-[2.5] shrink-0" />
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 rounded-xl bg-[#5B67CA]/15 text-[#5B67CA] shrink-0 border border-[#5B67CA]/25">
+                  <Printer className="w-4 h-4 stroke-[2.5]" />
+                </div>
                 <div>
-                  <span className="block text-xs font-black text-[var(--text-primary)]">
-                    Registro Leggibile (.TXT)
-                  </span>
-                  <span className="block text-[10px] font-bold text-[var(--text-secondary)]">
-                    Testo per lettura e stampa
+                  <div className="flex items-center space-x-1.5">
+                    <span className="block text-xs font-black text-[var(--text-primary)]">
+                      Report per Terapeuta (PDF)
+                    </span>
+                    <span className="text-[9px] font-extrabold uppercase bg-[#5B67CA]/15 text-[#5B67CA] px-1.5 py-0.2 rounded-md">
+                      Nuovo
+                    </span>
+                  </div>
+                  <span className="block text-[10px] font-semibold text-[var(--text-secondary)] mt-0.5">
+                    Layout chiaro con medie, filtri e stampa
                   </span>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-[var(--text-primary)]" />
+              <ChevronRight className="w-4 h-4 text-[var(--text-primary)] group-hover:translate-x-0.5 transition-transform" />
             </button>
 
             <button
               type="button"
               onClick={onExportCsv}
-              className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-subtle)] hover:opacity-90 border border-[var(--border-solid)] text-left transition-all cursor-pointer"
+              className="flex items-center justify-between p-3.5 rounded-2xl bg-[var(--bg-subtle)] hover:border-emerald-500/40 border border-[var(--border-solid)] text-left transition-all cursor-pointer group shadow-xs active:scale-98"
             >
-              <div className="flex items-center space-x-2.5">
-                <Table className="w-4 h-4 text-amber-500 stroke-[2.5] shrink-0" />
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 rounded-xl bg-emerald-500/15 text-emerald-500 shrink-0 border border-emerald-500/25">
+                  <Table className="w-4 h-4 stroke-[2.5]" />
+                </div>
                 <div>
                   <span className="block text-xs font-black text-[var(--text-primary)]">
                     Fogli di Calcolo (.CSV)
                   </span>
-                  <span className="block text-[10px] font-bold text-[var(--text-secondary)]">
-                    Compatibile con Excel e Google
+                  <span className="block text-[10px] font-semibold text-[var(--text-secondary)] mt-0.5">
+                    Tabella (Data | Domanda | Risposta | Valore)
                   </span>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-[var(--text-primary)]" />
+              <ChevronRight className="w-4 h-4 text-[var(--text-primary)] group-hover:translate-x-0.5 transition-transform" />
             </button>
           </div>
         </div>
