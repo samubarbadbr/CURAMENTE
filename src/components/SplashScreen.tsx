@@ -19,40 +19,25 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onStart }) => {
         transition: { duration: 0.42, ease: [0.32, 0.72, 0, 1] },
       }}
       transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-      className="fixed inset-0 z-50 flex flex-col justify-between items-center bg-[#07080B] text-[#EDEDED] px-6 py-8 sm:py-12 select-none overflow-hidden"
+      className="fixed inset-0 z-50 flex flex-col justify-between items-center bg-[#050508] text-[#EDEDED] px-6 py-8 sm:py-12 select-none overflow-hidden"
     >
       {/* Top Spacer */}
       <div className="w-full h-2" />
 
       {/* Main Composition: Halo + Icon Card on Left, Title + Subtitle + Button on Right */}
       <div className="relative z-10 w-full max-w-4xl mx-auto my-auto flex flex-col md:flex-row items-center justify-center gap-8 md:gap-14 px-4">
-        {/* Left Section: Glass Card with Brain Icon & Defined Circular Halo Ring */}
+        {/* Left Section: Glass Card with Brain Icon & Defined Circular Halo Glow */}
         <div className="relative flex items-center justify-center shrink-0">
-          {/* Defined Circular Halo Ring with crisp geometry */}
+          {/* Cerchio Luminoso di Sfondo (Halo Glow Reflector: 600px x 600px) */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
+            initial={{ opacity: 0, scale: 0.85 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.15, filter: 'blur(30px)' }}
+            exit={{ opacity: 0, scale: 1.15, filter: 'blur(45px)' }}
             transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-            className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[290px] h-[290px] sm:w-[360px] sm:h-[360px] rounded-full z-0"
+            className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full z-0"
             style={{
-              background:
-                'radial-gradient(circle, transparent 40%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.9) 64%, rgba(255, 255, 255, 0.6) 72%, transparent 80%)',
-              filter: 'blur(18px)',
-            }}
-            aria-hidden="true"
-          />
-
-          {/* Sharp Circular Ring Core defining the crisp circular stroke */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.15, filter: 'blur(20px)' }}
-            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-            className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[260px] h-[260px] sm:w-[330px] sm:h-[330px] rounded-full z-0 border-[14px] sm:border-[18px] border-white/80"
-            style={{
-              filter: 'blur(10px)',
-              boxShadow: '0 0 35px rgba(255, 255, 255, 0.8), inset 0 0 25px rgba(255, 255, 255, 0.5)',
+              background: 'radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(200, 210, 255, 0.4) 40%, transparent 70%)',
+              filter: 'blur(35px)',
             }}
             aria-hidden="true"
           />

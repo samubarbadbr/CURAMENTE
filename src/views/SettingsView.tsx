@@ -31,14 +31,23 @@ import {
   Loader2,
   ScanFace,
   Eye,
-  EyeOff
+  EyeOff,
+  Mail,
+  Send,
+  ShieldAlert,
+  FileCode,
+  AlertCircle
 } from 'lucide-react';
+import { sendPinRecoveryEmail } from '../lib/supabase';
+import { SupabaseEmailTemplateModal } from '../components/SupabaseEmailTemplateModal';
 
 interface SettingsViewProps {
   pinEnabled: boolean;
   pinCode?: string;
+  recoveryEmail?: string;
   onTogglePin: (enabled: boolean) => void;
   onSavePin?: (pin: string) => Promise<boolean>;
+  onSavePinAndRecoveryEmail?: (pin: string, email: string) => Promise<boolean>;
   biometricsEnabled?: boolean;
   onToggleBiometrics?: (enabled: boolean) => Promise<boolean>;
   isBiometricsSupported?: boolean;
@@ -66,8 +75,10 @@ interface SettingsViewProps {
 export const SettingsView: React.FC<SettingsViewProps> = ({
   pinEnabled,
   pinCode = '',
+  recoveryEmail = '',
   onTogglePin,
   onSavePin,
+  onSavePinAndRecoveryEmail,
   biometricsEnabled = false,
   onToggleBiometrics,
   isBiometricsSupported = false,
@@ -102,6 +113,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [isEditingAppPin, setIsEditingAppPin] = useState(!pinCode);
   const [showAppPinPlain, setShowAppPinPlain] = useState(false);
   const [appPinError, setAppPinError] = useState<string | null>(null);
+  const [recoveryEmailDraft, setRecoveryEmailDraft] = useState(
+    recoveryEmail || 'samuele.lavoroba@gmail.com'
+  );
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [isTestingEmail, setIsTestingEmail] = useState(false);
+  const [emailTestFeedback, setEmailTestFeedback] = useState<string | null>(null);
+  const [showEmailTemplateModal, setShowEmailTemplateModal] = useState(false);
+
+  React.useEffect(() => {
+    if (recoveryEmail) {
+      setRecoveryEmailDraft(recoveryEmail);
+    }
+  }, [recoveryEmail]);
 
   const customTags = React.useMemo(() => {
     const seen = new Set<string>();
@@ -172,16 +196,57 @@ NOTIFY pgrst, 'reload schema';`;
   const handleSaveAppPinSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setAppPinError(null);
+    setEmailError(null);
     if (!appPinDraft || !/^\d{4}$/.test(appPinDraft.trim())) {
       setAppPinError('Inserisci esattamente 4 cifre numeriche');
       return;
     }
-    if (onSavePin) {
+    const cleanEmail = recoveryEmailDraft.trim().toLowerCase();
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setEmailError('Inserisci un indirizzo email valido per il recupero');
+      return;
+    }
+
+    if (onSavePinAndRecoveryEmail) {
+      const ok = await onSavePinAndRecoveryEmail(appPinDraft.trim(), cleanEmail);
+      if (ok) {
+        setIsEditingAppPin(false);
+        setAppPinDraft('');
+      }
+    } else if (onSavePin) {
       const ok = await onSavePin(appPinDraft.trim());
       if (ok) {
         setIsEditingAppPin(false);
         setAppPinDraft('');
       }
+    }
+  };
+
+  const handleTestRecoveryEmail = async () => {
+    const targetEmail = (recoveryEmail || recoveryEmailDraft || '').trim().toLowerCase();
+    if (!targetEmail || !targetEmail.includes('@')) {
+      setEmailTestFeedback('Inserisci prima un indirizzo email valido');
+      return;
+    }
+    setIsTestingEmail(true);
+    setEmailTestFeedback(null);
+    try {
+      const res = await sendPinRecoveryEmail(targetEmail);
+      if (res.success) {
+        setEmailTestFeedback(
+          'Email di recupero inviata! Controlla la tua casella di posta (e la cartella Spam se non la trovi subito).'
+        );
+      } else {
+        setEmailTestFeedback(
+          "Impossibile inviare l'email al momento. Riprova tra qualche istante o verifica la tua connessione."
+        );
+      }
+    } catch {
+      setEmailTestFeedback(
+        "Impossibile inviare l'email al momento. Riprova tra qualche istante o verifica la tua connessione."
+      );
+    } finally {
+      setIsTestingEmail(false);
     }
   };
 
@@ -279,7 +344,7 @@ NOTIFY pgrst, 'reload schema';`;
             </div>
             <div>
               <span className="block text-base font-black text-[var(--text-primary)]">
-                Sincronizzazione Cloud Supabase
+                Sincronizzazione Cloud
               </span>
               <span className="block text-xs font-bold text-[var(--text-secondary)]">
                 Condividi in automatico il diario tra PC e Smartphone via PIN
@@ -352,7 +417,7 @@ NOTIFY pgrst, 'reload schema';`;
                   {syncPin}
                 </span>
                 <span className="text-xs font-bold text-emerald-500 flex items-center gap-1">
-                  <CheckCircle2 className="w-4 h-4" /> Collegato a Supabase
+                  <CheckCircle2 className="w-4 h-4" /> Connessione Cloud Attiva
                 </span>
               </div>
 
@@ -382,7 +447,7 @@ NOTIFY pgrst, 'reload schema';`;
                 ) : (
                   <UploadCloud className="w-4 h-4 stroke-[2.2]" />
                 )}
-                <span>{syncStatus === 'syncing' ? 'Invio in corso...' : 'Invia Dati a Supabase'}</span>
+                <span>{syncStatus === 'syncing' ? 'Invio in corso...' : 'Salva nel Cloud'}</span>
               </button>
 
               <button
@@ -398,7 +463,7 @@ NOTIFY pgrst, 'reload schema';`;
                 ) : (
                   <DownloadCloud className="w-4 h-4 stroke-[2.2]" />
                 )}
-                <span>{syncStatus === 'syncing' ? 'Scaricamento in corso...' : 'Scarica Dati dal Cloud'}</span>
+                <span>{syncStatus === 'syncing' ? 'Scaricamento in corso...' : 'Scarica dal Cloud'}</span>
               </button>
             </div>
           )}
@@ -415,47 +480,6 @@ NOTIFY pgrst, 'reload schema';`;
               <span>Verifica Connessione Cloud</span>
             </button>
           )}
-
-          {/* SQL Setup Helper Toggle */}
-          <div className="pt-2 border-t border-[var(--border-solid)]">
-            <button
-              type="button"
-              onClick={() => setShowSqlGuide(!showSqlGuide)}
-              className="w-full flex items-center justify-between text-left py-2 px-3 rounded-xl bg-[var(--bg-subtle)] text-[var(--text-primary)] hover:opacity-90 transition-all cursor-pointer"
-            >
-              <div className="flex items-center space-x-2">
-                <Database className="w-4 h-4 text-[#5B67CA]" />
-                <span className="text-xs font-black">Istruzioni Setup Tabella Supabase SQL</span>
-              </div>
-              <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${showSqlGuide ? 'rotate-90' : ''}`} />
-            </button>
-
-            {showSqlGuide && (
-              <div className="mt-3 p-4 rounded-2xl bg-[var(--bg-subtle)] text-[var(--text-primary)] space-y-3 text-xs animate-fade-in border border-[var(--border-solid)]">
-                <p className="font-bold text-[var(--accent-primary)]">
-                  Se ricevi l'errore <code className="bg-black/30 px-1.5 py-0.5 rounded text-amber-400">PGRST205 / user_data not found</code>, segui questi 2 passaggi nel tuo account Supabase:
-                </p>
-                <ol className="list-decimal list-inside space-y-1 font-semibold text-[var(--text-secondary)]">
-                  <li>Apri il progetto su <strong>supabase.com</strong> e vai su <strong>SQL Editor</strong> nel menu laterale.</li>
-                  <li>Incolla ed esegui (premi <strong>Run</strong>) il seguente script SQL:</li>
-                </ol>
-
-                <div className="relative mt-2">
-                  <pre className="p-3 rounded-xl bg-black/70 text-emerald-300 font-mono text-[11px] overflow-x-auto leading-relaxed border border-white/10 select-all">
-                    {sqlScript}
-                  </pre>
-                  <button
-                    type="button"
-                    onClick={handleCopySql}
-                    className="absolute top-2 right-2 flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-[#5B67CA] hover:bg-[#4A55B8] text-white text-[10px] font-black cursor-pointer shadow"
-                  >
-                    {copiedSql ? <Check className="w-3 h-3 text-emerald-300" /> : <Copy className="w-3 h-3" />}
-                    <span>{copiedSql ? 'Copiato!' : 'Copia SQL'}</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
@@ -624,13 +648,13 @@ NOTIFY pgrst, 'reload schema';`;
         {/* PIN Configuration Details (when PIN is enabled) */}
         {pinEnabled && (
           <div className="pt-3 border-t border-[var(--border-subtle)] space-y-4">
-            {/* PIN Code Setting / Editing Box */}
+            {/* PIN Code & Recovery Email Setting / Editing Box */}
             <div className="bg-[var(--bg-subtle)] rounded-2xl p-4 border border-[var(--border-solid)] space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <KeyRound className="w-4 h-4 text-[#5B67CA] stroke-[2.5]" />
                   <span className="text-xs font-black text-[var(--text-primary)]">
-                    Codice PIN a 4 Cifre
+                    Codice PIN a 4 Cifre &amp; Email di Recupero
                   </span>
                 </div>
                 {pinCode && !isEditingAppPin && (
@@ -641,43 +665,75 @@ NOTIFY pgrst, 'reload schema';`;
               </div>
 
               {isEditingAppPin || !pinCode ? (
-                <form onSubmit={handleSaveAppPinSubmit} className="space-y-3">
-                  <div className="relative">
-                    <input
-                      type={showAppPinPlain ? 'text' : 'password'}
-                      maxLength={4}
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={appPinDraft}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, '').slice(0, 4);
-                        setAppPinDraft(val);
-                        if (appPinError) setAppPinError(null);
-                      }}
-                      placeholder="••••"
-                      className="w-full bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-[var(--text-muted)] border border-[var(--border-solid)] rounded-xl px-4 py-2.5 text-center text-xl font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-[#5B67CA]"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowAppPinPlain(!showAppPinPlain)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1"
-                      title={showAppPinPlain ? 'Nascondi PIN' : 'Mostra PIN'}
-                    >
-                      {showAppPinPlain ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
+                <form onSubmit={handleSaveAppPinSubmit} className="space-y-3.5">
+                  {/* PIN Input */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[11px] font-bold text-[var(--text-secondary)]">
+                      Imposta PIN a 4 Cifre:
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showAppPinPlain ? 'text' : 'password'}
+                        maxLength={4}
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={appPinDraft}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                          setAppPinDraft(val);
+                          if (appPinError) setAppPinError(null);
+                        }}
+                        placeholder="••••"
+                        className="w-full bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-[var(--text-muted)] border border-[var(--border-solid)] rounded-xl px-4 py-2.5 text-center text-xl font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-[#5B67CA]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowAppPinPlain(!showAppPinPlain)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1"
+                        title={showAppPinPlain ? 'Nascondi PIN' : 'Mostra PIN'}
+                      >
+                        {showAppPinPlain ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {appPinError && (
+                      <p className="text-[11px] font-bold text-rose-500 text-center">{appPinError}</p>
+                    )}
                   </div>
 
-                  {appPinError && (
-                    <p className="text-[11px] font-bold text-rose-500 text-center">{appPinError}</p>
-                  )}
+                  {/* Recovery Email Input */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[11px] font-bold text-[var(--text-secondary)]">
+                      Email di Recupero:
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="email"
+                        required
+                        value={recoveryEmailDraft}
+                        onChange={(e) => {
+                          setRecoveryEmailDraft(e.target.value);
+                          if (emailError) setEmailError(null);
+                        }}
+                        placeholder="es. nome@email.com"
+                        className="w-full bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-[var(--text-muted)] border border-[var(--border-solid)] rounded-xl px-3.5 py-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#5B67CA]"
+                      />
+                      <Mail className="w-4 h-4 text-[var(--text-muted)] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                    <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">
+                      Utilizzata per inviare istruzioni e codice in caso di PIN smarrito.
+                    </p>
+                    {emailError && (
+                      <p className="text-[11px] font-bold text-rose-500">{emailError}</p>
+                    )}
+                  </div>
 
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 pt-1">
                     <button
                       type="submit"
-                      disabled={appPinDraft.length !== 4}
+                      disabled={appPinDraft.length !== 4 || !recoveryEmailDraft.includes('@')}
                       className="flex-1 py-2.5 rounded-xl bg-[#5B67CA] text-white text-xs font-black hover:bg-[#4d57b2] active:scale-98 transition-all disabled:opacity-40 cursor-pointer shadow-xs"
                     >
-                      {pinCode ? 'Aggiorna PIN' : 'Salva PIN'}
+                      {pinCode ? 'Aggiorna PIN & Email' : 'Salva PIN & Email di Recupero'}
                     </button>
                     {pinCode && (
                       <button
@@ -686,6 +742,7 @@ NOTIFY pgrst, 'reload schema';`;
                           setIsEditingAppPin(false);
                           setAppPinDraft('');
                           setAppPinError(null);
+                          setEmailError(null);
                         }}
                         className="px-4 py-2.5 rounded-xl border border-[var(--border-solid)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] text-xs font-bold transition-all cursor-pointer"
                       >
@@ -695,36 +752,92 @@ NOTIFY pgrst, 'reload schema';`;
                   </div>
                 </form>
               ) : (
-                <div className="flex items-center justify-between pt-1">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm font-mono font-bold tracking-widest text-[var(--text-primary)]">
-                      ••••
-                    </span>
-                    <span className="text-[11px] font-bold text-[var(--text-secondary)]">
-                      (PIN a 4 cifre attivo)
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsEditingAppPin(true);
-                        setAppPinDraft('');
-                      }}
-                      className="text-xs font-bold text-[#5B67CA] hover:underline px-2 py-1"
-                    >
-                      Modifica
-                    </button>
-                    {onLockApp && (
+                <div className="space-y-3 pt-1">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-mono font-bold tracking-widest text-[var(--text-primary)]">
+                        ••••
+                      </span>
+                      <span className="text-[11px] font-bold text-[var(--text-secondary)]">
+                        (PIN a 4 cifre attivo)
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
                       <button
                         type="button"
-                        onClick={onLockApp}
-                        className="px-2.5 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-solid)] text-[11px] font-bold text-[var(--text-primary)] hover:bg-[var(--bg-page)] active:scale-95 transition-all shadow-xs"
+                        onClick={() => {
+                          setIsEditingAppPin(true);
+                          setAppPinDraft('');
+                        }}
+                        className="text-xs font-bold text-[#5B67CA] hover:underline px-2 py-1 cursor-pointer"
                       >
-                        Blocca Ora
+                        Modifica
                       </button>
-                    )}
+                      {onLockApp && (
+                        <button
+                          type="button"
+                          onClick={onLockApp}
+                          className="px-2.5 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-solid)] text-[11px] font-bold text-[var(--text-primary)] hover:bg-[var(--bg-page)] active:scale-95 transition-all shadow-xs cursor-pointer"
+                        >
+                          Blocca Ora
+                        </button>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Registered recovery email row */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                    <div className="flex items-center space-x-2 overflow-hidden">
+                      <Mail className="w-3.5 h-3.5 text-[#5B67CA] shrink-0" />
+                      <div className="truncate">
+                        <span className="text-[10px] font-bold text-[var(--text-secondary)] block leading-tight">
+                          Email di Recupero:
+                        </span>
+                        <span className="text-xs font-mono font-bold text-[var(--text-primary)] truncate">
+                          {recoveryEmail || recoveryEmailDraft || 'Non specificata'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleTestRecoveryEmail}
+                      disabled={isTestingEmail}
+                      className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-[#5B67CA]/10 hover:bg-[#5B67CA]/20 text-[#5B67CA] border border-[#5B67CA]/20 transition-all flex items-center space-x-1 cursor-pointer shrink-0"
+                      title="Verifica l'invio delle istruzioni di recupero"
+                    >
+                      {isTestingEmail ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Send className="w-3 h-3" />
+                      )}
+                      <span>{isTestingEmail ? 'Invio test...' : 'Test Invio Email'}</span>
+                    </button>
+                  </div>
+
+                  {emailTestFeedback && (
+                    <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 backdrop-blur-md text-xs font-medium flex items-start space-x-2.5 shadow-md">
+                      {emailTestFeedback.includes('Impossibile') ? (
+                        <AlertCircle className="w-4 h-4 shrink-0 text-zinc-400 mt-0.5" />
+                      ) : (
+                        <CheckCircle2 className="w-4 h-4 shrink-0 text-white stroke-[2.2] mt-0.5" />
+                      )}
+                      <span className="text-zinc-200 leading-relaxed">{emailTestFeedback}</span>
+                    </div>
+                  )}
+
+                  {/* Recovery Email Template Button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowEmailTemplateModal(true)}
+                    className="w-full flex items-center justify-between p-2.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/15 active:scale-98 border border-indigo-500/25 text-indigo-500 dark:text-indigo-400 text-xs font-bold transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <FileCode className="w-4 h-4 shrink-0" />
+                      <span>Template Email di Recupero (HTML & CSS Inline)</span>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 shrink-0" />
+                  </button>
                 </div>
               )}
             </div>
@@ -930,6 +1043,13 @@ NOTIFY pgrst, 'reload schema';`;
           <strong className="font-black text-[var(--text-primary)]">100% Client-Side e Privato:</strong> I tuoi dati restano esclusivamente sul tuo dispositivo in memoria locale e sono trasferibili in sicurezza tramite file di backup `.json`.
         </span>
       </div>
+
+      {/* Supabase Email Template Modal */}
+      <SupabaseEmailTemplateModal
+        isOpen={showEmailTemplateModal}
+        onClose={() => setShowEmailTemplateModal(false)}
+        onShowToast={(msg) => setEmailTestFeedback(msg)}
+      />
     </div>
   );
 };

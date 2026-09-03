@@ -18,7 +18,8 @@ import { SettingsView } from './views/SettingsView';
 import { CustomQuestionsView } from './views/CustomQuestionsView';
 import { CustomQuestionsService } from './services/customQuestions';
 import { TherapistExportModal } from './components/TherapistExportModal';
-import { generateTherapistCsv } from './services/therapistReportGenerator';
+import { generateTherapistCsv, exportSingleEntryPdf } from './services/therapistReportGenerator';
+import { saveRecoveryEmailToCloud } from './lib/supabase';
 
 const viewOrder: Record<ViewType, number> = {
   timeline: 0,
@@ -121,6 +122,7 @@ export default function App() {
   // Security & Lock
   const [pinEnabled, setPinEnabled] = useState(false);
   const [pinCode, setPinCode] = useState<string>('');
+  const [recoveryEmail, setRecoveryEmail] = useState<string>('samuele.lavoroba@gmail.com');
   const [isLocked, setIsLocked] = useState(false);
   const [biometricsEnabled, setBiometricsEnabled] = useState(false);
   const [biometricCredentialId, setBiometricCredentialId] = useState<string>('');
@@ -150,6 +152,22 @@ export default function App() {
 
   // Therapist Report Export Modal state
   const [isTherapistExportModalOpen, setIsTherapistExportModalOpen] = useState(false);
+  const [exportEntries, setExportEntries] = useState<CbtEntry[]>([]);
+
+  const handleOpenTherapistModal = async () => {
+    try {
+      const all = await DB.getAll<CbtEntry>('entries');
+      all.sort((a, b) => new Date(b.eventDatetime).getTime() - new Date(a.eventDatetime).getTime());
+      setExportEntries(all);
+    } catch {
+      setExportEntries(entries);
+    }
+    setIsTherapistExportModalOpen(true);
+  };
+
+  const handleExportSingleEntry = (entry: CbtEntry) => {
+    exportSingleEntryPdf(entry, allTags, customQuestions, (msg) => showToast(msg));
+  };
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -427,6 +445,13 @@ export default function App() {
         // Load saved PIN settings
         const pinEnabledRow = await DB.get<{ key: string; value: boolean }>('settings', 'pin_enabled');
         const pinCodeRow = await DB.get<{ key: string; value: string }>('settings', 'pin_code');
+        const recoveryEmailRow = await DB.get<{ key: string; value: string }>('settings', 'pin_recovery_email');
+        const localEmail = localStorage.getItem('diariamente_recovery_email');
+        if (recoveryEmailRow?.value || localEmail) {
+          if (isMounted) {
+            setRecoveryEmail(recoveryEmailRow?.value || localEmail || 'samuele.lavoroba@gmail.com');
+          }
+        }
         const bioEnabledRow = await DB.get<{ key: string; value: boolean }>('settings', 'biometrics_enabled');
         const bioCredRow = await DB.get<{ key: string; value: string }>('settings', 'biometric_credential_id');
 
@@ -671,23 +696,42 @@ export default function App() {
   };
 
   // PIN and Biometrics Settings Handlers
-  const handleSavePin = async (newPin: string): Promise<boolean> => {
+  const handleSavePinAndRecoveryEmail = async (newPin: string, newEmail: string): Promise<boolean> => {
     if (!newPin || !/^\d{4}$/.test(newPin)) {
       showToast('PIN non valido. Inserisci esattamente 4 cifre.');
+      return false;
+    }
+    const cleanEmail = newEmail.trim().toLowerCase();
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      showToast('Inserisci un indirizzo email valido per il recupero.');
       return false;
     }
     try {
       await DB.put('settings', { key: 'pin_enabled', value: true });
       await DB.put('settings', { key: 'pin_code', value: newPin });
+      await DB.put('settings', { key: 'pin_recovery_email', value: cleanEmail });
+      try {
+        localStorage.setItem('diariamente_recovery_email', cleanEmail);
+      } catch {}
+
       setPinEnabled(true);
       setPinCode(newPin);
-      showToast('PIN a 4 cifre salvato');
+      setRecoveryEmail(cleanEmail);
+
+      // Save to Supabase Cloud
+      saveRecoveryEmailToCloud(cleanEmail, newPin);
+
+      showToast('PIN ed Email di recupero salvati con successo!');
       return true;
     } catch (err) {
       console.error(err);
-      showToast('Errore salvataggio PIN');
+      showToast('Errore salvataggio impostazioni di sicurezza');
       return false;
     }
+  };
+
+  const handleSavePin = async (newPin: string): Promise<boolean> => {
+    return handleSavePinAndRecoveryEmail(newPin, recoveryEmail || 'samuele.lavoroba@gmail.com');
   };
 
   const handleTogglePin = async (enabled: boolean) => {
@@ -750,7 +794,7 @@ export default function App() {
     const tags = await DB.getAll<Tag>('tags');
     const payload = {
       exportedAt: new Date().toISOString(),
-      appName: 'Curamente',
+      appName: 'Diariamente',
       entries: allEntries,
       tags,
     };
@@ -759,7 +803,7 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `curamente-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `diariamente-backup-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -927,11 +971,31 @@ export default function App() {
       {isLocked && (
         <LockScreen
           correctPin={pinCode}
+          recoveryEmail={recoveryEmail}
           biometricsEnabled={biometricsEnabled}
           biometricCredentialId={biometricCredentialId}
           onUnlock={() => setIsLocked(false)}
+          onResetPinSuccess={(newPin) => {
+            handleSavePinAndRecoveryEmail(newPin, recoveryEmail || 'samuele.lavoroba@gmail.com');
+            setIsLocked(false);
+          }}
         />
       )}
+
+      {/* Cerchio Luminoso di Sfondo (Halo Glow Reflector: 600px x 600px) */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0 flex items-center justify-center">
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full"
+          style={{
+            background:
+              'radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(200, 210, 255, 0.4) 40%, transparent 70%)',
+            filter: 'blur(35px)',
+            zIndex: 0,
+            opacity: 0.16,
+          }}
+          aria-hidden="true"
+        />
+      </div>
 
       {/* Main App Container */}
       <motion.div
@@ -978,6 +1042,7 @@ export default function App() {
                     navigateToView('detail');
                   }}
                   onEditEntry={handleOpenEditEntry}
+                  onExportEntry={handleExportSingleEntry}
                   onNewEntry={handleOpenNewEntry}
                   isPrivacyModeEnabled={isPrivacyModeEnabled}
                   onTogglePrivacyMode={handleTogglePrivacyMode}
@@ -1006,6 +1071,7 @@ export default function App() {
                   onBack={() => navigateToView('timeline')}
                   onEdit={() => handleOpenEditEntry(selectedDetailEntry.id)}
                   onDelete={() => handleDeleteEntry(selectedDetailEntry.id)}
+                  onExport={() => handleExportSingleEntry(selectedDetailEntry)}
                 />
               )}
 
@@ -1014,7 +1080,7 @@ export default function App() {
                   entries={entries}
                   dashPeriod={dashPeriod}
                   onPeriodChange={(p) => setDashPeriod(p)}
-                  onExportReport={() => setIsTherapistExportModalOpen(true)}
+                  onExportReport={handleOpenTherapistModal}
                 />
               )}
 
@@ -1034,8 +1100,10 @@ export default function App() {
                 <SettingsView
                   pinEnabled={pinEnabled}
                   pinCode={pinCode}
+                  recoveryEmail={recoveryEmail}
                   onTogglePin={handleTogglePin}
                   onSavePin={handleSavePin}
+                  onSavePinAndRecoveryEmail={handleSavePinAndRecoveryEmail}
                   biometricsEnabled={biometricsEnabled}
                   onToggleBiometrics={handleToggleBiometrics}
                   isBiometricsSupported={isBiometricsSupported}
@@ -1054,7 +1122,7 @@ export default function App() {
                   onManualSyncPull={() => handleSyncPull(syncPin, true)}
                   onTestConnection={handleTestConnection}
                   onExportJson={handleExportJson}
-                  onExportTherapistReport={() => setIsTherapistExportModalOpen(true)}
+                  onExportTherapistReport={handleOpenTherapistModal}
                   onExportCsv={handleExportCsv}
                   onImportJson={handleImportJson}
                   allTags={allTags}
@@ -1095,7 +1163,7 @@ export default function App() {
       <TherapistExportModal
         isOpen={isTherapistExportModalOpen}
         onClose={() => setIsTherapistExportModalOpen(false)}
-        entries={entries}
+        entries={exportEntries.length > 0 ? exportEntries : entries}
         allTags={allTags}
         customQuestions={customQuestions}
         onShowToast={showToast}

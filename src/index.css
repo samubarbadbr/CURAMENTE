@@ -6,12 +6,12 @@
    REFINED THEME SYSTEM (Minimalist Apple / Frosted Aesthetic)
    ========================================================= */
 
-/* 1. SCURO MINIMAL / MONOCHROME (Matching Cover Screen: #090A0E, Frosted Glass, Pure White CTA) */
+/* 1. SCURO MINIMAL / MONOCHROME (Matching Cover Screen: #050508, Frosted Glass, Pure White CTA) */
 :root,
 html.theme-cyber,
 html[data-theme='cyber'],
 html.dark:not(.theme-midnight):not(.theme-minimal):not(.theme-earth):not(.theme-violet):not(.theme-amethyst) {
-  --bg-page: #090A0E;
+  --bg-page: #050508;
   --bg-surface: rgba(18, 20, 26, 0.75);
   --bg-subtle: rgba(255, 255, 255, 0.06);
   --border-solid: rgba(255, 255, 255, 0.14);
@@ -353,3 +353,19 @@ input[type="range"]::-moz-range-thumb {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   cursor: pointer;
 }
+
+/* Cerchio Luminoso di Sfondo (Halo Glow Reflector) - 600px x 600px Spec */
+.halo-reflector-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(200, 210, 255, 0.4) 40%, transparent 70%);
+  filter: blur(35px);
+  z-index: 0;
+  pointer-events: none;
+}
+

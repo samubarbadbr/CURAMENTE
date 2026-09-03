@@ -19,6 +19,7 @@ import {
   Sparkles,
   Check,
   X,
+  FileDown,
 } from 'lucide-react';
 
 interface DetailViewProps {
@@ -27,6 +28,7 @@ interface DetailViewProps {
   onBack: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onExport?: () => void;
 }
 
 export const DetailView: React.FC<DetailViewProps> = ({
@@ -35,6 +37,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
   onBack,
   onEdit,
   onDelete,
+  onExport,
 }) => {
   const [isPhotoObscured, setIsPhotoObscured] = useState(false);
   const allQuestions = CustomQuestionsService.load();
@@ -72,6 +75,18 @@ export const DetailView: React.FC<DetailViewProps> = ({
         </button>
 
         <div className="flex items-center space-x-2">
+          {onExport && (
+            <button
+              type="button"
+              onClick={onExport}
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-[#5B67CA] text-white text-xs font-black shadow-sm hover:bg-[#4d57b2] active:scale-95 transition-all duration-150 cursor-pointer"
+              aria-label="Esporta PDF"
+              title="Esporta PDF dedicato per questo diario"
+            >
+              <FileDown className="w-4 h-4 stroke-[2.2]" />
+              <span>Esporta PDF</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={onEdit}

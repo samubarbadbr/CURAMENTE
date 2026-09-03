@@ -45,17 +45,26 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
     return localStorage.getItem('diariamente_patient_name') || '';
   });
 
-  const [period, setPeriod] = useState<'7' | '30' | 'custom' | 'all'>('30');
+  const [period, setPeriod] = useState<'last_session' | '7' | 'month' | '30' | 'custom' | 'all'>('7');
 
-  // Default custom range: last 30 days
-  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const thirtyDaysAgoStr = useMemo(() => {
+  // Saved last session date
+  const [lastSessionDate, setLastSessionDate] = useState(() => {
+    const saved = localStorage.getItem('diariamente_last_session_date');
+    if (saved) return saved;
     const d = new Date();
-    d.setDate(d.getDate() - 30);
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().slice(0, 10);
+  });
+
+  // Today string
+  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const sevenDaysAgoStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
     return d.toISOString().slice(0, 10);
   }, []);
 
-  const [customStartDate, setCustomStartDate] = useState(thirtyDaysAgoStr);
+  const [customStartDate, setCustomStartDate] = useState(sevenDaysAgoStr);
   const [customEndDate, setCustomEndDate] = useState(todayStr);
 
   // Category filters
@@ -77,6 +86,51 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
     localStorage.setItem('diariamente_patient_name', val);
   };
 
+  // Handle last session date change
+  const handleLastSessionDateChange = (val: string) => {
+    setLastSessionDate(val);
+    localStorage.setItem('diariamente_last_session_date', val);
+    if (period === 'last_session') {
+      setCustomStartDate(val);
+    }
+  };
+
+  // Quick shortcut handlers
+  const handleSelectLastSession = () => {
+    setPeriod('last_session');
+    setCustomStartDate(lastSessionDate);
+    setCustomEndDate(todayStr);
+  };
+
+  const handleSelect7Days = () => {
+    setPeriod('7');
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    setCustomStartDate(d.toISOString().slice(0, 10));
+    setCustomEndDate(todayStr);
+  };
+
+  const handleSelectCurrentMonth = () => {
+    setPeriod('month');
+    const now = new Date();
+    const d = new Date(now.getFullYear(), now.getMonth(), 1);
+    setCustomStartDate(d.toISOString().slice(0, 10));
+    setCustomEndDate(todayStr);
+  };
+
+  const handleSelectAll = () => {
+    setPeriod('all');
+    if (entries.length > 0) {
+      const sorted = [...entries].sort(
+        (a, b) => new Date(a.eventDatetime).getTime() - new Date(b.eventDatetime).getTime()
+      );
+      setCustomStartDate(sorted[0].eventDatetime.slice(0, 10));
+    } else {
+      setCustomStartDate('2025-01-01');
+    }
+    setCustomEndDate(todayStr);
+  };
+
   // Build filter options object
   const filterOptions: TherapistReportFilterOptions = useMemo(
     () => ({
@@ -84,6 +138,7 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
       period,
       customStartDate,
       customEndDate,
+      lastSessionDate,
       includeMetrics,
       includeSituationTriggers,
       includeThoughts,
@@ -99,6 +154,7 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
       period,
       customStartDate,
       customEndDate,
+      lastSessionDate,
       includeMetrics,
       includeSituationTriggers,
       includeThoughts,
@@ -243,85 +299,175 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
             />
           </div>
 
-          {/* PERIOD FILTER */}
-          <div className="space-y-2">
+          {/* DATE RANGE FILTER & SHORTCUTS */}
+          <div className="space-y-3 p-4 rounded-2xl bg-[var(--bg-subtle)]/70 border border-[var(--border-solid)]">
             <div className="flex items-center justify-between">
               <label className="flex items-center space-x-2 text-xs font-black uppercase tracking-wider text-[var(--text-secondary)]">
                 <Calendar className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
-                <span>Periodo da Esportare</span>
+                <span>Intervallo Date &amp; Scorciatoie Rapide</span>
               </label>
-              <span className="text-[11px] font-bold text-[#5B67CA] bg-[#5B67CA]/10 px-2 py-0.5 rounded-full border border-[#5B67CA]/20">
+              <span className="text-[11px] font-bold text-[#5B67CA] bg-[#5B67CA]/10 px-2.5 py-0.5 rounded-full border border-[#5B67CA]/20">
                 {stats.dateRangeText}
               </span>
             </div>
 
-            {/* Quick Period Buttons */}
+            {/* Quick Shortcuts */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {[
-                { id: '7', label: 'Ultimi 7 Giorni' },
-                { id: '30', label: 'Ultimo Mese (30gg)' },
-                { id: 'custom', label: 'Personalizzato' },
-                { id: 'all', label: 'Tutto lo Storico' },
-              ].map((p) => {
-                const isActive = period === p.id;
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setPeriod(p.id as any)}
-                    className={`py-2 px-2.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center border ${
-                      isActive
-                        ? 'bg-[var(--accent-btn)] text-[var(--accent-btn-text)] border-transparent shadow-sm'
-                        : 'bg-[var(--bg-subtle)] text-[var(--text-primary)] border-[var(--border-solid)] hover:bg-[var(--bg-surface)]'
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                );
-              })}
+              <button
+                type="button"
+                onClick={handleSelectLastSession}
+                className={`py-2 px-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center border ${
+                  period === 'last_session'
+                    ? 'bg-[var(--accent-btn)] text-[var(--accent-btn-text)] border-transparent shadow-sm'
+                    : 'bg-[var(--bg-surface)] text-[var(--text-primary)] border-[var(--border-solid)] hover:bg-[var(--bg-subtle)]'
+                }`}
+              >
+                Dall'ultima seduta
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSelect7Days}
+                className={`py-2 px-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center border ${
+                  period === '7'
+                    ? 'bg-[var(--accent-btn)] text-[var(--accent-btn-text)] border-transparent shadow-sm'
+                    : 'bg-[var(--bg-surface)] text-[var(--text-primary)] border-[var(--border-solid)] hover:bg-[var(--bg-subtle)]'
+                }`}
+              >
+                Ultimi 7 giorni
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSelectCurrentMonth}
+                className={`py-2 px-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center border ${
+                  period === 'month'
+                    ? 'bg-[var(--accent-btn)] text-[var(--accent-btn-text)] border-transparent shadow-sm'
+                    : 'bg-[var(--bg-surface)] text-[var(--text-primary)] border-[var(--border-solid)] hover:bg-[var(--bg-subtle)]'
+                }`}
+              >
+                Mese corrente
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                className={`py-2 px-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center border ${
+                  period === 'all'
+                    ? 'bg-[var(--accent-btn)] text-[var(--accent-btn-text)] border-transparent shadow-sm'
+                    : 'bg-[var(--bg-surface)] text-[var(--text-primary)] border-[var(--border-solid)] hover:bg-[var(--bg-subtle)]'
+                }`}
+              >
+                Tutto lo storico
+              </button>
             </div>
 
-            {/* Custom Date Inputs */}
-            {period === 'custom' && (
-              <div className="p-3 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2 animate-fade-in">
-                <div className="space-y-1">
-                  <span className="text-[11px] font-bold text-[var(--text-secondary)]">Data Inizio:</span>
-                  <input
-                    type="date"
-                    value={customStartDate}
-                    onChange={(e) => setCustomStartDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)] text-xs font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <span className="text-[11px] font-bold text-[var(--text-secondary)]">Data Fine:</span>
-                  <input
-                    type="date"
-                    value={customEndDate}
-                    onChange={(e) => setCustomEndDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)] text-xs font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
-                  />
-                </div>
+            {/* Date Pickers: Data Inizio & Data Fine */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div className="space-y-1">
+                <span className="text-[11px] font-bold text-[var(--text-secondary)]">Data Inizio:</span>
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => {
+                    setCustomStartDate(e.target.value);
+                    setPeriod('custom');
+                  }}
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)] text-xs font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] transition-all"
+                />
               </div>
-            )}
+              <div className="space-y-1">
+                <span className="text-[11px] font-bold text-[var(--text-secondary)]">Data Fine:</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => {
+                    setCustomEndDate(e.target.value);
+                    setPeriod('custom');
+                  }}
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)] text-xs font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Last Session Date Configuration (saved in localStorage) */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] text-[var(--text-secondary)] border-t border-[var(--border-solid)]/60">
+              <span>Data di riferimento ultima seduta:</span>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="date"
+                  value={lastSessionDate}
+                  onChange={(e) => handleLastSessionDateChange(e.target.value)}
+                  className="px-2 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-solid)] text-[11px] font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
+                  title="Modifica la data dell'ultima seduta col terapeuta"
+                />
+              </div>
+            </div>
           </div>
 
-          {/* REAL-TIME PREVIEW BADGE */}
-          <div className="flex items-center justify-between p-3 rounded-2xl bg-[#5B67CA]/10 border border-[#5B67CA]/25 text-xs font-bold text-[var(--text-primary)]">
-            <div className="flex items-center space-x-2">
-              <FileCheck className="w-4 h-4 text-[#5B67CA] shrink-0" />
-              <span>
-                <strong>{filteredEntries.length}</strong> registrazioni incluse nel report
+          {/* SINTESI INIZIALE - ANTEPRIMA MEDIE NUMERICHE (0-100 / MOOD) */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-indigo-200 dark:border-indigo-900/50 shadow-sm space-y-3">
+            <div className="flex items-center justify-between border-b border-[var(--border-solid)] pb-2.5">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400"></div>
+                <span className="text-xs font-black uppercase tracking-wider text-indigo-900 dark:text-indigo-300">
+                  Sintesi Iniziale • Medie (0-100 / Mood)
+                </span>
+              </div>
+              <span className="text-[11px] font-black text-[var(--text-secondary)]">
+                {filteredEntries.length} {filteredEntries.length === 1 ? 'voce' : 'voci'}
               </span>
             </div>
+
             {filteredEntries.length > 0 ? (
-              <span className="text-[11px] font-black text-[#5B67CA]">
-                Media Ansia: {stats.avgAnxiety}/100
-              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-0.5">
+                <div className="p-2.5 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] text-center">
+                  <div className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Ansia / Mood</div>
+                  <div className="text-lg font-black text-rose-600 dark:text-rose-400 mt-0.5">
+                    {stats.avgAnxiety}<span className="text-[10px] text-[var(--text-muted)] font-bold">/100</span>
+                  </div>
+                  <div className="text-[9px] font-semibold text-[var(--text-secondary)]">
+                    {stats.avgAnxiety > 65 ? 'Elevata' : stats.avgAnxiety > 35 ? 'Moderata' : 'Contenuta'}
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] text-center">
+                  <div className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Convinzione</div>
+                  <div className="text-lg font-black text-[var(--text-primary)] mt-0.5">
+                    {stats.avgBelief}<span className="text-[10px] text-[var(--text-muted)] font-bold">%</span>
+                  </div>
+                  <div className="text-[9px] font-semibold text-[var(--text-secondary)]">Credenza</div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] text-center">
+                  <div className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Intensità</div>
+                  <div className="text-lg font-black text-[var(--text-primary)] mt-0.5">
+                    {stats.avgIntensity}<span className="text-[10px] text-[var(--text-muted)] font-bold">%</span>
+                  </div>
+                  <div className="text-[9px] font-semibold text-[var(--text-secondary)]">Pensiero</div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] text-center">
+                  <div className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Att. Corpo</div>
+                  <div className="text-lg font-black text-[var(--text-primary)] mt-0.5">
+                    {stats.avgBodyAttention}<span className="text-[10px] text-[var(--text-muted)] font-bold">%</span>
+                  </div>
+                  <div className="text-[9px] font-semibold text-[var(--text-secondary)]">Soma</div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-center col-span-2 sm:col-span-1">
+                  <div className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 uppercase">Globale</div>
+                  <div className="text-lg font-black text-indigo-950 dark:text-indigo-200 mt-0.5">
+                    {stats.avgNumericScore}<span className="text-[10px] text-indigo-500 font-bold">/100</span>
+                  </div>
+                  <div className="text-[9px] font-semibold text-indigo-600 dark:text-indigo-400">Media periodo</div>
+                </div>
+              </div>
             ) : (
-              <span className="text-[11px] text-rose-500 font-bold flex items-center gap-1">
-                <AlertCircle className="w-3.5 h-3.5" /> Nessuna voce
-              </span>
+              <div className="py-4 text-center text-rose-500 text-xs font-bold flex items-center justify-center gap-1.5">
+                <AlertCircle className="w-4 h-4" />
+                <span>Nessuna registrazione trovata nell'intervallo di date selezionato</span>
+              </div>
             )}
           </div>
 

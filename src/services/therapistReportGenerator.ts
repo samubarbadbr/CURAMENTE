@@ -2,9 +2,10 @@ import { CbtEntry, CustomQuestion, Tag } from '../types';
 
 export interface TherapistReportFilterOptions {
   patientName: string;
-  period: '7' | '30' | 'custom' | 'all';
+  period: 'last_session' | '7' | 'month' | '30' | 'custom' | 'all';
   customStartDate?: string; // YYYY-MM-DD
   customEndDate?: string;   // YYYY-MM-DD
+  lastSessionDate?: string; // YYYY-MM-DD
   includeMetrics: boolean;
   includeSituationTriggers: boolean;
   includeThoughts: boolean;
@@ -22,6 +23,7 @@ export interface ReportStats {
   avgBelief: number;
   avgIntensity: number;
   avgBodyAttention: number;
+  avgNumericScore: number;
   totalChecks: number;
   totalReassurances: number;
   totalAvoidances: number;
@@ -39,11 +41,29 @@ export function filterEntriesForReport(
 
   const now = new Date();
 
-  if (options.period === '7') {
+  if (options.period === 'last_session') {
+    let sessionCutoff: Date;
+    if (options.lastSessionDate) {
+      sessionCutoff = new Date(options.lastSessionDate);
+    } else {
+      sessionCutoff = new Date();
+      sessionCutoff.setDate(now.getDate() - 7);
+    }
+    sessionCutoff.setHours(0, 0, 0, 0);
+    filtered = filtered.filter((e) => new Date(e.eventDatetime) >= sessionCutoff);
+    if (options.customEndDate) {
+      const end = new Date(options.customEndDate);
+      end.setHours(23, 59, 59, 999);
+      filtered = filtered.filter((e) => new Date(e.eventDatetime) <= end);
+    }
+  } else if (options.period === '7') {
     const cutoff = new Date();
     cutoff.setDate(now.getDate() - 7);
     cutoff.setHours(0, 0, 0, 0);
     filtered = filtered.filter((e) => new Date(e.eventDatetime) >= cutoff);
+  } else if (options.period === 'month') {
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    filtered = filtered.filter((e) => new Date(e.eventDatetime) >= startOfMonth);
   } else if (options.period === '30') {
     const cutoff = new Date();
     cutoff.setDate(now.getDate() - 30);
@@ -139,6 +159,7 @@ export function calculateReportStats(
       avgBelief: 0,
       avgIntensity: 0,
       avgBodyAttention: 0,
+      avgNumericScore: 0,
       totalChecks: 0,
       totalReassurances: 0,
       totalAvoidances: 0,
@@ -154,12 +175,19 @@ export function calculateReportStats(
   const totalReassurances = entries.reduce((acc, e) => acc + (e.reassuranceSeekingCount || 0), 0);
   const totalAvoidances = entries.reduce((acc, e) => acc + (e.avoidanceCount || 0), 0);
 
+  const avgAnxiety = Math.round(sumAnxiety / entries.length);
+  const avgBelief = Math.round(sumBelief / entries.length);
+  const avgIntensity = Math.round(sumIntensity / entries.length);
+  const avgBodyAttention = Math.round(sumBody / entries.length);
+  const avgNumericScore = Math.round((avgAnxiety + avgBelief + avgIntensity + avgBodyAttention) / 4);
+
   return {
     totalEntries: entries.length,
-    avgAnxiety: Math.round(sumAnxiety / entries.length),
-    avgBelief: Math.round(sumBelief / entries.length),
-    avgIntensity: Math.round(sumIntensity / entries.length),
-    avgBodyAttention: Math.round(sumBody / entries.length),
+    avgAnxiety,
+    avgBelief,
+    avgIntensity,
+    avgBodyAttention,
+    avgNumericScore,
     totalChecks,
     totalReassurances,
     totalAvoidances,
@@ -701,61 +729,111 @@ export function generateTherapistReportHtml(
       </div>
     </header>
 
-    <!-- KPI STATS & AVERAGES (IN TESTATA COME RICHIESTO) -->
-    <section>
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-        <h2 style="margin: 0; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #475569;">
-          Sintesi Clinica &amp; Medie del Periodo
-        </h2>
-        <span style="font-size: 11px; font-weight: 700; color: #64748b;">
-          ${stats.totalEntries} registrazioni nel periodo
-        </span>
-      </div>
-
-      <div class="kpi-grid">
-        <div class="kpi-card" style="border-top: 3px solid #3b82f6;">
-          <div class="kpi-title">Media Ansia</div>
-          <div class="kpi-value" style="color: ${stats.avgAnxiety > 60 ? '#b91c1c' : '#1d4ed8'};">
-            ${stats.avgAnxiety}<span style="font-size: 14px; font-weight: 600; color: #64748b;">/100</span>
+    <!-- SINTESI INIZIALE - MEDIA VALORI NUMERICI (0-100 / MOOD) -->
+    <section style="margin-bottom: 24px;">
+      <div style="background: #ffffff; border: 1.5px solid #6366f1; border-radius: 14px; padding: 20px 22px; box-shadow: 0 4px 14px -3px rgba(99, 102, 241, 0.08);">
+        
+        <!-- Intestazione Scheda Riassuntiva -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #6366f1;"></span>
+              <h2 style="margin: 0; font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.06em; color: #1e1b4b;">
+                Sintesi Iniziale • Medie Valutazioni (0-100 / Mood)
+              </h2>
+            </div>
+            <p style="margin: 4px 0 0 0; font-size: 12px; color: #475569; font-weight: 500;">
+              Medie calcolate unicamente per l'intervallo di date selezionato: <strong style="color: #0f172a;">${escapeHtml(stats.dateRangeText)}</strong>
+            </p>
           </div>
-          <div class="kpi-sub">
-            ${stats.avgAnxiety > 65 ? 'Fascia elevata' : stats.avgAnxiety > 35 ? 'Fascia moderata' : 'Fascia contenuta'}
+
+          <div style="text-align: right; background: #f8fafc; border: 1px solid #e2e8f0; padding: 6px 14px; border-radius: 8px;">
+            <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b;">Campione Periodo</div>
+            <div style="font-size: 15px; font-weight: 900; color: #0f172a;">
+              ${stats.totalEntries} ${stats.totalEntries === 1 ? 'registrazione' : 'registrazioni'}
+            </div>
           </div>
         </div>
 
-        <div class="kpi-card" style="border-top: 3px solid #f43f5e;">
-          <div class="kpi-title">Credenza Pensiero</div>
-          <div class="kpi-value">
-            ${stats.avgBelief}<span style="font-size: 14px; font-weight: 600; color: #64748b;">%</span>
+        <!-- Griglia Metriche 0-100 -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;">
+          
+          <!-- Ansia / Mood -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; position: relative; overflow: hidden;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: ${stats.avgAnxiety > 65 ? '#dc2626' : stats.avgAnxiety > 35 ? '#d97706' : '#16a34a'};"></div>
+            <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase;">Ansia / Mood</div>
+            <div style="display: flex; align-items: baseline; gap: 4px; margin-top: 4px;">
+              <span style="font-size: 26px; font-weight: 900; color: ${stats.avgAnxiety > 65 ? '#b91c1c' : stats.avgAnxiety > 35 ? '#b45309' : '#15803d'};">
+                ${stats.avgAnxiety}
+              </span>
+              <span style="font-size: 12px; font-weight: 700; color: #94a3b8;">/100</span>
+            </div>
+            <div style="height: 5px; width: 100%; background: #e2e8f0; border-radius: 9999px; margin-top: 8px; overflow: hidden;">
+              <div style="height: 100%; width: ${Math.min(100, Math.max(0, stats.avgAnxiety))}%; background: ${stats.avgAnxiety > 65 ? '#dc2626' : stats.avgAnxiety > 35 ? '#d97706' : '#16a34a'}; border-radius: 9999px;"></div>
+            </div>
+            <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-top: 6px;">
+              ${stats.avgAnxiety > 65 ? 'Fascia elevata' : stats.avgAnxiety > 35 ? 'Fascia moderata' : 'Fascia contenuta'}
+            </div>
           </div>
-          <div class="kpi-sub">Grado di convinzione</div>
+
+          <!-- Convinzione Pensiero -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; position: relative; overflow: hidden;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #e11d48;"></div>
+            <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase;">Convinzione</div>
+            <div style="display: flex; align-items: baseline; gap: 4px; margin-top: 4px;">
+              <span style="font-size: 26px; font-weight: 900; color: #0f172a;">${stats.avgBelief}</span>
+              <span style="font-size: 12px; font-weight: 700; color: #94a3b8;">%</span>
+            </div>
+            <div style="height: 5px; width: 100%; background: #e2e8f0; border-radius: 9999px; margin-top: 8px; overflow: hidden;">
+              <div style="height: 100%; width: ${Math.min(100, Math.max(0, stats.avgBelief))}%; background: #e11d48; border-radius: 9999px;"></div>
+            </div>
+            <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-top: 6px;">Grado di credenza</div>
+          </div>
+
+          <!-- Intensità Pensiero -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; position: relative; overflow: hidden;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #7c3aed;"></div>
+            <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase;">Intensità</div>
+            <div style="display: flex; align-items: baseline; gap: 4px; margin-top: 4px;">
+              <span style="font-size: 26px; font-weight: 900; color: #0f172a;">${stats.avgIntensity}</span>
+              <span style="font-size: 12px; font-weight: 700; color: #94a3b8;">%</span>
+            </div>
+            <div style="height: 5px; width: 100%; background: #e2e8f0; border-radius: 9999px; margin-top: 8px; overflow: hidden;">
+              <div style="height: 100%; width: ${Math.min(100, Math.max(0, stats.avgIntensity))}%; background: #7c3aed; border-radius: 9999px;"></div>
+            </div>
+            <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-top: 6px;">Impatto cognitivo</div>
+          </div>
+
+          <!-- Attenzione al Corpo -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; position: relative; overflow: hidden;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #059669;"></div>
+            <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase;">Attenzione Corpo</div>
+            <div style="display: flex; align-items: baseline; gap: 4px; margin-top: 4px;">
+              <span style="font-size: 26px; font-weight: 900; color: #0f172a;">${stats.avgBodyAttention}</span>
+              <span style="font-size: 12px; font-weight: 700; color: #94a3b8;">%</span>
+            </div>
+            <div style="height: 5px; width: 100%; background: #e2e8f0; border-radius: 9999px; margin-top: 8px; overflow: hidden;">
+              <div style="height: 100%; width: ${Math.min(100, Math.max(0, stats.avgBodyAttention))}%; background: #059669; border-radius: 9999px;"></div>
+            </div>
+            <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-top: 6px;">Ipervigilanza somatica</div>
+          </div>
+
+          <!-- Media Globale Valutazioni -->
+          <div style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 10px; padding: 12px 14px; position: relative; overflow: hidden;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #4f46e5;"></div>
+            <div style="font-size: 11px; font-weight: 800; color: #4338ca; text-transform: uppercase;">Media Globale</div>
+            <div style="display: flex; align-items: baseline; gap: 4px; margin-top: 4px;">
+              <span style="font-size: 26px; font-weight: 900; color: #312e81;">${stats.avgNumericScore}</span>
+              <span style="font-size: 12px; font-weight: 700; color: #6366f1;">/100</span>
+            </div>
+            <div style="height: 5px; width: 100%; background: #c7d2fe; border-radius: 9999px; margin-top: 8px; overflow: hidden;">
+              <div style="height: 100%; width: ${Math.min(100, Math.max(0, stats.avgNumericScore))}%; background: #4f46e5; border-radius: 9999px;"></div>
+            </div>
+            <div style="font-size: 10px; font-weight: 700; color: #4338ca; margin-top: 6px;">Indice medio periodo</div>
+          </div>
+
         </div>
 
-        <div class="kpi-card" style="border-top: 3px solid #8b5cf6;">
-          <div class="kpi-title">Intensità Pensiero</div>
-          <div class="kpi-value">
-            ${stats.avgIntensity}<span style="font-size: 14px; font-weight: 600; color: #64748b;">%</span>
-          </div>
-          <div class="kpi-sub">Impatto cognitivo</div>
-        </div>
-
-        <div class="kpi-card" style="border-top: 3px solid #10b981;">
-          <div class="kpi-title">Attenzione al Corpo</div>
-          <div class="kpi-value">
-            ${stats.avgBodyAttention}<span style="font-size: 14px; font-weight: 600; color: #64748b;">%</span>
-          </div>
-          <div class="kpi-sub">Ipervigilanza somatica</div>
-        </div>
-
-        <div class="kpi-card" style="border-top: 3px solid #f59e0b;">
-          <div class="kpi-title">Comportamenti</div>
-          <div style="font-size: 14px; font-weight: 800; color: #0f172a; margin-top: 4px;">
-            ${stats.totalChecks} check
-          </div>
-          <div class="kpi-sub" style="margin-top: 2px;">
-            ${stats.totalReassurances} rassicurazioni • ${stats.totalAvoidances} evitamenti
-          </div>
-        </div>
       </div>
     </section>
 
@@ -808,7 +886,7 @@ export function generateTherapistReportHtml(
     <!-- FOOTER -->
     <footer style="margin-top: 36px; padding-top: 16px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #64748b;">
       <div>
-        <strong>Diariamente</strong> — Documento clinico strettamente riservato elaborato in locale su dispositivo dell'utente.
+        <strong>Diariamente</strong>
       </div>
       <div>
         Pagina di monitoraggio per uso psicoterapeutico
@@ -924,3 +1002,58 @@ export function generateTherapistCsv(
 
   return csv;
 }
+
+/**
+ * Export a dedicated clinical report for a single journal entry
+ */
+export function exportSingleEntryPdf(
+  entry: CbtEntry,
+  allTags: Tag[],
+  customQuestions: CustomQuestion[],
+  onToast?: (msg: string) => void
+): void {
+  const patientName = (typeof localStorage !== 'undefined' && localStorage.getItem('diariamente_patient_name')) || '';
+  const dateIso = entry.eventDatetime.slice(0, 10);
+  const formattedDate = new Date(entry.eventDatetime).toLocaleDateString('it-IT', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const options: TherapistReportFilterOptions = {
+    patientName,
+    period: 'custom',
+    customStartDate: dateIso,
+    customEndDate: dateIso,
+    includeMetrics: true,
+    includeSituationTriggers: true,
+    includeThoughts: true,
+    includeEmotionsSymptoms: true,
+    includeBehaviors: true,
+    includeCustomQuestions: true,
+    includeNotes: true,
+    includeSummaryTable: false,
+    sortOrder: 'asc',
+  };
+
+  const html = generateTherapistReportHtml([entry], allTags, customQuestions, options);
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const blobUrl = URL.createObjectURL(blob);
+
+  // Attempt to open print preview in new window
+  const printWin = window.open(blobUrl, '_blank');
+  if (!printWin) {
+    // Popup was blocked, trigger direct download
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = `diariamente-report-${dateIso}.html`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    onToast?.(`Report scaricato per: ${formattedDate}`);
+  } else {
+    onToast?.(`Report PDF pronto per la stampa: ${formattedDate}`);
+  }
+}
+

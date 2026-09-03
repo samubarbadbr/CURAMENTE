@@ -12,7 +12,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentView, onSelectView 
   const navItems = [
     { id: 'timeline' as ViewType, label: 'Timeline', icon: Clock },
     { id: 'dashboard' as ViewType, label: 'Dashboard', icon: BarChart3 },
-    { id: 'custom_questions' as ViewType, label: 'Domande', icon: HelpCircle },
+    { id: 'custom_questions' as ViewType, label: 'Domande Custom', icon: HelpCircle },
     { id: 'settings' as ViewType, label: 'Impostazioni', icon: Settings },
   ];
 
@@ -49,7 +49,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentView, onSelectView 
                 className="z-10 flex flex-col items-center justify-center relative"
               >
                 <Icon className="w-5 h-5 mb-0.5 stroke-[2]" />
-                <span className="text-[11px] tracking-tight">{item.label}</span>
+                <span className="text-[11px] tracking-tight whitespace-nowrap">{item.label}</span>
               </motion.div>
             </button>
           );

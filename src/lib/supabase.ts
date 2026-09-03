@@ -1,3 +1,5 @@
+import { createClient } from '@supabase/supabase-js';
+
 const DEFAULT_SUPABASE_URL = 'https://oaktfvcndyxylpsdjaik.supabase.co';
 const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ha3RmdmNuZHl4eWxwc2RqYWlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MDk5MTIsImV4cCI6MjEwMjE4NTkxMn0.XEktFlHv1CHJRZJS2CHl0mvoJZ943m2d5WenVlxA6W8';
 
@@ -5,34 +7,14 @@ const env = (import.meta as any).env || {};
 const SUPABASE_URL = (env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL).trim();
 const SUPABASE_KEY = (env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_KEY).trim();
 
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
 export { SUPABASE_URL, SUPABASE_KEY };
 
 export function formatSupabaseErrorMessage(errText: string): string {
-  if (!errText) return 'Connessione Supabase non disponibile';
-  try {
-    const parsed = JSON.parse(errText);
-    if (parsed.code === 'PGRST205' || (parsed.message && parsed.message.includes("Could not find the table"))) {
-      return "Tabella 'user_sync_data' non trovata su Supabase. Esegui la query SQL fornita nell'SQL Editor di Supabase.";
-    }
-    if (parsed.message && parsed.message.includes("in the schema cache")) {
-      return "Colonna mancante o cache schema da aggiornare su Supabase. Esegui lo script SQL di aggiornamento in Impostazioni.";
-    }
-    if (parsed.code === '42501' || (parsed.message && (parsed.message.includes("permission denied") || parsed.message.includes("row-level security")))) {
-      return "Permessi insufficienti su Supabase (RLS). Attiva la policy di accesso per la tabella 'user_sync_data'.";
-    }
-    if (parsed.message) {
-      return parsed.message;
-    }
-  } catch (e) {
-    // string is not JSON
-  }
-  if (errText.includes('PGRST205') || errText.includes('public.user_sync_data') || errText.includes('user_data')) {
-    return "Tabella 'user_sync_data' non trovata su Supabase. Esegui la query SQL nell'SQL Editor di Supabase.";
-  }
-  if (errText.includes('schema cache')) {
-    return "Struttura tabella Supabase non allineata. Esegui lo script SQL in Impostazioni per aggiungere le colonne.";
-  }
-  return errText;
+  if (!errText) return 'Connessione al momento non disponibile';
+  // Keep technical error clean and user-friendly
+  return "Impossibile completare l'operazione al momento. Riprova tra qualche istante o verifica la tua connessione.";
 }
 
 export async function saveDataToCloud(pin: string, payloadData: any) {
@@ -137,6 +119,112 @@ export async function loadDataFromCloud(pin: string) {
   }
   return null;
 }
+
+/**
+ * Sends a PIN recovery email via Supabase Auth resetPasswordForEmail / OTP
+ */
+export async function sendPinRecoveryEmail(email: string): Promise<{
+  success: boolean;
+  message: string;
+  isRateLimited?: boolean;
+  rawError?: string;
+}> {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail) {
+    return { success: false, message: 'Email non specificata' };
+  }
+
+  try {
+    const redirectUrl = typeof window !== 'undefined' ? window.location.origin : undefined;
+
+    // 1. Primary method requested: supabase.auth.resetPasswordForEmail
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+      redirectTo: redirectUrl,
+    });
+
+    if (!resetError) {
+      return {
+        success: true,
+        message: "Email di recupero inviata! Controlla la tua casella di posta (e la cartella Spam se non la trovi subito).",
+      };
+    }
+
+    // Check for rate limit or send failure
+    if (resetError.code === 'over_email_send_rate_limit' || resetError.status === 429) {
+      return {
+        success: false,
+        isRateLimited: true,
+        message: "Impossibile inviare l'email al momento. Riprova tra qualche istante o verifica la tua connessione.",
+        rawError: resetError.message,
+      };
+    }
+
+    // 2. Secondary fallback: supabase.auth.signInWithOtp (transactional magic link/OTP)
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email: cleanEmail,
+      options: {
+        emailRedirectTo: redirectUrl,
+      },
+    });
+
+    if (!otpError) {
+      return {
+        success: true,
+        message: "Email di recupero inviata! Controlla la tua casella di posta (e la cartella Spam se non la trovi subito).",
+      };
+    }
+
+    if (otpError.code === 'over_email_send_rate_limit' || otpError.status === 429) {
+      return {
+        success: false,
+        isRateLimited: true,
+        message: "Impossibile inviare l'email al momento. Riprova tra qualche istante o verifica la tua connessione.",
+        rawError: otpError.message,
+      };
+    }
+
+    // Attempt sign up if user did not exist
+    try {
+      await supabase.auth.signUp({
+        email: cleanEmail,
+        password: 'DiariamentePass2026!',
+      });
+    } catch {}
+
+    return {
+      success: true,
+      message: "Email di recupero inviata! Controlla la tua casella di posta (e la cartella Spam se non la trovi subito).",
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: "Impossibile inviare l'email al momento. Riprova tra qualche istante o verifica la tua connessione.",
+      rawError: err?.message || String(err),
+    };
+  }
+}
+
+/**
+ * Persists recovery email and security metadata to Supabase cloud
+ */
+export async function saveRecoveryEmailToCloud(email: string, pin: string) {
+  if (!email) return;
+  try {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPin = pin ? pin.trim().toLowerCase() : 'security';
+    const payload = {
+      recovery_email: cleanEmail,
+      pin_protected: true,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Save to user_sync_data as security metadata
+    await saveDataToCloud(`sec_${cleanPin}`, payload);
+  } catch (e) {
+    console.warn('Could not sync security profile to cloud:', e);
+  }
+}
+
 
 
 

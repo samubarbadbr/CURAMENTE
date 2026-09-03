@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CbtEntry, Tag, PeriodFilter } from '../types';
-import { Calendar, Sparkles, ChevronRight, Activity, Pencil, Camera, EyeOff, Eye } from 'lucide-react';
+import { Calendar, Sparkles, ChevronRight, Activity, Pencil, Camera, EyeOff, Eye, FileDown } from 'lucide-react';
 import { CustomDropdown } from '../components/CustomDropdown';
 
 interface TimelineViewProps {
@@ -10,6 +10,7 @@ interface TimelineViewProps {
   onFilterChange: (period: PeriodFilter) => void;
   onSelectEntry: (entryId: string) => void;
   onEditEntry?: (entryId: string) => void;
+  onExportEntry?: (entry: CbtEntry) => void;
   onNewEntry: () => void;
   isPrivacyModeEnabled?: boolean;
   onTogglePrivacyMode?: () => void;
@@ -22,6 +23,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   onFilterChange,
   onSelectEntry,
   onEditEntry,
+  onExportEntry,
   onNewEntry,
   isPrivacyModeEnabled = false,
   onTogglePrivacyMode,
@@ -235,6 +237,22 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                               ) : (
                                 <EyeOff className="w-3.5 h-3.5 text-[var(--accent-primary)] stroke-[2.5]" />
                               )}
+                            </button>
+                          )}
+
+                          {onExportEntry && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onExportEntry(entry);
+                              }}
+                              className="p-1.5 px-2 rounded-lg bg-[var(--bg-subtle)] hover:bg-[#5B67CA] text-[var(--text-secondary)] hover:text-white transition-all duration-150 cursor-pointer flex items-center space-x-1 border border-transparent hover:border-[#5B67CA]"
+                              title="Esporta PDF dedicato per questa registrazione"
+                              aria-label="Esporta PDF"
+                            >
+                              <FileDown className="w-3.5 h-3.5 stroke-[2.2]" />
+                              <span className="text-[11px] font-bold">PDF</span>
                             </button>
                           )}
 

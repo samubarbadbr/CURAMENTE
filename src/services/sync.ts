@@ -38,7 +38,7 @@ export const SyncService = {
       if (!res.success) {
         return {
           success: false,
-          error: res.error || 'Impossibile salvare i dati su Supabase',
+          error: res.error || 'Impossibile salvare i dati nel cloud',
         };
       }
 
@@ -49,7 +49,7 @@ export const SyncService = {
     }
   },
 
-  // Pull data from Supabase for PIN
+  // Pull data from cloud for PIN
   async pull(pin: string): Promise<{ success: boolean; data?: SyncDataPayload; error?: string }> {
     try {
       const cleanPin = pin.trim().toLowerCase();
@@ -59,14 +59,14 @@ export const SyncService = {
 
       let remoteData: SyncDataPayload | null = null;
 
-      // 1. Fetch row from Supabase user_data table via REST API
+      // 1. Fetch row from cloud user_data table via REST API
       try {
         const fetchedData = await loadDataFromCloud(cleanPin);
         if (fetchedData && Array.isArray(fetchedData.entries)) {
           remoteData = fetchedData as SyncDataPayload;
         }
       } catch (sbErr: any) {
-        console.warn('Supabase pull exception:', sbErr);
+        console.warn('Cloud pull exception:', sbErr);
       }
 
       if (remoteData) {
@@ -94,7 +94,7 @@ export const SyncService = {
 
       return {
         success: false,
-        error: 'Nessun dato trovato su Supabase per questo PIN',
+        error: 'Nessun dato trovato nel cloud per questo PIN',
       };
     } catch (err: any) {
       console.error('Sync pull error:', err);
@@ -102,7 +102,7 @@ export const SyncService = {
     }
   },
 
-  // Test Supabase connection via REST API
+  // Test cloud connection via REST API
   async testConnection(): Promise<{ success: boolean; error?: string }> {
     try {
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -122,8 +122,7 @@ export const SyncService = {
       }
       return { success: true };
     } catch (err: any) {
-      console.warn('Supabase test connection warning:', err?.message || err);
-      return { success: false, error: err?.message || 'Impossibile contattare Supabase (offline o rete non disponibile)' };
+      return { success: false, error: "Impossibile completare la connessione al momento. Riprova tra qualche istante o verifica la tua connessione." };
     }
   },
 };
