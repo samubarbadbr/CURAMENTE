@@ -345,15 +345,18 @@ export function generateTherapistReportHtml(
 
       const physTags = (e.physicalSymptomTagIds || []).map((id) => tagMap.get(id) || id);
       const physDetail = e.physicalSymptomsText ? e.physicalSymptomsText.trim() : '';
-      let physicalText = '';
+      let physicalHtml = '';
       if (physTags.length > 0 && physDetail) {
-        physicalText = `${physTags.join(', ')} — ${physDetail}`;
+        physicalHtml = `
+          <div style="font-weight: 700; color: #1e1b4b; line-height: 1.4;">${escapeHtml(physTags.join(', '))}</div>
+          <div style="margin-top: 3px; color: #334155; line-height: 1.4; word-break: break-word;">${escapeHtml(physDetail)}</div>
+        `;
       } else if (physTags.length > 0) {
-        physicalText = physTags.join(', ');
+        physicalHtml = `<div style="font-weight: 700; color: #1e1b4b; line-height: 1.4;">${escapeHtml(physTags.join(', '))}</div>`;
       } else if (physDetail) {
-        physicalText = physDetail;
+        physicalHtml = `<div style="color: #334155; line-height: 1.4; word-break: break-word;">${escapeHtml(physDetail)}</div>`;
       } else {
-        physicalText = 'Nessuno specificato';
+        physicalHtml = '<span style="color: #94a3b8; font-style: italic;">Nessuno specificato</span>';
       }
 
       const thoughtDesc = e.negativeThoughtsExtended || e.negativeThought || 'Nessuna descrizione';
@@ -364,19 +367,19 @@ export function generateTherapistReportHtml(
       const avoidanceType = e.avoidanceType ? e.avoidanceType.trim() : 'Nessun evitamento specificato';
 
       return `
-        <div class="clinical-entry-card" style="margin-bottom: 20px; border: 1.5px solid #e2e8f0; border-radius: 12px; background: #ffffff; overflow: hidden; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);">
+        <div class="clinical-entry-card" style="margin-bottom: 18px; border: 1.5px solid #e2e8f0; border-radius: 10px; background: #ffffff; overflow: hidden; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);">
           
           <!-- Testata Scheda: Data a sinistra, Ansia Complessiva a destra -->
           <table style="width: 100%; border-collapse: collapse; background: #f8fafc; border-bottom: 1.5px solid #e2e8f0;">
             <tr>
-              <td style="padding: 10px 16px; text-align: left; vertical-align: middle;">
-                <span style="display: inline; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; line-height: 1.2; vertical-align: baseline; margin-right: 6px;">REGISTRAZIONE CLINICA:</span>
-                <span style="display: inline; font-size: 11.5px; font-weight: 900; color: #0f172a; line-height: 1.2; vertical-align: baseline;">
+              <td style="padding: 9px 14px; text-align: left; vertical-align: middle;">
+                <span style="display: inline; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; line-height: 1.2; vertical-align: baseline; margin-right: 6px;">REGISTRAZIONE CLINICA:</span>
+                <span style="display: inline; font-size: 11px; font-weight: 900; color: #0f172a; line-height: 1.2; vertical-align: baseline;">
                   ${escapeHtml(dateFormatted)}
                 </span>
               </td>
-              <td style="padding: 10px 16px; text-align: right; vertical-align: middle; white-space: nowrap;">
-                <span style="display: inline; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; line-height: 1.2; vertical-align: baseline; margin-right: 6px;">ANSIA COMPLESSIVA:</span>
+              <td style="padding: 9px 14px; text-align: right; vertical-align: middle; white-space: nowrap;">
+                <span style="display: inline; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; line-height: 1.2; vertical-align: baseline; margin-right: 6px;">ANSIA COMPLESSIVA:</span>
                 ${getAnxietyBadgeHtml(e.overallAnxietyLevel ?? 0)}
               </td>
             </tr>
@@ -386,12 +389,12 @@ export function generateTherapistReportHtml(
           <div style="padding: 2px 0;">
             
             <!-- 1. Sintomi fisici -->
-            <div class="clinical-block" style="padding: 9px 16px; border-bottom: 1px solid #f1f5f9;">
-              <div style="font-size: 11px; font-weight: 800; color: #0f172a; margin-bottom: 3px;">
+            <div class="clinical-block" style="padding: 8px 14px; border-bottom: 1px solid #f1f5f9;">
+              <div style="font-size: 10.5px; font-weight: 800; color: #0f172a; margin-bottom: 2px;">
                 1. Sintomi fisici
               </div>
-              <div style="font-size: 11.5px; color: ${physicalText === 'Nessuno specificato' ? '#94a3b8' : '#0f172a'}; font-weight: 500; line-height: 1.45; word-break: break-word;">
-                ${escapeHtml(physicalText)}
+              <div style="font-size: 11px; font-weight: 500; line-height: 1.4; word-break: break-word;">
+                ${physicalHtml}
               </div>
             </div>
 
@@ -522,7 +525,7 @@ export function generateTherapistReportHtml(
       margin: 0 auto !important;
       background: #ffffff !important;
       background-color: #ffffff !important;
-      padding: 24px 28px !important;
+      padding: 14px 20px 16px 20px !important;
       box-shadow: none !important;
       box-sizing: border-box !important;
     }
@@ -568,13 +571,13 @@ export function generateTherapistReportHtml(
 
     .section-title {
       border-bottom: 2px solid #4f46e5;
-      padding: 0 0 6px 0;
-      font-size: 12px;
+      padding: 0 0 4px 0;
+      font-size: 11px;
       font-weight: 900;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
       color: #1e1b4b;
-      margin: 24px 0 14px 0;
+      margin: 12px 0 8px 0;
       display: block;
     }
   </style>
@@ -583,30 +586,30 @@ export function generateTherapistReportHtml(
 
   <div class="report-container">
     
-    <!-- HEADER PDF ESSENZIALE E MINIMALE -->
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; background: #ffffff;">
+    <!-- HEADER PDF ESSENZIALE E COMPATTO (Spazio ottimizzato per nome e data) -->
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px; border-bottom: 1.5px solid #e2e8f0; background: #ffffff;">
       <tr>
-        <td style="padding: 0 0 14px 0; text-align: left; vertical-align: middle;">
-          <div class="report-header-title" style="font-size: 24px; color: #4f46e5; font-weight: 900; line-height: 1.15; letter-spacing: -0.02em;">
+        <td style="padding: 0 0 6px 0; text-align: left; vertical-align: middle;">
+          <div class="report-header-title" style="font-size: 18px; color: #4f46e5; font-weight: 900; line-height: 1.1; letter-spacing: -0.01em;">
             DIARIAMENTE
           </div>
-          <div class="report-subtitle" style="font-size: 11.5px; color: #475569; margin-top: 3px; font-weight: 600; line-height: 1.3;">
+          <div class="report-subtitle" style="font-size: 9.5px; color: #64748b; margin-top: 2px; font-weight: 600; line-height: 1.2;">
             Report Clinico di Psicoterapia Cognitivo-Comportamentale
           </div>
         </td>
-        <td style="padding: 0 0 14px 0; text-align: right; vertical-align: middle; white-space: nowrap;">
-          <div style="display: inline-block; text-align: left; border: 1.5px solid #cbd5e1; background: #ffffff; padding: 6px 14px; border-radius: 6px;">
+        <td style="padding: 0 0 6px 0; text-align: right; vertical-align: middle; white-space: nowrap;">
+          <div style="display: inline-block; text-align: right; border: 1px solid #cbd5e1; background: #f8fafc; padding: 4px 9px; border-radius: 5px;">
             ${
               options.patientName
                 ? `
-              <div style="font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 2px;">
-                Paziente: <strong style="color: #0f172a; font-weight: 800;">${escapeHtml(options.patientName)}</strong>
+              <div style="font-size: 10px; font-weight: 700; color: #0f172a; line-height: 1.2;">
+                Paziente: <strong style="color: #312e81; font-weight: 800;">${escapeHtml(options.patientName)}</strong>
               </div>
             `
                 : ''
             }
-            <div style="font-size: 11px; font-weight: 700; color: #0f172a;">
-              Periodo: <strong style="color: #0f172a; font-weight: 800;">${escapeHtml(dateRangeDisplay)}</strong>
+            <div style="font-size: 9.5px; font-weight: 600; color: #475569; line-height: 1.2; margin-top: 1px;">
+              Data: <strong style="color: #0f172a; font-weight: 700;">${escapeHtml(dateRangeDisplay)}</strong>
             </div>
           </div>
         </td>
@@ -615,7 +618,7 @@ export function generateTherapistReportHtml(
 
     <!-- SEZIONE 1: TABELLA ANALISI SITUAZIONALI -->
     <section>
-      <div class="section-title">SEZIONE 1: TABELLA ANALISI SITUAZIONALI</div>
+      <div class="section-title" style="margin-top: 4px;">SEZIONE 1: TABELLA ANALISI SITUAZIONALI</div>
       
       ${
         entries.length > 0
@@ -797,6 +800,7 @@ export async function exportTherapistPdf(
 
   onToast?.('Generazione PDF in corso...');
 
+  const dateRangeDisplay = formatItalianDateRange(entries, options);
   const html = generateTherapistReportHtml(entries, allTags, customQuestions, options);
   const dateIso = new Date().toISOString().slice(0, 10);
   const filename = `report-clinico-diariamente-${dateIso}.pdf`;
@@ -869,21 +873,12 @@ export async function exportTherapistPdf(
       });
     });
 
-    // Priorità 1: Schede cliniche del diario
+    // Priorità 1: Schede cliniche del diario (l'intera scheda viene preservata integra)
     container.querySelectorAll('.clinical-entry-card').forEach((el) => {
       const rect = el.getBoundingClientRect();
       breakPoints.push({
         canvasY: Math.round((rect.top - containerRect.top - 6) * scale),
         priority: 1,
-      });
-
-      // Priorità 2: Blocchi interni per voci molto lunghe
-      el.querySelectorAll('.clinical-block').forEach((bEl) => {
-        const bRect = bEl.getBoundingClientRect();
-        breakPoints.push({
-          canvasY: Math.round((bRect.top - containerRect.top) * scale),
-          priority: 2,
-        });
       });
     });
 
@@ -914,60 +909,73 @@ export async function exportTherapistPdf(
     });
 
     const a4WidthMm = 210;
-    const a4HeightMm = 297;
-    // Il container ha già il padding perimetrale nativo di 28px/24px (8mm), quindi 210mm copre perfettamente l'A4
-    const maxPageHeightPx = Math.floor((canvas.width * a4HeightMm) / a4WidthMm);
+    const marginSideMm = 8;
+    const contentWidthMm = a4WidthMm - marginSideMm * 2; // 194 mm
 
+    // Suddivisione in fette di pagina calcolando i breakpoint per evitare tagli antiestetici
+    interface PageSlice {
+      startY: number;
+      sliceHeightPx: number;
+      isFirstPage: boolean;
+    }
+    const slices: PageSlice[] = [];
     let currentY = 0;
-    let pageIndex = 0;
 
-    while (currentY < canvas.height - 5) {
-      if (pageIndex > 0) {
-        pdf.addPage('a4', 'portrait');
-      }
+    while (currentY < canvas.height - 4) {
+      const isFirst = slices.length === 0;
+      // Pagina 1 ha 273mm utili (10mm top, 14mm bottom). Pagine successive 267mm (16mm top per testata, 14mm bottom)
+      const availHeightMm = isFirst ? 273 : 267;
+      const maxSlicePx = Math.floor((canvas.width * availHeightMm) / contentWidthMm);
 
       const remainingPx = canvas.height - currentY;
       let sliceHeightPx: number;
 
-      if (remainingPx <= maxPageHeightPx) {
+      if (remainingPx <= maxSlicePx) {
         sliceHeightPx = remainingPx;
       } else {
-        const targetY = currentY + maxPageHeightPx;
-        const minAcceptableY = currentY + maxPageHeightPx * 0.4;
+        const targetY = currentY + maxSlicePx;
+        // Accetta di spezzare prima di una nuova scheda se la pagina ha raggiunto almeno il 20% della capienza
+        const minAcceptableY = currentY + Math.floor(maxSlicePx * 0.2);
 
         let chosenY = -1;
-        // Cerca prima punti priorità 1 (prima di una card o riga)
         for (let i = breakPoints.length - 1; i >= 0; i--) {
           const pt = breakPoints[i];
-          if (pt.priority === 1 && pt.canvasY <= targetY && pt.canvasY >= minAcceptableY) {
+          if (pt.canvasY <= targetY && pt.canvasY >= minAcceptableY) {
             chosenY = pt.canvasY;
             break;
-          }
-        }
-
-        // Se non trovato, cerca priorità 2 (tra blocchi interni)
-        if (chosenY === -1) {
-          for (let i = breakPoints.length - 1; i >= 0; i--) {
-            const pt = breakPoints[i];
-            if (pt.canvasY <= targetY && pt.canvasY >= minAcceptableY) {
-              chosenY = pt.canvasY;
-              break;
-            }
           }
         }
 
         if (chosenY !== -1) {
           sliceHeightPx = chosenY - currentY;
         } else {
-          sliceHeightPx = maxPageHeightPx;
+          sliceHeightPx = maxSlicePx;
         }
       }
 
-      const sliceHeightMm = (sliceHeightPx * a4WidthMm) / canvas.width;
+      slices.push({
+        startY: currentY,
+        sliceHeightPx,
+        isFirstPage: isFirst,
+      });
+
+      currentY += sliceHeightPx;
+    }
+
+    const totalPages = slices.length;
+
+    for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+      const slice = slices[pageIndex];
+      if (pageIndex > 0) {
+        pdf.addPage('a4', 'portrait');
+      }
+
+      const sliceHeightMm = (slice.sliceHeightPx * contentWidthMm) / canvas.width;
+      const topMm = slice.isFirstPage ? 10 : 16;
 
       const pageCanvas = document.createElement('canvas');
       pageCanvas.width = canvas.width;
-      pageCanvas.height = sliceHeightPx;
+      pageCanvas.height = slice.sliceHeightPx;
 
       const ctx = pageCanvas.getContext('2d');
       if (ctx) {
@@ -976,21 +984,46 @@ export async function exportTherapistPdf(
         ctx.drawImage(
           canvas,
           0,
-          currentY,
+          slice.startY,
           canvas.width,
-          sliceHeightPx,
+          slice.sliceHeightPx,
           0,
           0,
           canvas.width,
-          sliceHeightPx
+          slice.sliceHeightPx
         );
 
         const imgData = pageCanvas.toDataURL('image/jpeg', 0.96);
-        pdf.addImage(imgData, 'JPEG', 0, 0, a4WidthMm, sliceHeightMm, undefined, 'FAST');
+        pdf.addImage(imgData, 'JPEG', marginSideMm, topMm, contentWidthMm, sliceHeightMm, undefined, 'FAST');
       }
 
-      currentY += sliceHeightPx;
-      pageIndex++;
+      // Testata superiore di continuazione (dalla pagina 2 in poi)
+      if (pageIndex > 0) {
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8.5);
+        pdf.setTextColor(71, 85, 105);
+        pdf.text('DiariaMente — Report Clinico CBT', marginSideMm, 9.5);
+        const rightSubtitle = [options.patientName ? `Paziente: ${options.patientName}` : '', dateRangeDisplay]
+          .filter(Boolean)
+          .join(' • ');
+        if (rightSubtitle) {
+          pdf.text(rightSubtitle, a4WidthMm - marginSideMm, 9.5, { align: 'right' });
+        }
+        pdf.setDrawColor(226, 232, 240);
+        pdf.setLineWidth(0.25);
+        pdf.line(marginSideMm, 12, a4WidthMm - marginSideMm, 12);
+      }
+
+      // Piè di pagina professionale su tutte le pagine
+      pdf.setDrawColor(226, 232, 240);
+      pdf.setLineWidth(0.25);
+      pdf.line(marginSideMm, 287, a4WidthMm - marginSideMm, 287);
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      pdf.setTextColor(148, 163, 184);
+      pdf.text('Documento ad uso clinico e psicoterapeutico riservato', marginSideMm, 291.5);
+      pdf.text(`Pagina ${pageIndex + 1} di ${totalPages}`, a4WidthMm - marginSideMm, 291.5, { align: 'right' });
     }
 
     const pdfBlob = pdf.output('blob');
