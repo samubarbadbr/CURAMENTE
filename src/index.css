@@ -369,3 +369,102 @@ input[type="range"]::-moz-range-thumb {
   pointer-events: none;
 }
 
+/* =========================================================
+   STAMPA NATIVA BROWSER (WINDOW.PRINT) - REPORT CLINICO CBT
+   ========================================================= */
+
+/* In visualizzazione normale a schermo il blocco di stampa è nascosto */
+#printable-therapist-report {
+  display: none;
+}
+
+@media print {
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    background: white !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Nasconde completamente l'interfaccia dell'applicazione a schermo durante la stampa */
+  body > *:not(#printable-therapist-report) {
+    display: none !important;
+  }
+
+  /* Mostra esclusivamente il blocco HTML del report iniettato */
+  #printable-therapist-report {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  /* Forza tutti i testi a colore nero/grigio scuro (#0f172a) così che nulla risulti invisibile o bianco su bianco */
+  #printable-therapist-report,
+  #printable-therapist-report * {
+    color: #0f172a !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Eccezioni controllate ad alto contrasto per titoli, badge e indicatori */
+  #printable-therapist-report .report-header-title {
+    color: #4f46e5 !important;
+  }
+  #printable-therapist-report .report-subtitle {
+    color: #475569 !important;
+  }
+  #printable-therapist-report .section-title {
+    color: #1e1b4b !important;
+    border-bottom: 2px solid #4f46e5 !important;
+  }
+  #printable-therapist-report .table-th {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+  }
+  #printable-therapist-report .badge-score-high {
+    color: #dc2626 !important;
+  }
+  #printable-therapist-report .badge-score-med {
+    color: #d97706 !important;
+  }
+  #printable-therapist-report .badge-score-low {
+    color: #059669 !important;
+  }
+  #printable-therapist-report .badge-freq-score {
+    color: #1e3a8a !important;
+  }
+  #printable-therapist-report .badge-attention-score {
+    color: #6b21a8 !important;
+  }
+  #printable-therapist-report .badge-count-score {
+    color: #9a3412 !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 10mm 10mm 10mm 10mm;
+  }
+
+  .clinical-entry-card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin-bottom: 18px !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}
+
+

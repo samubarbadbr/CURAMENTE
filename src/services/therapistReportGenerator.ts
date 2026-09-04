@@ -2,11 +2,6 @@ import { CbtEntry, CustomQuestion, Tag } from '../types';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 
-// Ensure global window.html2canvas is registered for jsPDF compatibility
-if (typeof window !== 'undefined') {
-  (window as unknown as { html2canvas?: typeof html2canvas }).html2canvas = html2canvas;
-}
-
 export interface TherapistReportFilterOptions {
   patientName: string;
   period: 'last_session' | '7' | 'month' | '30' | 'custom' | 'all';
@@ -234,27 +229,30 @@ function escapeHtml(text: unknown): string {
  * Using pure inline styling and baseline alignment to guarantee exact horizontal alignment with the label
  */
 function getAnxietyBadgeHtml(score: number): string {
+  let colorClass = 'badge-score-low';
   let color = '#059669';
   if (score >= 70) {
+    colorClass = 'badge-score-high';
     color = '#dc2626';
   } else if (score >= 40) {
+    colorClass = 'badge-score-med';
     color = '#d97706';
   }
-  return `<span style="display: inline; font-size: 11.5px; font-weight: 900; color: ${color}; line-height: 1.2; vertical-align: baseline;">${score}/100</span>`;
+  return `<span class="${colorClass}" style="display: inline; font-size: 11.5px; font-weight: 900; color: ${color}; line-height: 1.2; vertical-align: baseline;">${score}/100</span>`;
 }
 
 /**
  * Helper to generate frequency score with dark high-contrast blue text
  */
 function getFrequencyBadgeHtml(score: number): string {
-  return `<span style="display: inline; font-size: 11.5px; font-weight: 900; color: #1e3a8a; line-height: 1.2; vertical-align: baseline;">${score}/100</span>`;
+  return `<span class="badge-freq-score" style="display: inline; font-size: 11.5px; font-weight: 900; color: #1e3a8a; line-height: 1.2; vertical-align: baseline;">${score}/100</span>`;
 }
 
 /**
  * Helper to generate body attention value with dark high-contrast purple text
  */
 function getBodyAttentionBadgeHtml(score: number): string {
-  return `<span style="display: inline; font-size: 11.5px; font-weight: 900; color: #6b21a8; line-height: 1.2; vertical-align: baseline;">${score}/100</span>`;
+  return `<span class="badge-attention-score" style="display: inline; font-size: 11.5px; font-weight: 900; color: #6b21a8; line-height: 1.2; vertical-align: baseline;">${score}/100</span>`;
 }
 
 /**
@@ -263,9 +261,9 @@ function getBodyAttentionBadgeHtml(score: number): string {
 function getCountPillHtml(count: number, singular = 'volta', plural = 'volte'): string {
   const label = `${count} ${count === 1 ? singular : plural}`;
   if (count > 0) {
-    return `<span style="display: inline; font-size: 11.5px; font-weight: 900; color: #9a3412; line-height: 1.2; vertical-align: baseline;">${label}</span>`;
+    return `<span class="badge-count-score" style="display: inline; font-size: 11.5px; font-weight: 900; color: #9a3412; line-height: 1.2; vertical-align: baseline;">${label}</span>`;
   }
-  return `<span style="display: inline; font-size: 11px; font-weight: 600; color: #94a3b8; line-height: 1.2; vertical-align: baseline;">${label}</span>`;
+  return `<span style="display: inline; font-size: 11px; font-weight: 600; color: #64748b; line-height: 1.2; vertical-align: baseline;">${label}</span>`;
 }
 
 /**
@@ -585,29 +583,31 @@ export function generateTherapistReportHtml(
 
   <div class="report-container">
     
-    <!-- HEADER PDF ESSENZIALE E PERFETTAMENTE ALLINEATO SU TABELLA -->
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 18px; border-bottom: 1.5px solid #e2e8f0; background: #ffffff;">
+    <!-- HEADER PDF ESSENZIALE E MINIMALE -->
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; background: #ffffff;">
       <tr>
         <td style="padding: 0 0 14px 0; text-align: left; vertical-align: middle;">
-          <div style="font-size: 24px; color: #4f46e5; font-weight: 900; line-height: 1.15; letter-spacing: -0.02em;">
+          <div class="report-header-title" style="font-size: 24px; color: #4f46e5; font-weight: 900; line-height: 1.15; letter-spacing: -0.02em;">
             DIARIAMENTE
           </div>
-          <div style="font-size: 12px; color: #64748b; margin-top: 3px; font-weight: 600; line-height: 1.3;">
+          <div class="report-subtitle" style="font-size: 11.5px; color: #475569; margin-top: 3px; font-weight: 600; line-height: 1.3;">
             Report Clinico di Psicoterapia Cognitivo-Comportamentale
           </div>
         </td>
         <td style="padding: 0 0 14px 0; text-align: right; vertical-align: middle; white-space: nowrap;">
-          ${
-            options.patientName
-              ? `
-            <div style="font-size: 11.5px; font-weight: 600; color: #475569; margin-bottom: 3px;">
-              Paziente: <strong style="color: #0f172a; font-weight: 800;">${escapeHtml(options.patientName)}</strong>
+          <div style="display: inline-block; text-align: left; border: 1.5px solid #cbd5e1; background: #ffffff; padding: 6px 14px; border-radius: 6px;">
+            ${
+              options.patientName
+                ? `
+              <div style="font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 2px;">
+                Paziente: <strong style="color: #0f172a; font-weight: 800;">${escapeHtml(options.patientName)}</strong>
+              </div>
+            `
+                : ''
+            }
+            <div style="font-size: 11px; font-weight: 700; color: #0f172a;">
+              Periodo: <strong style="color: #0f172a; font-weight: 800;">${escapeHtml(dateRangeDisplay)}</strong>
             </div>
-          `
-              : ''
-          }
-          <div style="font-size: 11px; font-weight: 700; color: #64748b;">
-            ${escapeHtml(dateRangeDisplay)}
           </div>
         </td>
       </tr>
@@ -620,8 +620,8 @@ export function generateTherapistReportHtml(
       ${
         entries.length > 0
           ? `
-        <div class="table-wrapper" style="border-radius: 10px; overflow: hidden; border: 1.5px solid #e2e8f0; background: #ffffff; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);">
-          <table style="width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 11.5px;">
+        <div class="table-wrapper" style="border-radius: 8px; overflow: hidden; border: 1.5px solid #cbd5e1; background: #ffffff; margin-bottom: 20px;">
+          <table style="width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 11px;">
             <colgroup>
               <col style="width: 16%;">
               <col style="width: 27%;">
@@ -630,12 +630,12 @@ export function generateTherapistReportHtml(
               <col style="width: 19%;">
             </colgroup>
             <thead>
-              <tr style="background: #eef2ff;">
-                <th style="padding: 9px 12px; color: #1e1b4b; font-weight: 900; font-size: 10.5px; border-bottom: 1.5px solid #c7d2fe; text-align: left; text-transform: uppercase; letter-spacing: 0.04em;">DATA</th>
-                <th style="padding: 9px 12px; color: #1e1b4b; font-weight: 900; font-size: 10.5px; border-bottom: 1.5px solid #c7d2fe; text-align: left; text-transform: uppercase; letter-spacing: 0.04em;">SITUAZIONE</th>
-                <th style="padding: 9px 12px; color: #1e1b4b; font-weight: 900; font-size: 10.5px; border-bottom: 1.5px solid #c7d2fe; text-align: left; text-transform: uppercase; letter-spacing: 0.04em;">FATTORI SCATENANTI</th>
-                <th style="padding: 9px 12px; color: #1e1b4b; font-weight: 900; font-size: 10.5px; border-bottom: 1.5px solid #c7d2fe; text-align: left; text-transform: uppercase; letter-spacing: 0.04em;">EMOZIONI</th>
-                <th style="padding: 9px 12px; color: #1e1b4b; font-weight: 900; font-size: 10.5px; border-bottom: 1.5px solid #c7d2fe; text-align: left; text-transform: uppercase; letter-spacing: 0.04em;">PENSIERO NEGATIVO (0-100)</th>
+              <tr style="background: #f1f5f9;">
+                <th class="table-th" style="padding: 9px 12px; color: #0f172a; font-weight: 900; font-size: 10.5px; border-bottom: 1.5px solid #cbd5e1; text-align: left; text-transform: uppercase; letter-spacing: 0.04em;">DATA</th>
+                <th class="table-th" style="padding: 9px 12px; color: #0f172a; font-weight: 900; font-size: 10.5px; border-bottom: 1.5px solid #cbd5e1; text-align: left; text-transform: uppercase; letter-spacing: 0.04em;">SITUAZIONE</th>
+                <th class="table-th" style="padding: 9px 12px; color: #0f172a; font-weight: 900; font-size: 10.5px; border-bottom: 1.5px solid #cbd5e1; text-align: left; text-transform: uppercase; letter-spacing: 0.04em;">FATTORI SCATENANTI</th>
+                <th class="table-th" style="padding: 9px 12px; color: #0f172a; font-weight: 900; font-size: 10.5px; border-bottom: 1.5px solid #cbd5e1; text-align: left; text-transform: uppercase; letter-spacing: 0.04em;">EMOZIONI</th>
+                <th class="table-th" style="padding: 9px 12px; color: #0f172a; font-weight: 900; font-size: 10.5px; border-bottom: 1.5px solid #cbd5e1; text-align: left; text-transform: uppercase; letter-spacing: 0.04em;">PENSIERO NEGATIVO (0-100)</th>
               </tr>
             </thead>
             <tbody>
@@ -780,7 +780,8 @@ export function generateTherapistCsv(
 }
 
 /**
- * Direct PDF generation and file download using jsPDF + html2canvas
+ * Generazione ed esportazione diretta del file PDF clinico (A4, multipagina con interruzioni pulite)
+ * Nessun foglio bianco: il canvas viene renderizzato a piena opacità (1.0) con colori e contrasto esatti.
  */
 export async function exportTherapistPdf(
   entries: CbtEntry[],
@@ -800,65 +801,57 @@ export async function exportTherapistPdf(
   const dateIso = new Date().toISOString().slice(0, 10);
   const filename = `report-clinico-diariamente-${dateIso}.pdf`;
 
-  // Prevent Dark Mode inheritance by temporarily removing .dark and theme classes while capturing
-  const htmlEl = document.documentElement;
-  const hadDark = htmlEl.classList.contains('dark');
-  const savedDataTheme = htmlEl.getAttribute('data-theme');
-  if (hadDark) {
-    htmlEl.classList.remove('dark');
-  }
-  htmlEl.setAttribute('data-theme', 'light');
-
-  // Create temporary container for high-fidelity rendering - exact A4 794px width
+  // Contenitore scratchpad temporaneo ad alta fedeltà (794px = larghezza standard A4 a 96 DPI)
   const container = document.createElement('div');
   container.id = 'pdf-export-scratchpad';
-  container.className = 'light';
-  container.setAttribute('data-theme', 'light');
-  // Use absolute positioning with top/left 0, z-index -99999 and opacity 0.01
-  // This ensures mobile WebKit / iOS Safari actually layouts and calculates text metrics without culling offscreen elements!
-  container.style.position = 'absolute';
-  container.style.left = '0';
+  container.style.position = 'fixed';
   container.style.top = '0';
+  container.style.left = '0';
   container.style.width = '794px';
+  container.style.maxWidth = '794px';
   container.style.backgroundColor = '#ffffff';
   container.style.color = '#0f172a';
-  container.style.colorScheme = 'light';
-  container.style.zIndex = '-99999';
-  container.style.opacity = '0.01';
+  container.style.zIndex = '-9999';
+  container.style.opacity = '1'; // 100% opaco: evita categoricamente fogli bianchi o trasparenti!
+  container.style.visibility = 'visible';
   container.style.pointerEvents = 'none';
+  container.style.margin = '0';
+  container.style.padding = '0';
   container.style.boxSizing = 'border-box';
-  container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
   container.innerHTML = html;
   document.body.appendChild(container);
 
   try {
-    // Allow DOM to finish layout, fonts and image rendering
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    // Attendi caricamento font di sistema e rendering completo del DOM
+    if (typeof document !== 'undefined' && document.fonts) {
+      try {
+        await document.fonts.ready;
+      } catch (_) {}
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
 
     const isMobile =
       typeof navigator !== 'undefined' &&
       (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
         (typeof window !== 'undefined' && window.innerWidth < 768));
 
-    // Scale: 2 for desktop (~200 DPI), 1.5 on mobile (~150 DPI) to conserve GPU canvas memory on smartphones
+    // Risoluzione 2x per desktop/tablet (200+ DPI), 1.5x su mobile per risparmiare memoria canvas
     let scale = isMobile ? 1.5 : 2;
-
     const containerHeight = container.offsetHeight || 2000;
-    const maxSafeCanvasHeight = isMobile ? 8000 : 16000;
-    if (containerHeight * scale > maxSafeCanvasHeight) {
-      scale = Math.max(1, Math.floor((maxSafeCanvasHeight / containerHeight) * 10) / 10);
+    const maxSafeHeight = isMobile ? 8000 : 16000;
+    if (containerHeight * scale > maxSafeHeight) {
+      scale = Math.max(1, Math.floor((maxSafeHeight / containerHeight) * 10) / 10);
     }
 
-    // Collect DOM break candidates relative to container
+    // Raccolta dei punti ideali di spezzatura (titoli sezioni, righe tabella, schede cliniche)
     const containerRect = container.getBoundingClientRect();
-
     interface BreakPoint {
       canvasY: number;
-      priority: number; // 1 = highest (before card, table row, section title), 2 = inside card block
+      priority: number;
     }
     const breakPoints: BreakPoint[] = [];
 
-    // 1. Break before section titles (priority 1) with small 6px top margin buffer
+    // Priorità 1: Titoli di sezione
     container.querySelectorAll('.section-title').forEach((el) => {
       const rect = el.getBoundingClientRect();
       breakPoints.push({
@@ -867,7 +860,7 @@ export async function exportTherapistPdf(
       });
     });
 
-    // 2. Break before table rows in section 1 (priority 1)
+    // Priorità 1: Righe della tabella situazionale
     container.querySelectorAll('tbody tr').forEach((el) => {
       const rect = el.getBoundingClientRect();
       breakPoints.push({
@@ -876,15 +869,15 @@ export async function exportTherapistPdf(
       });
     });
 
-    // 3. Break before clinical entry cards in section 2 (priority 1) with 8px buffer so whitespace is preserved
+    // Priorità 1: Schede cliniche del diario
     container.querySelectorAll('.clinical-entry-card').forEach((el) => {
       const rect = el.getBoundingClientRect();
       breakPoints.push({
-        canvasY: Math.round((rect.top - containerRect.top - 8) * scale),
+        canvasY: Math.round((rect.top - containerRect.top - 6) * scale),
         priority: 1,
       });
 
-      // Also collect blocks inside each card (priority 2) for very long entries
+      // Priorità 2: Blocchi interni per voci molto lunghe
       el.querySelectorAll('.clinical-block').forEach((bEl) => {
         const bRect = bEl.getBoundingClientRect();
         breakPoints.push({
@@ -894,18 +887,24 @@ export async function exportTherapistPdf(
       });
     });
 
-    // Sort ascending
     breakPoints.sort((a, b) => a.canvasY - b.canvasY);
 
     const canvas = await html2canvas(container, {
-      scale, // crisp high resolution adapted for mobile and desktop
+      scale,
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
       windowWidth: 794,
+      width: 794,
       scrollX: 0,
       scrollY: 0,
+      x: 0,
+      y: 0,
     });
+
+    if (!canvas || canvas.width === 0 || canvas.height === 0) {
+      throw new Error('Errore durante la creazione del canvas');
+    }
 
     const pdf = new jsPDF({
       orientation: 'portrait',
@@ -914,35 +913,30 @@ export async function exportTherapistPdf(
       compress: true,
     });
 
-    const pageWidth = 210; // A4 mm
-    const pageHeight = 297; // A4 mm
-    const margin = 10; // 10mm margins on all sides (giving 190mm content width)
-    const contentWidth = pageWidth - margin * 2; // 190 mm
-    const contentHeight = pageHeight - margin * 2; // 277 mm
-
-    // Max printable content height per page in canvas pixels
-    const maxPageHeightPx = Math.floor((canvas.width * contentHeight) / contentWidth);
+    const a4WidthMm = 210;
+    const a4HeightMm = 297;
+    // Il container ha già il padding perimetrale nativo di 28px/24px (8mm), quindi 210mm copre perfettamente l'A4
+    const maxPageHeightPx = Math.floor((canvas.width * a4HeightMm) / a4WidthMm);
 
     let currentY = 0;
     let pageIndex = 0;
 
-    while (currentY < canvas.height - 10) {
+    while (currentY < canvas.height - 5) {
       if (pageIndex > 0) {
-        pdf.addPage();
+        pdf.addPage('a4', 'portrait');
       }
 
       const remainingPx = canvas.height - currentY;
       let sliceHeightPx: number;
 
       if (remainingPx <= maxPageHeightPx) {
-        // Fits entirely on current page
         sliceHeightPx = remainingPx;
       } else {
         const targetY = currentY + maxPageHeightPx;
-        const minAcceptableY = currentY + maxPageHeightPx * 0.35; // At least 35% of page filled
+        const minAcceptableY = currentY + maxPageHeightPx * 0.4;
 
-        // 1. Search for best priority 1 break point (card top, table row, section title)
         let chosenY = -1;
+        // Cerca prima punti priorità 1 (prima di una card o riga)
         for (let i = breakPoints.length - 1; i >= 0; i--) {
           const pt = breakPoints[i];
           if (pt.priority === 1 && pt.canvasY <= targetY && pt.canvasY >= minAcceptableY) {
@@ -951,7 +945,7 @@ export async function exportTherapistPdf(
           }
         }
 
-        // 2. If no priority 1 found, search priority 2 (blocks inside long cards)
+        // Se non trovato, cerca priorità 2 (tra blocchi interni)
         if (chosenY === -1) {
           for (let i = breakPoints.length - 1; i >= 0; i--) {
             const pt = breakPoints[i];
@@ -962,7 +956,6 @@ export async function exportTherapistPdf(
           }
         }
 
-        // 3. If still no breakpoint found, slice at max page height
         if (chosenY !== -1) {
           sliceHeightPx = chosenY - currentY;
         } else {
@@ -970,7 +963,7 @@ export async function exportTherapistPdf(
         }
       }
 
-      const sliceHeightMm = (sliceHeightPx * contentWidth) / canvas.width;
+      const sliceHeightMm = (sliceHeightPx * a4WidthMm) / canvas.width;
 
       const pageCanvas = document.createElement('canvas');
       pageCanvas.width = canvas.width;
@@ -992,8 +985,8 @@ export async function exportTherapistPdf(
           sliceHeightPx
         );
 
-        const imgData = pageCanvas.toDataURL('image/jpeg', 0.98);
-        pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, sliceHeightMm, undefined, 'FAST');
+        const imgData = pageCanvas.toDataURL('image/jpeg', 0.96);
+        pdf.addImage(imgData, 'JPEG', 0, 0, a4WidthMm, sliceHeightMm, undefined, 'FAST');
       }
 
       currentY += sliceHeightPx;
@@ -1003,40 +996,34 @@ export async function exportTherapistPdf(
     const pdfBlob = pdf.output('blob');
     const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
 
-    // 1. Web Share API on mobile (iOS Safari / Android Chrome / PWA):
-    // Allows immediate saving to Files (iCloud / On My iPhone), sharing directly to WhatsApp/Mail for the therapist, AirDrop, etc.
+    // 1. Condivisione nativa Web Share (dispositivi mobili iOS Safari / Android)
     if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
       try {
         await navigator.share({
           files: [pdfFile],
           title: 'Report Clinico - DiariaMente',
-          text: 'Report clinico CBT per la terapeuta generato da DiariaMente',
+          text: 'Report clinico CBT generato da DiariaMente',
         });
         onToast?.('PDF salvato / condiviso con successo!');
         return;
       } catch (shareErr: any) {
         if (shareErr?.name === 'AbortError') {
-          // User intentionally closed the share sheet
           return;
         }
-        console.warn('Web Share failed or blocked, proceeding to direct download:', shareErr);
+        console.warn('Web Share non completato, fallback al download diretto:', shareErr);
       }
     }
 
-    // 2. Direct browser download
+    // 2. Download diretto del file .pdf nel browser
     try {
       pdf.save(filename);
       onToast?.('PDF scaricato con successo!');
     } catch (saveErr) {
-      console.warn('pdf.save failed, using blob link fallback:', saveErr);
+      console.warn('pdf.save fallito, uso fallback blob URL:', saveErr);
       const blobUrl = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = blobUrl;
       link.download = filename;
-      link.rel = 'noopener';
-      if (isMobile) {
-        link.target = '_blank';
-      }
       document.body.appendChild(link);
       link.click();
       setTimeout(() => {
@@ -1046,17 +1033,9 @@ export async function exportTherapistPdf(
       onToast?.('PDF scaricato con successo!');
     }
   } catch (err) {
-    console.error('Error generating PDF with jsPDF/html2canvas:', err);
-    // Reliable fallback: direct HTML file download ready to open and print
+    console.error('Errore durante la generazione del PDF con jsPDF/html2canvas:', err);
+    // Fallback di emergenza: download del report HTML pronto da consultare o stampare
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const htmlFile = new File([blob], `report-clinico-diariamente-${dateIso}.html`, { type: 'text/html' });
-    if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [htmlFile] })) {
-      try {
-        await navigator.share({ files: [htmlFile], title: htmlFile.name });
-        onToast?.('Report condiviso con successo!');
-        return;
-      } catch (_) {}
-    }
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;
@@ -1067,19 +1046,34 @@ export async function exportTherapistPdf(
       a.remove();
       URL.revokeObjectURL(blobUrl);
     }, 4000);
-    onToast?.('Scaricato report alternativo per la stampa');
+    onToast?.('Scaricato report alternativo HTML (apribile e stampabile in PDF)');
   } finally {
     try {
       container.remove();
     } catch (_) {}
-    if (hadDark) {
-      htmlEl.classList.add('dark');
+  }
+}
+
+/**
+ * Apre il report clinico in una finestra/scheda pulita dedicata per la stampa o consultazione
+ */
+export function openPrintWindow(html: string): void {
+  try {
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        try {
+          printWindow.print();
+        } catch (_) {}
+      }, 250);
+      return;
     }
-    if (savedDataTheme) {
-      htmlEl.setAttribute('data-theme', savedDataTheme);
-    } else {
-      htmlEl.removeAttribute('data-theme');
-    }
+  } catch (e) {
+    console.warn('Impossibile aprire nuova finestra:', e);
   }
 }
 
