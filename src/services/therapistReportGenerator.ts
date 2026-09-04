@@ -1,4 +1,11 @@
 import { CbtEntry, CustomQuestion, Tag } from '../types';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
+
+// Ensure global window.html2canvas is registered for jsPDF compatibility
+if (typeof window !== 'undefined') {
+  (window as unknown as { html2canvas?: typeof html2canvas }).html2canvas = html2canvas;
+}
 
 export interface TherapistReportFilterOptions {
   patientName: string;
@@ -6,14 +13,14 @@ export interface TherapistReportFilterOptions {
   customStartDate?: string; // YYYY-MM-DD
   customEndDate?: string;   // YYYY-MM-DD
   lastSessionDate?: string; // YYYY-MM-DD
-  includeMetrics: boolean;
-  includeSituationTriggers: boolean;
-  includeThoughts: boolean;
-  includeEmotionsSymptoms: boolean;
-  includeBehaviors: boolean;
-  includeCustomQuestions: boolean;
-  includeNotes: boolean;
-  includeSummaryTable: boolean;
+  includeMetrics?: boolean;
+  includeSituationTriggers?: boolean;
+  includeThoughts?: boolean;
+  includeEmotionsSymptoms?: boolean;
+  includeBehaviors?: boolean;
+  includeCustomQuestions?: boolean;
+  includeNotes?: boolean;
+  includeSummaryTable?: boolean;
   sortOrder: 'asc' | 'desc'; // 'asc': chronological (past -> present), 'desc': newest first
 }
 
@@ -163,26 +170,40 @@ export function calculateReportStats(
       totalChecks: 0,
       totalReassurances: 0,
       totalAvoidances: 0,
-      dateRangeText: 'Nessuna data',
+      dateRangeText: 'Nessuna registrazione',
     };
   }
 
-  const sumAnxiety = entries.reduce((acc, e) => acc + (e.overallAnxietyLevel || 0), 0);
-  const sumBelief = entries.reduce((acc, e) => acc + (e.thoughtBeliefLevel || 0), 0);
-  const sumIntensity = entries.reduce((acc, e) => acc + (e.negativeThoughtsIntensity || 0), 0);
-  const sumBody = entries.reduce((acc, e) => acc + (e.bodyFocusedAttentionLevel || 0), 0);
-  const totalChecks = entries.reduce((acc, e) => acc + (e.symptomControlCount || 0), 0);
-  const totalReassurances = entries.reduce((acc, e) => acc + (e.reassuranceSeekingCount || 0), 0);
-  const totalAvoidances = entries.reduce((acc, e) => acc + (e.avoidanceCount || 0), 0);
+  const n = entries.length;
+  let sumAnxiety = 0;
+  let sumBelief = 0;
+  let sumIntensity = 0;
+  let sumBodyAttention = 0;
+  let totalChecks = 0;
+  let totalReassurances = 0;
+  let totalAvoidances = 0;
 
-  const avgAnxiety = Math.round(sumAnxiety / entries.length);
-  const avgBelief = Math.round(sumBelief / entries.length);
-  const avgIntensity = Math.round(sumIntensity / entries.length);
-  const avgBodyAttention = Math.round(sumBody / entries.length);
+  entries.forEach((e) => {
+    sumAnxiety += Number(e.overallAnxietyLevel || 0);
+    sumBelief += Number(e.thoughtBeliefLevel || 0);
+    sumIntensity += Number(e.negativeThoughtsIntensity || 0);
+    sumBodyAttention += Number(e.bodyFocusedAttentionLevel || 0);
+
+    totalChecks += Number(e.symptomControlCount || 0);
+    totalReassurances += Number(e.reassuranceSeekingCount || 0);
+    totalAvoidances += Number(e.avoidanceCount || 0);
+  });
+
+  const avgAnxiety = Math.round(sumAnxiety / n);
+  const avgBelief = Math.round(sumBelief / n);
+  const avgIntensity = Math.round(sumIntensity / n);
+  const avgBodyAttention = Math.round(sumBodyAttention / n);
   const avgNumericScore = Math.round((avgAnxiety + avgBelief + avgIntensity + avgBodyAttention) / 4);
 
+  const dateRangeText = formatItalianDateRange(entries, options);
+
   return {
-    totalEntries: entries.length,
+    totalEntries: n,
     avgAnxiety,
     avgBelief,
     avgIntensity,
@@ -191,7 +212,7 @@ export function calculateReportStats(
     totalChecks,
     totalReassurances,
     totalAvoidances,
-    dateRangeText: formatItalianDateRange(entries, options),
+    dateRangeText,
   };
 }
 
@@ -209,7 +230,47 @@ function escapeHtml(text: unknown): string {
 }
 
 /**
- * Generate full self-contained printable HTML document
+ * Helper to generate an anxiety value with color scaling and dark high-contrast text
+ * Using pure inline styling and baseline alignment to guarantee exact horizontal alignment with the label
+ */
+function getAnxietyBadgeHtml(score: number): string {
+  let color = '#059669';
+  if (score >= 70) {
+    color = '#dc2626';
+  } else if (score >= 40) {
+    color = '#d97706';
+  }
+  return `<span style="display: inline; font-size: 11.5px; font-weight: 900; color: ${color}; line-height: 1.2; vertical-align: baseline;">${score}/100</span>`;
+}
+
+/**
+ * Helper to generate frequency score with dark high-contrast blue text
+ */
+function getFrequencyBadgeHtml(score: number): string {
+  return `<span style="display: inline; font-size: 11.5px; font-weight: 900; color: #1e3a8a; line-height: 1.2; vertical-align: baseline;">${score}/100</span>`;
+}
+
+/**
+ * Helper to generate body attention value with dark high-contrast purple text
+ */
+function getBodyAttentionBadgeHtml(score: number): string {
+  return `<span style="display: inline; font-size: 11.5px; font-weight: 900; color: #6b21a8; line-height: 1.2; vertical-align: baseline;">${score}/100</span>`;
+}
+
+/**
+ * Helper to generate soft count display for checks, reassurances, avoidances
+ */
+function getCountPillHtml(count: number, singular = 'volta', plural = 'volte'): string {
+  const label = `${count} ${count === 1 ? singular : plural}`;
+  if (count > 0) {
+    return `<span style="display: inline; font-size: 11.5px; font-weight: 900; color: #9a3412; line-height: 1.2; vertical-align: baseline;">${label}</span>`;
+  }
+  return `<span style="display: inline; font-size: 11px; font-weight: 600; color: #94a3b8; line-height: 1.2; vertical-align: baseline;">${label}</span>`;
+}
+
+/**
+ * Generate full self-contained printable HTML document adhering strictly to the therapist's sheet
+ * Symmetrical, centered A4 layout with clean typography, fixed table columns, and structured cards
  */
 export function generateTherapistReportHtml(
   entries: CbtEntry[],
@@ -217,300 +278,212 @@ export function generateTherapistReportHtml(
   customQuestions: CustomQuestion[],
   options: TherapistReportFilterOptions
 ): string {
-  const stats = calculateReportStats(entries, options);
   const tagMap = new Map(allTags.map((t) => [t.id, t.label]));
-  const questionMap = new Map(customQuestions.map((q) => [q.id, q]));
+  const dateRangeDisplay = formatItalianDateRange(entries, options);
 
-  const generatedAt = new Date().toLocaleString('it-IT', {
-    dateStyle: 'full',
-    timeStyle: 'short',
-  });
+  // SEZIONE 1: TABELLA ANALISI SITUAZIONALI (5 colonne fisse)
+  // DATA (16%) | SITUAZIONE (27%) | FATTORI SCATENANTI (22%) | EMOZIONI (16%) | PENSIERO NEGATIVO (19%)
+  const situationalTableRows = entries
+    .map((e) => {
+      const d = new Date(e.eventDatetime);
+      const datePart = d.toLocaleDateString('it-IT', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+      const timePart = d.toLocaleTimeString('it-IT', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
 
-  // Summary Table Rows
-  const summaryTableRows = entries
-    .map((e, idx) => {
-      const d = new Date(e.eventDatetime).toLocaleString('it-IT', {
+      const emoLabels = (e.emotionTagIds || []).map((id) => tagMap.get(id) || id);
+      const thought = e.negativeThought ? escapeHtml(e.negativeThought) : '—';
+      const beliefLevel = e.thoughtBeliefLevel !== undefined ? e.thoughtBeliefLevel : 0;
+
+      return `
+        <tr style="background: #ffffff;">
+          <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #f1f5f9; vertical-align: top;">
+            <div style="font-size: 11.5px; font-weight: 800; color: #0f172a; line-height: 1.3;">${datePart}</div>
+            <div style="font-size: 10.5px; font-weight: 600; color: #64748b; margin-top: 2px;">ore ${timePart}</div>
+          </td>
+          <td style="padding: 10px 12px; color: #0f172a; font-weight: 500; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #f1f5f9; vertical-align: top; line-height: 1.45; word-break: break-word;">
+            ${escapeHtml(e.situation || '—')}
+          </td>
+          <td style="padding: 10px 12px; color: #0f172a; font-weight: 500; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #f1f5f9; vertical-align: top; line-height: 1.45; word-break: break-word;">
+            ${escapeHtml(e.triggerFactors || '—')}
+          </td>
+          <td style="padding: 10px 12px; color: #0f172a; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #f1f5f9; vertical-align: top;">
+            ${
+              emoLabels.length > 0
+                ? `<div style="font-size: 11px; font-weight: 700; color: #312e81; line-height: 1.4;">${emoLabels
+                    .map((lbl) => escapeHtml(lbl))
+                    .join(', ')}</div>`
+                : '<span style="color: #94a3b8; font-style: italic;">—</span>'
+            }
+          </td>
+          <td style="padding: 10px 12px; color: #0f172a; border-bottom: 1px solid #e2e8f0; vertical-align: top; word-break: break-word;">
+            <div style="font-weight: 700; color: #0f172a; margin-bottom: 6px; line-height: 1.4; font-size: 11px;">${thought}</div>
+            <div style="margin-top: 4px; font-size: 10.5px; color: #4338ca; font-weight: 700; line-height: 1.2;">
+              <span style="display: inline; vertical-align: baseline;">Quanto credo al pensiero:</span> <strong style="display: inline; font-size: 11px; font-weight: 900; color: #1e1b4b; vertical-align: baseline;">${beliefLevel}/100</strong>
+            </div>
+          </td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  // SEZIONE 2: REGISTRO CLINICO DETTAGLIATO
+  // Schede strutturate con header (Data/Ora e Ansia) e 6 righe cliniche distinte
+  const detailedEntriesHtml = entries
+    .map((e) => {
+      const d = new Date(e.eventDatetime);
+      const dateFormatted = d.toLocaleString('it-IT', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
       });
-      const emoList = (e.emotionTagIds || []).map((id) => tagMap.get(id) || id).slice(0, 3).join(', ');
-      const behaviorsSummary = [
-        e.symptomControlCount ? `${e.symptomControlCount} check` : null,
-        e.reassuranceSeekingCount ? `${e.reassuranceSeekingCount} rass.` : null,
-        e.avoidanceCount ? `${e.avoidanceCount} evit.` : null,
-      ].filter(Boolean).join(' • ') || '—';
 
-      const anxietyColor =
-        e.overallAnxietyLevel > 70 ? '#b91c1c' : e.overallAnxietyLevel > 40 ? '#b45309' : '#047857';
+      const physTags = (e.physicalSymptomTagIds || []).map((id) => tagMap.get(id) || id);
+      const physDetail = e.physicalSymptomsText ? e.physicalSymptomsText.trim() : '';
+      let physicalText = '';
+      if (physTags.length > 0 && physDetail) {
+        physicalText = `${physTags.join(', ')} — ${physDetail}`;
+      } else if (physTags.length > 0) {
+        physicalText = physTags.join(', ');
+      } else if (physDetail) {
+        physicalText = physDetail;
+      } else {
+        physicalText = 'Nessuno specificato';
+      }
 
-      return `
-        <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-          <td style="padding: 9px 12px; font-weight: 700; white-space: nowrap;">${d}</td>
-          <td style="padding: 9px 12px; text-align: center;">
-            <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-weight: 800; font-size: 11px; background: ${anxietyColor}15; color: ${anxietyColor}; border: 1px solid ${anxietyColor}40;">
-              ${e.overallAnxietyLevel}/100
-            </span>
-          </td>
-          <td style="padding: 9px 12px; text-align: center; font-weight: 600;">${e.thoughtBeliefLevel}%</td>
-          <td style="padding: 9px 12px; text-align: center; font-weight: 600;">${e.negativeThoughtsIntensity}%</td>
-          <td style="padding: 9px 12px; text-align: center; font-weight: 600;">${e.bodyFocusedAttentionLevel}%</td>
-          <td style="padding: 9px 12px; font-size: 11px; color: #334155;">${escapeHtml(emoList || '—')}</td>
-          <td style="padding: 9px 12px; font-size: 11px; color: #475569;">${escapeHtml(behaviorsSummary)}</td>
-        </tr>
-      `;
-    })
-    .join('');
+      const thoughtDesc = e.negativeThoughtsExtended || e.negativeThought || 'Nessuna descrizione';
+      const thoughtFreq = e.negativeThoughtsIntensity ?? e.thoughtBeliefLevel ?? 0;
 
-  // Daily Detailed Entries Cards
-  const detailedEntriesHtml = entries
-    .map((e, idx) => {
-      const dateFormatted = new Date(e.eventDatetime).toLocaleString('it-IT', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-
-      const emotionLabels = (e.emotionTagIds || []).map((id) => tagMap.get(id) || id);
-      const symptomLabels = (e.physicalSymptomTagIds || []).map((id) => tagMap.get(id) || id);
-
-      const customAnswersList = Object.entries(e.customAnswers || {}).filter(
-        ([_, val]) => val !== undefined && val !== ''
-      );
+      const controlAction = e.symptomControlDescription ? e.symptomControlDescription.trim() : 'Nessuna azione specificata';
+      const reassuranceType = e.reassuranceSeekingType ? e.reassuranceSeekingType.trim() : 'Nessuna richiesta specificata';
+      const avoidanceType = e.avoidanceType ? e.avoidanceType.trim() : 'Nessun evitamento specificato';
 
       return `
-        <article class="day-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 22px; margin-bottom: 22px; page-break-inside: avoid; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+        <div class="clinical-entry-card" style="margin-bottom: 20px; border: 1.5px solid #e2e8f0; border-radius: 12px; background: #ffffff; overflow: hidden; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);">
           
-          <!-- Day Header & Inline Metrics Bar -->
-          <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid #f1f5f9; margin-bottom: 16px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <div style="width: 8px; height: 8px; border-radius: 50%; background: #4f46e5;"></div>
-              <h3 style="margin: 0; font-size: 15px; font-weight: 800; color: #0f172a; text-transform: capitalize;">
-                ${escapeHtml(dateFormatted)}
-              </h3>
-              <span style="font-size: 11px; font-weight: 700; color: #64748b; background: #f1f5f9; padding: 2px 8px; border-radius: 6px;">#${entries.length - idx}</span>
+          <!-- Testata Scheda: Data a sinistra, Ansia Complessiva a destra -->
+          <table style="width: 100%; border-collapse: collapse; background: #f8fafc; border-bottom: 1.5px solid #e2e8f0;">
+            <tr>
+              <td style="padding: 10px 16px; text-align: left; vertical-align: middle;">
+                <span style="display: inline; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; line-height: 1.2; vertical-align: baseline; margin-right: 6px;">REGISTRAZIONE CLINICA:</span>
+                <span style="display: inline; font-size: 11.5px; font-weight: 900; color: #0f172a; line-height: 1.2; vertical-align: baseline;">
+                  ${escapeHtml(dateFormatted)}
+                </span>
+              </td>
+              <td style="padding: 10px 16px; text-align: right; vertical-align: middle; white-space: nowrap;">
+                <span style="display: inline; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; line-height: 1.2; vertical-align: baseline; margin-right: 6px;">ANSIA COMPLESSIVA:</span>
+                ${getAnxietyBadgeHtml(e.overallAnxietyLevel ?? 0)}
+              </td>
+            </tr>
+          </table>
+          
+          <!-- Corpo Scheda: 6 blocchi clinici strutturati con metriche ancorate a destra -->
+          <div style="padding: 2px 0;">
+            
+            <!-- 1. Sintomi fisici -->
+            <div class="clinical-block" style="padding: 9px 16px; border-bottom: 1px solid #f1f5f9;">
+              <div style="font-size: 11px; font-weight: 800; color: #0f172a; margin-bottom: 3px;">
+                1. Sintomi fisici
+              </div>
+              <div style="font-size: 11.5px; color: ${physicalText === 'Nessuno specificato' ? '#94a3b8' : '#0f172a'}; font-weight: 500; line-height: 1.45; word-break: break-word;">
+                ${escapeHtml(physicalText)}
+              </div>
             </div>
 
-            ${
-              options.includeMetrics
-                ? `
-              <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
-                <span style="font-size: 11px; font-weight: 800; background: #eff6ff; color: #1d4ed8; padding: 4px 10px; border-radius: 6px; border: 1px solid #dbeafe;">
-                  Ansia: ${e.overallAnxietyLevel}/100
-                </span>
-                <span style="font-size: 11px; font-weight: 700; background: #f8fafc; color: #334155; padding: 4px 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                  Credenza: ${e.thoughtBeliefLevel}%
-                </span>
-                <span style="font-size: 11px; font-weight: 700; background: #f8fafc; color: #334155; padding: 4px 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                  Intensità Pensiero: ${e.negativeThoughtsIntensity}%
-                </span>
-                <span style="font-size: 11px; font-weight: 700; background: #f8fafc; color: #334155; padding: 4px 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                  Attenzione Corpo: ${e.bodyFocusedAttentionLevel}%
-                </span>
+            <!-- 2. Pensieri negativi -->
+            <div class="clinical-block" style="padding: 9px 16px; border-bottom: 1px solid #f1f5f9;">
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 4px;">
+                <tr>
+                  <td style="text-align: left; vertical-align: middle; font-size: 11px; font-weight: 800; color: #0f172a;">
+                    2. Pensieri negativi
+                  </td>
+                  <td style="text-align: right; vertical-align: middle; white-space: nowrap;">
+                    <span style="display: inline; font-size: 10.5px; font-weight: 700; color: #64748b; line-height: 1.2; vertical-align: baseline; margin-right: 6px;">Frequenza (0-100):</span>
+                    ${getFrequencyBadgeHtml(thoughtFreq)}
+                  </td>
+                </tr>
+              </table>
+              <div style="font-size: 11.5px; color: #0f172a; font-weight: 500; line-height: 1.45; word-break: break-word;">
+                ${escapeHtml(thoughtDesc)}
               </div>
-            `
-                : ''
-            }
+            </div>
+
+            <!-- 3. Attenzione focalizzata sul corpo -->
+            <div class="clinical-block" style="padding: 9px 16px; border-bottom: 1px solid #f1f5f9;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="text-align: left; vertical-align: middle; font-size: 11px; font-weight: 800; color: #0f172a;">
+                    3. Attenzione focalizzata sul corpo
+                  </td>
+                  <td style="text-align: right; vertical-align: middle; white-space: nowrap;">
+                    <span style="display: inline; font-size: 10.5px; font-weight: 700; color: #64748b; line-height: 1.2; vertical-align: baseline; margin-right: 6px;">Frequenza (0-100):</span>
+                    ${getBodyAttentionBadgeHtml(e.bodyFocusedAttentionLevel ?? 0)}
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- 4. Controllo dei sintomi / Check -->
+            <div class="clinical-block" style="padding: 9px 16px; border-bottom: 1px solid #f1f5f9;">
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 4px;">
+                <tr>
+                  <td style="text-align: left; vertical-align: middle; font-size: 11px; font-weight: 800; color: #0f172a;">
+                    4. Controllo dei sintomi / Check (azioni svolte)
+                  </td>
+                  <td style="text-align: right; vertical-align: middle; white-space: nowrap;">
+                    ${getCountPillHtml(e.symptomControlCount ?? 0)}
+                  </td>
+                </tr>
+              </table>
+              <div style="font-size: 11.5px; color: ${controlAction === 'Nessuna azione specificata' ? '#94a3b8' : '#0f172a'}; font-weight: 500; line-height: 1.45; word-break: break-word;">
+                ${escapeHtml(controlAction)}
+              </div>
+            </div>
+
+            <!-- 5. Ricerca di rassicurazioni -->
+            <div class="clinical-block" style="padding: 9px 16px; border-bottom: 1px solid #f1f5f9;">
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 4px;">
+                <tr>
+                  <td style="text-align: left; vertical-align: middle; font-size: 11px; font-weight: 800; color: #0f172a;">
+                    5. Ricerca di rassicurazioni (che tipo di richiesta e quante volte)
+                  </td>
+                  <td style="text-align: right; vertical-align: middle; white-space: nowrap;">
+                    ${getCountPillHtml(e.reassuranceSeekingCount ?? 0)}
+                  </td>
+                </tr>
+              </table>
+              <div style="font-size: 11.5px; color: ${reassuranceType === 'Nessuna richiesta specificata' ? '#94a3b8' : '#0f172a'}; font-weight: 500; line-height: 1.45; word-break: break-word;">
+                ${escapeHtml(reassuranceType)}
+              </div>
+            </div>
+
+            <!-- 6. Evitamento -->
+            <div class="clinical-block" style="padding: 9px 16px;">
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 4px;">
+                <tr>
+                  <td style="text-align: left; vertical-align: middle; font-size: 11px; font-weight: 800; color: #0f172a;">
+                    6. Evitamento (tipologia e situazioni)
+                  </td>
+                  <td style="text-align: right; vertical-align: middle; white-space: nowrap;">
+                    ${getCountPillHtml(e.avoidanceCount ?? 0)}
+                  </td>
+                </tr>
+              </table>
+              <div style="font-size: 11.5px; color: ${avoidanceType === 'Nessun evitamento specificato' ? '#94a3b8' : '#0f172a'}; font-weight: 500; line-height: 1.45; word-break: break-word;">
+                ${escapeHtml(avoidanceType)}
+              </div>
+            </div>
+
           </div>
 
-          <!-- Content Grid -->
-          <div style="display: flex; flex-direction: column; gap: 14px;">
-
-            ${
-              options.includeSituationTriggers && (e.situation || e.triggerFactors)
-                ? `
-              <div style="background: #f8fafc; border-left: 3px solid #3b82f6; border-radius: 6px; padding: 12px 14px;">
-                ${
-                  e.situation
-                    ? `
-                  <div style="margin-bottom: ${e.triggerFactors ? '8px' : '0'};">
-                    <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #1e40af; display: block; margin-bottom: 2px;">Situazione &amp; Contesto</span>
-                    <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #1e293b; white-space: pre-wrap;">${escapeHtml(e.situation)}</p>
-                  </div>
-                `
-                    : ''
-                }
-                ${
-                  e.triggerFactors
-                    ? `
-                  <div>
-                    <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #b45309; display: block; margin-bottom: 2px;">Fattori Scatenanti (Trigger)</span>
-                    <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #334155; white-space: pre-wrap;">${escapeHtml(e.triggerFactors)}</p>
-                  </div>
-                `
-                    : ''
-                }
-              </div>
-            `
-                : ''
-            }
-
-            ${
-              options.includeThoughts && (e.negativeThought || e.negativeThoughtsExtended || (e as any).alternativeThought)
-                ? `
-              <div style="background: #fff1f2; border-left: 3px solid #f43f5e; border-radius: 6px; padding: 12px 14px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-                  <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #9f1239;">Pensiero Automatico Negativo</span>
-                  <span style="font-size: 11px; font-weight: 700; color: #be123c;">Convinzione: ${e.thoughtBeliefLevel}%</span>
-                </div>
-                <p style="margin: 0; font-size: 13px; font-weight: 600; line-height: 1.6; color: #881337; white-space: pre-wrap;">${escapeHtml(e.negativeThought || 'N/D')}</p>
-                ${
-                  e.negativeThoughtsExtended
-                    ? `
-                  <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #fecdd3;">
-                    <span style="font-size: 10px; font-weight: 700; color: #9f1239; display: block; margin-bottom: 2px;">Approfondimento pensieri:</span>
-                    <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #4c0519; white-space: pre-wrap;">${escapeHtml(e.negativeThoughtsExtended)}</p>
-                  </div>
-                `
-                    : ''
-                }
-                ${
-                  (e as any).alternativeThought
-                    ? `
-                  <div style="margin-top: 8px; padding: 8px 10px; background: #ffffff; border-radius: 6px; border: 1px solid #fbcfe8;">
-                    <span style="font-size: 10px; font-weight: 800; color: #047857; text-transform: uppercase; display: block; margin-bottom: 2px;">Pensiero Alternativo Ristrutturato:</span>
-                    <p style="margin: 0; font-size: 12px; font-weight: 600; line-height: 1.5; color: #064e3b; white-space: pre-wrap;">${escapeHtml((e as any).alternativeThought)}</p>
-                  </div>
-                `
-                    : ''
-                }
-              </div>
-            `
-                : ''
-            }
-
-            ${
-              options.includeEmotionsSymptoms && (emotionLabels.length > 0 || symptomLabels.length > 0 || e.physicalSymptomsText)
-                ? `
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px;">
-                ${
-                  emotionLabels.length > 0
-                    ? `
-                  <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;">
-                    <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #475569; display: block; margin-bottom: 6px;">Emozioni Provate</span>
-                    <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-                      ${emotionLabels
-                        .map(
-                          (lbl) => `
-                        <span style="display: inline-block; font-size: 11px; font-weight: 700; color: #1e293b; background: #e2e8f0; padding: 2px 8px; border-radius: 4px;">${escapeHtml(lbl)}</span>
-                      `
-                        )
-                        .join('')}
-                    </div>
-                  </div>
-                `
-                    : ''
-                }
-                ${
-                  symptomLabels.length > 0 || e.physicalSymptomsText
-                    ? `
-                  <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;">
-                    <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #475569; display: block; margin-bottom: 6px;">Sintomi Fisici &amp; Corporei</span>
-                    <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: ${e.physicalSymptomsText ? '6px' : '0'};">
-                      ${symptomLabels
-                        .map(
-                          (lbl) => `
-                        <span style="display: inline-block; font-size: 11px; font-weight: 700; color: #0f172a; background: #e2e8f0; padding: 2px 8px; border-radius: 4px;">${escapeHtml(lbl)}</span>
-                      `
-                        )
-                        .join('')}
-                    </div>
-                    ${
-                      e.physicalSymptomsText
-                        ? `<p style="margin: 0; font-size: 11px; color: #334155; line-height: 1.4; white-space: pre-wrap;">${escapeHtml(e.physicalSymptomsText)}</p>`
-                        : ''
-                    }
-                  </div>
-                `
-                    : ''
-                }
-              </div>
-            `
-                : ''
-            }
-
-            ${
-              options.includeBehaviors &&
-              (e.symptomControlCount > 0 ||
-                e.reassuranceSeekingCount > 0 ||
-                e.avoidanceCount > 0 ||
-                e.symptomControlDescription ||
-                e.reassuranceSeekingType ||
-                e.avoidanceType)
-                ? `
-              <div style="background: #fafaf9; border: 1px solid #e7e5e4; border-radius: 8px; padding: 10px 12px;">
-                <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #78716c; display: block; margin-bottom: 6px;">Comportamenti di Controllo, Rassicurazione &amp; Evitamento</span>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; color: #292524;">
-                  ${
-                    e.symptomControlCount > 0 || e.symptomControlDescription
-                      ? `<div style="background: #ffffff; padding: 4px 8px; border-radius: 6px; border: 1px solid #d6d3d1;"><strong>Check Sintomi:</strong> ${e.symptomControlCount} volte ${e.symptomControlDescription ? `(${escapeHtml(e.symptomControlDescription)})` : ''}</div>`
-                      : ''
-                  }
-                  ${
-                    e.reassuranceSeekingCount > 0 || e.reassuranceSeekingType
-                      ? `<div style="background: #ffffff; padding: 4px 8px; border-radius: 6px; border: 1px solid #d6d3d1;"><strong>Rassicurazioni:</strong> ${e.reassuranceSeekingCount} volte ${e.reassuranceSeekingType ? `(${escapeHtml(e.reassuranceSeekingType)})` : ''}</div>`
-                      : ''
-                  }
-                  ${
-                    e.avoidanceCount > 0 || e.avoidanceType
-                      ? `<div style="background: #ffffff; padding: 4px 8px; border-radius: 6px; border: 1px solid #d6d3d1;"><strong>Evitamenti:</strong> ${e.avoidanceCount} volte ${e.avoidanceType ? `(${escapeHtml(e.avoidanceType)})` : ''}</div>`
-                      : ''
-                  }
-                </div>
-              </div>
-            `
-                : ''
-            }
-
-            ${
-              options.includeCustomQuestions && customAnswersList.length > 0
-                ? `
-              <div style="background: #fdf4ff; border-left: 3px solid #c026d3; border-radius: 6px; padding: 12px 14px;">
-                <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #86198f; display: block; margin-bottom: 8px;">Riflessioni &amp; Domande Guidate</span>
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                  ${customAnswersList
-                    .map(([qId, answer]) => {
-                      const q = questionMap.get(qId);
-                      const prompt = q?.prompt || 'Domanda Personalizzata';
-                      const category = q?.category || 'Riflessione';
-                      let answerFormatted = escapeHtml(String(answer));
-                      if (typeof answer === 'boolean') {
-                        answerFormatted = answer ? 'Sì (Confermato)' : 'No';
-                      } else if (typeof answer === 'number') {
-                        answerFormatted = `Punteggio: ${answer}`;
-                      }
-                      return `
-                      <div style="font-size: 12px;">
-                        <span style="font-weight: 700; color: #701a75;">[${escapeHtml(category)}] ${escapeHtml(prompt)}</span>
-                        <div style="margin-top: 2px; color: #0f172a; white-space: pre-wrap; font-weight: 500;">${answerFormatted}</div>
-                      </div>
-                    `;
-                    })
-                    .join('')}
-                </div>
-              </div>
-            `
-                : ''
-            }
-
-            ${
-              options.includeNotes && e.notes
-                ? `
-              <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 12px;">
-                <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #166534; display: block; margin-bottom: 4px;">Note Personali &amp; Spunti per la Seduta</span>
-                <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #14532d; white-space: pre-wrap;">${escapeHtml(e.notes)}</p>
-              </div>
-            `
-                : ''
-            }
-
-          </div>
-        </article>
+        </div>
       `;
     })
     .join('');
@@ -520,410 +493,188 @@ export function generateTherapistReportHtml(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Report Psicoterapia - Diariamente - ${escapeHtml(stats.dateRangeText)}</title>
+  <title>Report Clinico - Diariamente - ${escapeHtml(dateRangeDisplay)}</title>
   <style>
     @page {
       size: A4 portrait;
-      margin: 15mm 15mm 15mm 15mm;
+      margin: 10mm 10mm 10mm 10mm;
     }
 
     * {
-      box-sizing: border-box;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
+      box-sizing: border-box !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
 
-    body {
+    html, body {
+      background: #ffffff !important;
+      background-color: #ffffff !important;
+      color: #0f172a !important;
+      color-scheme: light !important;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      color: #0f172a;
-      background-color: #f8fafc;
-      margin: 0;
-      padding: 24px;
+      margin: 0 !important;
+      padding: 0 !important;
       line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
     }
 
     .report-container {
-      max-width: 900px;
-      margin: 0 auto;
-      background: #ffffff;
-      padding: 36px 40px;
-      border-radius: 16px;
-      box-shadow: 0 4px 20px -2px rgba(0,0,0,0.06);
-      border: 1px solid #e2e8f0;
+      width: 794px !important;
+      max-width: 794px !important;
+      margin: 0 auto !important;
+      background: #ffffff !important;
+      background-color: #ffffff !important;
+      padding: 24px 28px !important;
+      box-shadow: none !important;
+      box-sizing: border-box !important;
     }
 
-    /* Print specific reset */
+    header, .pdf-header {
+      background: #ffffff !important;
+      background-color: #ffffff !important;
+      color: #0f172a !important;
+    }
+
     @media print {
-      body {
-        background-color: #ffffff;
-        padding: 0;
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      html, body {
+        background: #ffffff !important;
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        padding: 0 !important;
+        margin: 0 !important;
       }
       .report-container {
-        box-shadow: none;
-        border: none;
-        padding: 0;
-        max-width: 100%;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        background-color: #ffffff !important;
+        box-shadow: none !important;
       }
-      .no-print {
-        display: none !important;
+      .clinical-entry-card {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
-      .day-card {
-        page-break-inside: avoid;
-        break-inside: avoid;
+      .table-wrapper {
+        page-break-inside: auto !important;
+      }
+      tr {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
     }
 
-    /* Action bar on screen */
-    .action-bar {
-      position: sticky;
-      top: 12px;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      background: #0f172a;
-      color: #ffffff;
-      padding: 12px 20px;
-      border-radius: 12px;
-      margin-bottom: 24px;
-      box-shadow: 0 10px 25px -5px rgba(15,23,42,0.3);
-    }
-
-    .action-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
-      border: none;
-      transition: all 0.15s ease;
-      text-decoration: none;
-    }
-
-    .action-btn-primary {
-      background: #4f46e5;
-      color: #ffffff;
-    }
-    .action-btn-primary:hover {
-      background: #4338ca;
-    }
-
-    .action-btn-secondary {
-      background: #334155;
-      color: #f8fafc;
-    }
-    .action-btn-secondary:hover {
-      background: #475569;
-    }
-
-    .kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-      gap: 12px;
-      margin: 20px 0 28px 0;
-    }
-
-    .kpi-card {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 14px 16px;
-    }
-
-    .kpi-title {
-      font-size: 11px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #64748b;
-      margin-bottom: 4px;
-    }
-
-    .kpi-value {
-      font-size: 24px;
-      font-weight: 900;
-      color: #0f172a;
-      line-height: 1.1;
-    }
-
-    .kpi-sub {
-      font-size: 11px;
-      font-weight: 600;
-      color: #64748b;
-      margin-top: 4px;
-    }
-
-    table.data-table {
-      width: 100%;
-      border-collapse: collapse;
+    .section-title {
+      border-bottom: 2px solid #4f46e5;
+      padding: 0 0 6px 0;
       font-size: 12px;
-      margin-bottom: 28px;
-      border-radius: 8px;
-      overflow: hidden;
-      border: 1px solid #e2e8f0;
-    }
-
-    table.data-table th {
-      background: #f1f5f9;
-      color: #0f172a;
-      font-weight: 800;
+      font-weight: 900;
       text-transform: uppercase;
-      font-size: 10px;
       letter-spacing: 0.05em;
-      padding: 10px 12px;
-      text-align: left;
-      border-bottom: 2px solid #cbd5e1;
+      color: #1e1b4b;
+      margin: 24px 0 14px 0;
+      display: block;
     }
   </style>
 </head>
 <body>
 
-  <!-- Floating screen control bar (hidden in print) -->
-  <div class="action-bar no-print">
-    <div style="display: flex; align-items: center; gap: 10px;">
-      <span style="font-size: 13px; font-weight: 800;">Diariamente — Report per Terapeuta</span>
-      <span style="font-size: 11px; background: rgba(255,255,255,0.15); padding: 2px 8px; border-radius: 4px;">
-        ${stats.totalEntries} registrazioni
-      </span>
-    </div>
-    <div style="display: flex; gap: 8px;">
-      <button class="action-btn action-btn-primary" onclick="window.print()">
-        🖨️ Stampa o Salva PDF
-      </button>
-      <button class="action-btn action-btn-secondary" onclick="downloadSelfHtml()">
-        📥 Scarica HTML
-      </button>
-      <button class="action-btn action-btn-secondary" onclick="window.close()">
-        ✕ Chiudi
-      </button>
-    </div>
-  </div>
-
   <div class="report-container">
     
-    <!-- HEADER SECTION -->
-    <header style="border-bottom: 2px solid #0f172a; padding-bottom: 20px; margin-bottom: 24px;">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">
-        <div>
-          <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #4f46e5; display: block; margin-bottom: 4px;">
-            DIARIAMENTE • MONITORAGGIO &amp; PSICOTERAPIA
-          </span>
-          <h1 style="margin: 0; font-size: 26px; font-weight: 900; color: #0f172a; letter-spacing: -0.02em;">
-            Report di Monitoraggio per la Seduta
-          </h1>
-          <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: #334155;">
-            ${options.patientName ? `<div><strong>Paziente / Utente:</strong> ${escapeHtml(options.patientName)}</div>` : ''}
-            <div><strong>Periodo:</strong> ${escapeHtml(stats.dateRangeText)}</div>
+    <!-- HEADER PDF ESSENZIALE E PERFETTAMENTE ALLINEATO SU TABELLA -->
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 18px; border-bottom: 1.5px solid #e2e8f0; background: #ffffff;">
+      <tr>
+        <td style="padding: 0 0 14px 0; text-align: left; vertical-align: middle;">
+          <div style="font-size: 24px; color: #4f46e5; font-weight: 900; line-height: 1.15; letter-spacing: -0.02em;">
+            DIARIAMENTE
           </div>
-        </div>
-
-        <div style="text-align: right; font-size: 11px; color: #64748b; background: #f8fafc; padding: 10px 14px; border-radius: 10px; border: 1px solid #e2e8f0;">
-          <div><strong>Data Generazione:</strong></div>
-          <div style="font-weight: 700; color: #0f172a; margin-top: 2px;">${escapeHtml(generatedAt)}</div>
-          <div style="margin-top: 4px; color: #047857; font-weight: 800;">● Dati locali verificati</div>
-        </div>
-      </div>
-    </header>
-
-    <!-- SINTESI INIZIALE - MEDIA VALORI NUMERICI (0-100 / MOOD) -->
-    <section style="margin-bottom: 24px;">
-      <div style="background: #ffffff; border: 1.5px solid #6366f1; border-radius: 14px; padding: 20px 22px; box-shadow: 0 4px 14px -3px rgba(99, 102, 241, 0.08);">
-        
-        <!-- Intestazione Scheda Riassuntiva -->
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px;">
-          <div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #6366f1;"></span>
-              <h2 style="margin: 0; font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.06em; color: #1e1b4b;">
-                Sintesi Iniziale • Medie Valutazioni (0-100 / Mood)
-              </h2>
-            </div>
-            <p style="margin: 4px 0 0 0; font-size: 12px; color: #475569; font-weight: 500;">
-              Medie calcolate unicamente per l'intervallo di date selezionato: <strong style="color: #0f172a;">${escapeHtml(stats.dateRangeText)}</strong>
-            </p>
+          <div style="font-size: 12px; color: #64748b; margin-top: 3px; font-weight: 600; line-height: 1.3;">
+            Report Clinico di Psicoterapia Cognitivo-Comportamentale
           </div>
-
-          <div style="text-align: right; background: #f8fafc; border: 1px solid #e2e8f0; padding: 6px 14px; border-radius: 8px;">
-            <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b;">Campione Periodo</div>
-            <div style="font-size: 15px; font-weight: 900; color: #0f172a;">
-              ${stats.totalEntries} ${stats.totalEntries === 1 ? 'registrazione' : 'registrazioni'}
+        </td>
+        <td style="padding: 0 0 14px 0; text-align: right; vertical-align: middle; white-space: nowrap;">
+          ${
+            options.patientName
+              ? `
+            <div style="font-size: 11.5px; font-weight: 600; color: #475569; margin-bottom: 3px;">
+              Paziente: <strong style="color: #0f172a; font-weight: 800;">${escapeHtml(options.patientName)}</strong>
             </div>
+          `
+              : ''
+          }
+          <div style="font-size: 11px; font-weight: 700; color: #64748b;">
+            ${escapeHtml(dateRangeDisplay)}
           </div>
-        </div>
+        </td>
+      </tr>
+    </table>
 
-        <!-- Griglia Metriche 0-100 -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;">
-          
-          <!-- Ansia / Mood -->
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; position: relative; overflow: hidden;">
-            <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: ${stats.avgAnxiety > 65 ? '#dc2626' : stats.avgAnxiety > 35 ? '#d97706' : '#16a34a'};"></div>
-            <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase;">Ansia / Mood</div>
-            <div style="display: flex; align-items: baseline; gap: 4px; margin-top: 4px;">
-              <span style="font-size: 26px; font-weight: 900; color: ${stats.avgAnxiety > 65 ? '#b91c1c' : stats.avgAnxiety > 35 ? '#b45309' : '#15803d'};">
-                ${stats.avgAnxiety}
-              </span>
-              <span style="font-size: 12px; font-weight: 700; color: #94a3b8;">/100</span>
-            </div>
-            <div style="height: 5px; width: 100%; background: #e2e8f0; border-radius: 9999px; margin-top: 8px; overflow: hidden;">
-              <div style="height: 100%; width: ${Math.min(100, Math.max(0, stats.avgAnxiety))}%; background: ${stats.avgAnxiety > 65 ? '#dc2626' : stats.avgAnxiety > 35 ? '#d97706' : '#16a34a'}; border-radius: 9999px;"></div>
-            </div>
-            <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-top: 6px;">
-              ${stats.avgAnxiety > 65 ? 'Fascia elevata' : stats.avgAnxiety > 35 ? 'Fascia moderata' : 'Fascia contenuta'}
-            </div>
-          </div>
-
-          <!-- Convinzione Pensiero -->
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; position: relative; overflow: hidden;">
-            <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #e11d48;"></div>
-            <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase;">Convinzione</div>
-            <div style="display: flex; align-items: baseline; gap: 4px; margin-top: 4px;">
-              <span style="font-size: 26px; font-weight: 900; color: #0f172a;">${stats.avgBelief}</span>
-              <span style="font-size: 12px; font-weight: 700; color: #94a3b8;">%</span>
-            </div>
-            <div style="height: 5px; width: 100%; background: #e2e8f0; border-radius: 9999px; margin-top: 8px; overflow: hidden;">
-              <div style="height: 100%; width: ${Math.min(100, Math.max(0, stats.avgBelief))}%; background: #e11d48; border-radius: 9999px;"></div>
-            </div>
-            <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-top: 6px;">Grado di credenza</div>
-          </div>
-
-          <!-- Intensità Pensiero -->
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; position: relative; overflow: hidden;">
-            <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #7c3aed;"></div>
-            <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase;">Intensità</div>
-            <div style="display: flex; align-items: baseline; gap: 4px; margin-top: 4px;">
-              <span style="font-size: 26px; font-weight: 900; color: #0f172a;">${stats.avgIntensity}</span>
-              <span style="font-size: 12px; font-weight: 700; color: #94a3b8;">%</span>
-            </div>
-            <div style="height: 5px; width: 100%; background: #e2e8f0; border-radius: 9999px; margin-top: 8px; overflow: hidden;">
-              <div style="height: 100%; width: ${Math.min(100, Math.max(0, stats.avgIntensity))}%; background: #7c3aed; border-radius: 9999px;"></div>
-            </div>
-            <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-top: 6px;">Impatto cognitivo</div>
-          </div>
-
-          <!-- Attenzione al Corpo -->
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; position: relative; overflow: hidden;">
-            <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #059669;"></div>
-            <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase;">Attenzione Corpo</div>
-            <div style="display: flex; align-items: baseline; gap: 4px; margin-top: 4px;">
-              <span style="font-size: 26px; font-weight: 900; color: #0f172a;">${stats.avgBodyAttention}</span>
-              <span style="font-size: 12px; font-weight: 700; color: #94a3b8;">%</span>
-            </div>
-            <div style="height: 5px; width: 100%; background: #e2e8f0; border-radius: 9999px; margin-top: 8px; overflow: hidden;">
-              <div style="height: 100%; width: ${Math.min(100, Math.max(0, stats.avgBodyAttention))}%; background: #059669; border-radius: 9999px;"></div>
-            </div>
-            <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-top: 6px;">Ipervigilanza somatica</div>
-          </div>
-
-          <!-- Media Globale Valutazioni -->
-          <div style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 10px; padding: 12px 14px; position: relative; overflow: hidden;">
-            <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #4f46e5;"></div>
-            <div style="font-size: 11px; font-weight: 800; color: #4338ca; text-transform: uppercase;">Media Globale</div>
-            <div style="display: flex; align-items: baseline; gap: 4px; margin-top: 4px;">
-              <span style="font-size: 26px; font-weight: 900; color: #312e81;">${stats.avgNumericScore}</span>
-              <span style="font-size: 12px; font-weight: 700; color: #6366f1;">/100</span>
-            </div>
-            <div style="height: 5px; width: 100%; background: #c7d2fe; border-radius: 9999px; margin-top: 8px; overflow: hidden;">
-              <div style="height: 100%; width: ${Math.min(100, Math.max(0, stats.avgNumericScore))}%; background: #4f46e5; border-radius: 9999px;"></div>
-            </div>
-            <div style="font-size: 10px; font-weight: 700; color: #4338ca; margin-top: 6px;">Indice medio periodo</div>
-          </div>
-
-        </div>
-
-      </div>
-    </section>
-
-    <!-- SUMMARY TABLE -->
-    ${
-      options.includeSummaryTable && entries.length > 0
-        ? `
-      <section style="margin-bottom: 32px;">
-        <h2 style="margin: 0 0 10px 0; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #475569;">
-          Tabella Panoramica delle Valutazioni
-        </h2>
-        <div style="overflow-x: auto;">
-          <table class="data-table">
+    <!-- SEZIONE 1: TABELLA ANALISI SITUAZIONALI -->
+    <section>
+      <div class="section-title">SEZIONE 1: TABELLA ANALISI SITUAZIONALI</div>
+      
+      ${
+        entries.length > 0
+          ? `
+        <div class="table-wrapper" style="border-radius: 10px; overflow: hidden; border: 1.5px solid #e2e8f0; background: #ffffff; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);">
+          <table style="width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 11.5px;">
+            <colgroup>
+              <col style="width: 16%;">
+              <col style="width: 27%;">
+              <col style="width: 22%;">
+              <col style="width: 16%;">
+              <col style="width: 19%;">
+            </colgroup>
             <thead>
-              <tr>
-                <th>Data &amp; Ora</th>
-                <th style="text-align: center;">Ansia</th>
-                <th style="text-align: center;">Credenza</th>
-                <th style="text-align: center;">Intensità</th>
-                <th style="text-align: center;">Attenzione</th>
-                <th>Emozioni Principali</th>
-                <th>Check / Evitamenti</th>
+              <tr style="background: #eef2ff;">
+                <th style="padding: 9px 12px; color: #1e1b4b; font-weight: 900; font-size: 10.5px; border-bottom: 1.5px solid #c7d2fe; text-align: left; text-transform: uppercase; letter-spacing: 0.04em;">DATA</th>
+                <th style="padding: 9px 12px; color: #1e1b4b; font-weight: 900; font-size: 10.5px; border-bottom: 1.5px solid #c7d2fe; text-align: left; text-transform: uppercase; letter-spacing: 0.04em;">SITUAZIONE</th>
+                <th style="padding: 9px 12px; color: #1e1b4b; font-weight: 900; font-size: 10.5px; border-bottom: 1.5px solid #c7d2fe; text-align: left; text-transform: uppercase; letter-spacing: 0.04em;">FATTORI SCATENANTI</th>
+                <th style="padding: 9px 12px; color: #1e1b4b; font-weight: 900; font-size: 10.5px; border-bottom: 1.5px solid #c7d2fe; text-align: left; text-transform: uppercase; letter-spacing: 0.04em;">EMOZIONI</th>
+                <th style="padding: 9px 12px; color: #1e1b4b; font-weight: 900; font-size: 10.5px; border-bottom: 1.5px solid #c7d2fe; text-align: left; text-transform: uppercase; letter-spacing: 0.04em;">PENSIERO NEGATIVO (0-100)</th>
               </tr>
             </thead>
             <tbody>
-              ${summaryTableRows}
+              ${situationalTableRows}
             </tbody>
           </table>
         </div>
-      </section>
-    `
-        : ''
-    }
-
-    <!-- DETAILED DAILY LOGS -->
-    <section>
-      <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 18px;">
-        <h2 style="margin: 0; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #475569;">
-          Registro Dettagliato Giorno per Giorno
-        </h2>
-      </div>
-
-      ${
-        entries.length > 0
-          ? detailedEntriesHtml
-          : '<p style="color: #64748b; font-style: italic; padding: 20px 0;">Nessuna registrazione trovata per il periodo e i filtri selezionati.</p>'
+      `
+          : '<p style="color: #64748b; font-style: italic; padding: 10px 0;">Nessuna registrazione per il periodo selezionato.</p>'
       }
     </section>
 
-    <!-- FOOTER -->
-    <footer style="margin-top: 36px; padding-top: 16px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #64748b;">
-      <div>
-        <strong>Diariamente</strong>
-      </div>
-      <div>
-        Pagina di monitoraggio per uso psicoterapeutico
-      </div>
-    </footer>
+    <!-- SEZIONE 2: REGISTRO CLINICO DETTAGLIATO -->
+    <section>
+      <div class="section-title">SEZIONE 2: REGISTRO CLINICO DETTAGLIATO</div>
+      
+      ${
+        entries.length > 0
+          ? detailedEntriesHtml
+          : '<p style="color: #64748b; font-style: italic; padding: 10px 0;">Nessuna registrazione per il periodo selezionato.</p>'
+      }
+    </section>
 
   </div>
 
-  <script>
-    function downloadSelfHtml() {
-      const htmlContent = '<!DOCTYPE html>' + document.documentElement.outerHTML;
-      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'report-clinico-diariamente-' + new Date().toISOString().slice(0, 10) + '.html';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    }
-  </script>
 </body>
 </html>`;
 }
 
 /**
- * Generate Raw Tabular CSV (Data | Domanda | Risposta | Valore 0-100)
+ * Generate Raw Tabular CSV matching the exact sections and columns of the clinical sheet
  */
 export function generateTherapistCsv(
   entries: CbtEntry[],
   allTags: Tag[],
-  customQuestions: CustomQuestion[],
-  options: TherapistReportFilterOptions
+  _customQuestions: CustomQuestion[],
+  _options: TherapistReportFilterOptions
 ): string {
   const tagMap = new Map(allTags.map((t) => [t.id, t.label]));
-  const questionMap = new Map(customQuestions.map((q) => [q.id, q]));
 
   const escapeCsv = (val: unknown): string => {
     if (val === null || val === undefined) return '""';
@@ -931,129 +682,426 @@ export function generateTherapistCsv(
     return `"${s}"`;
   };
 
-  // Header row as requested: Data | Domanda | Risposta | Valore 0-100
-  // We also add Evento_ID and Categoria for pristine sorting and filtering in Excel
   let csv = '\uFEFF'; // UTF-8 BOM for Microsoft Excel compatibility
-  csv += ['Data e Ora', 'Categoria', 'Domanda o Metrica', 'Risposta o Dettaglio', 'Valore (0-100)'].map(escapeCsv).join(',') + '\r\n';
+
+  // SEZIONE 1: TABELLA ANALISI SITUAZIONALI
+  csv += escapeCsv('SEZIONE 1: TABELLA ANALISI SITUAZIONALI') + '\r\n';
+  csv += ['DATA', 'SITUAZIONE', 'FATTORI SCATENANTI', 'EMOZIONI', 'PENSIERO NEGATIVO (0-100)'].map(escapeCsv).join(',') + '\r\n';
 
   entries.forEach((e) => {
-    const d = e.eventDatetime;
+    const d = new Date(e.eventDatetime).toLocaleString('it-IT', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const situation = e.situation || '';
+    const triggers = e.triggerFactors || '';
+    const emoList = (e.emotionTagIds || []).map((id) => tagMap.get(id) || id).join(', ');
+    const thoughtBelief = e.thoughtBeliefLevel !== undefined ? e.thoughtBeliefLevel : 0;
+    const thoughtCell = e.negativeThought
+      ? `${e.negativeThought} (Quanto credo al pensiero: ${thoughtBelief}/100)`
+      : `(Quanto credo al pensiero: ${thoughtBelief}/100)`;
 
-    // Helper to push row
-    const addRow = (cat: string, question: string, answer: string, val100: number | string = '') => {
-      csv += [d, cat, question, answer, val100].map(escapeCsv).join(',') + '\r\n';
-    };
+    csv += [d, situation, triggers, emoList, thoughtCell].map(escapeCsv).join(',') + '\r\n';
+  });
 
-    if (options.includeMetrics) {
-      addRow('Valutazioni', 'Livello di Ansia Complessiva', `${e.overallAnxietyLevel} su 100`, e.overallAnxietyLevel);
-      addRow('Valutazioni', 'Credenza nel Pensiero Automatico', `${e.thoughtBeliefLevel}%`, e.thoughtBeliefLevel);
-      addRow('Valutazioni', 'Intensità del Pensiero Negativo', `${e.negativeThoughtsIntensity}%`, e.negativeThoughtsIntensity);
-      addRow('Valutazioni', 'Attenzione Focalizzata sul Corpo', `${e.bodyFocusedAttentionLevel}%`, e.bodyFocusedAttentionLevel);
+  csv += '\r\n'; // Blank separator row
+
+  // SEZIONE 2: REGISTRO CLINICO DETTAGLIATO
+  csv += escapeCsv('SEZIONE 2: REGISTRO CLINICO DETTAGLIATO') + '\r\n';
+  csv += [
+    'DATA',
+    'Sintomi fisici',
+    'Pensieri negativi (descrizione e frequenza 0-100)',
+    'Attenzione focalizzata sul corpo (frequenza)',
+    'Controllo dei sintomi / Check (azioni svolte e numero di volte)',
+    'Ricerca di rassicurazioni (che tipo di richiesta e quante volte)',
+    'Evitamento (tipologia e numero di volte)',
+    'Ansia complessiva (0-100)',
+  ].map(escapeCsv).join(',') + '\r\n';
+
+  entries.forEach((e) => {
+    const d = new Date(e.eventDatetime).toLocaleString('it-IT', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const physTags = (e.physicalSymptomTagIds || []).map((id) => tagMap.get(id) || id);
+    const physDetail = e.physicalSymptomsText ? e.physicalSymptomsText.trim() : '';
+    let physicalText = '';
+    if (physTags.length > 0 && physDetail) {
+      physicalText = `${physTags.join(', ')} (${physDetail})`;
+    } else if (physTags.length > 0) {
+      physicalText = physTags.join(', ');
+    } else if (physDetail) {
+      physicalText = physDetail;
+    } else {
+      physicalText = 'Nessuno specificato';
     }
 
-    if (options.includeSituationTriggers) {
-      if (e.situation) addRow('Situazione', 'Situazione e Contesto', e.situation, '');
-      if (e.triggerFactors) addRow('Situazione', 'Fattori Scatenanti (Trigger)', e.triggerFactors, '');
-    }
+    const thoughtDesc = e.negativeThoughtsExtended || e.negativeThought || 'Nessuna descrizione';
+    const thoughtFreq = e.negativeThoughtsIntensity ?? e.thoughtBeliefLevel ?? 0;
+    const thoughtsCell = `${thoughtDesc} (Frequenza: ${thoughtFreq}/100)`;
 
-    if (options.includeThoughts) {
-      if (e.negativeThought) addRow('Pensieri', 'Pensiero Automatico Negativo', e.negativeThought, e.thoughtBeliefLevel);
-      if (e.negativeThoughtsExtended) addRow('Pensieri', 'Approfondimento Pensieri Negativi', e.negativeThoughtsExtended, e.negativeThoughtsIntensity);
-      if ((e as any).alternativeThought) addRow('Pensieri', 'Pensiero Alternativo / Ristrutturazione', (e as any).alternativeThought, '');
-    }
+    const bodyAttentionCell = `${e.bodyFocusedAttentionLevel ?? 0}/100`;
 
-    if (options.includeEmotionsSymptoms) {
-      const emotions = (e.emotionTagIds || []).map((id) => tagMap.get(id) || id).join(', ');
-      if (emotions) addRow('Emozioni', 'Emozioni Provate', emotions, '');
+    const controlAction = e.symptomControlDescription ? e.symptomControlDescription.trim() : 'Nessuna azione specificata';
+    const controlCount = `${e.symptomControlCount ?? 0} ${e.symptomControlCount === 1 ? 'volta' : 'volte'}`;
+    const checkCell = `${controlAction} (${controlCount})`;
 
-      const symptoms = (e.physicalSymptomTagIds || []).map((id) => tagMap.get(id) || id).join(', ');
-      if (symptoms) addRow('Sintomi', 'Sintomi Fisici', symptoms, '');
-      if (e.physicalSymptomsText) addRow('Sintomi', 'Dettaglio Sintomi Fisici', e.physicalSymptomsText, '');
-    }
+    const reassType = e.reassuranceSeekingType ? e.reassuranceSeekingType.trim() : 'Nessuna richiesta specificata';
+    const reassCount = `${e.reassuranceSeekingCount ?? 0} ${e.reassuranceSeekingCount === 1 ? 'volta' : 'volte'}`;
+    const reassuranceCell = `${reassType} (${reassCount})`;
 
-    if (options.includeBehaviors) {
-      if (e.symptomControlCount > 0 || e.symptomControlDescription) {
-        addRow('Comportamenti', 'Check di Controllo Sintomi', `${e.symptomControlCount} volte - ${e.symptomControlDescription || 'Senza descrizione'}`, '');
-      }
-      if (e.reassuranceSeekingCount > 0 || e.reassuranceSeekingType) {
-        addRow('Comportamenti', 'Rassicurazioni Cercate', `${e.reassuranceSeekingCount} volte - ${e.reassuranceSeekingType || 'Senza dettaglio'}`, '');
-      }
-      if (e.avoidanceCount > 0 || e.avoidanceType) {
-        addRow('Comportamenti', 'Evitamenti Messi in Atto', `${e.avoidanceCount} volte - ${e.avoidanceType || 'Senza dettaglio'}`, '');
-      }
-    }
+    const avoidType = e.avoidanceType ? e.avoidanceType.trim() : 'Nessun evitamento specificato';
+    const avoidCount = `${e.avoidanceCount ?? 0} ${e.avoidanceCount === 1 ? 'volta' : 'volte'}`;
+    const avoidanceCell = `${avoidType} (${avoidCount})`;
 
-    if (options.includeCustomQuestions && e.customAnswers) {
-      Object.entries(e.customAnswers).forEach(([qId, val]) => {
-        if (val === undefined || val === '') return;
-        const q = questionMap.get(qId);
-        const prompt = q?.prompt || 'Domanda Personalizzata';
-        const cat = q?.category || 'Riflessione';
-        const numVal = typeof val === 'number' ? val : '';
-        const strVal = typeof val === 'boolean' ? (val ? 'Sì' : 'No') : String(val);
-        addRow(`Custom: ${cat}`, prompt, strVal, numVal);
-      });
-    }
+    const anxietyCell = `${e.overallAnxietyLevel ?? 0}/100`;
 
-    if (options.includeNotes && e.notes) {
-      addRow('Note', 'Note e Riflessioni Personali', e.notes, '');
-    }
+    csv += [
+      d,
+      physicalText,
+      thoughtsCell,
+      bodyAttentionCell,
+      checkCell,
+      reassuranceCell,
+      avoidanceCell,
+      anxietyCell,
+    ].map(escapeCsv).join(',') + '\r\n';
   });
 
   return csv;
 }
 
 /**
- * Export a dedicated clinical report for a single journal entry
+ * Direct PDF generation and file download using jsPDF + html2canvas
  */
-export function exportSingleEntryPdf(
+export async function exportTherapistPdf(
+  entries: CbtEntry[],
+  allTags: Tag[],
+  customQuestions: CustomQuestion[],
+  options: TherapistReportFilterOptions,
+  onToast?: (msg: string) => void
+): Promise<void> {
+  if (entries.length === 0) {
+    onToast?.('Nessuna registrazione da esportare');
+    return;
+  }
+
+  onToast?.('Generazione PDF in corso...');
+
+  const html = generateTherapistReportHtml(entries, allTags, customQuestions, options);
+  const dateIso = new Date().toISOString().slice(0, 10);
+  const filename = `report-clinico-diariamente-${dateIso}.pdf`;
+
+  // Prevent Dark Mode inheritance by temporarily removing .dark and theme classes while capturing
+  const htmlEl = document.documentElement;
+  const hadDark = htmlEl.classList.contains('dark');
+  const savedDataTheme = htmlEl.getAttribute('data-theme');
+  if (hadDark) {
+    htmlEl.classList.remove('dark');
+  }
+  htmlEl.setAttribute('data-theme', 'light');
+
+  // Create temporary container for high-fidelity rendering - exact A4 794px width
+  const container = document.createElement('div');
+  container.id = 'pdf-export-scratchpad';
+  container.className = 'light';
+  container.setAttribute('data-theme', 'light');
+  // Use absolute positioning with top/left 0, z-index -99999 and opacity 0.01
+  // This ensures mobile WebKit / iOS Safari actually layouts and calculates text metrics without culling offscreen elements!
+  container.style.position = 'absolute';
+  container.style.left = '0';
+  container.style.top = '0';
+  container.style.width = '794px';
+  container.style.backgroundColor = '#ffffff';
+  container.style.color = '#0f172a';
+  container.style.colorScheme = 'light';
+  container.style.zIndex = '-99999';
+  container.style.opacity = '0.01';
+  container.style.pointerEvents = 'none';
+  container.style.boxSizing = 'border-box';
+  container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+  container.innerHTML = html;
+  document.body.appendChild(container);
+
+  try {
+    // Allow DOM to finish layout, fonts and image rendering
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    const isMobile =
+      typeof navigator !== 'undefined' &&
+      (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+        (typeof window !== 'undefined' && window.innerWidth < 768));
+
+    // Scale: 2 for desktop (~200 DPI), 1.5 on mobile (~150 DPI) to conserve GPU canvas memory on smartphones
+    let scale = isMobile ? 1.5 : 2;
+
+    const containerHeight = container.offsetHeight || 2000;
+    const maxSafeCanvasHeight = isMobile ? 8000 : 16000;
+    if (containerHeight * scale > maxSafeCanvasHeight) {
+      scale = Math.max(1, Math.floor((maxSafeCanvasHeight / containerHeight) * 10) / 10);
+    }
+
+    // Collect DOM break candidates relative to container
+    const containerRect = container.getBoundingClientRect();
+
+    interface BreakPoint {
+      canvasY: number;
+      priority: number; // 1 = highest (before card, table row, section title), 2 = inside card block
+    }
+    const breakPoints: BreakPoint[] = [];
+
+    // 1. Break before section titles (priority 1) with small 6px top margin buffer
+    container.querySelectorAll('.section-title').forEach((el) => {
+      const rect = el.getBoundingClientRect();
+      breakPoints.push({
+        canvasY: Math.round((rect.top - containerRect.top - 6) * scale),
+        priority: 1,
+      });
+    });
+
+    // 2. Break before table rows in section 1 (priority 1)
+    container.querySelectorAll('tbody tr').forEach((el) => {
+      const rect = el.getBoundingClientRect();
+      breakPoints.push({
+        canvasY: Math.round((rect.top - containerRect.top) * scale),
+        priority: 1,
+      });
+    });
+
+    // 3. Break before clinical entry cards in section 2 (priority 1) with 8px buffer so whitespace is preserved
+    container.querySelectorAll('.clinical-entry-card').forEach((el) => {
+      const rect = el.getBoundingClientRect();
+      breakPoints.push({
+        canvasY: Math.round((rect.top - containerRect.top - 8) * scale),
+        priority: 1,
+      });
+
+      // Also collect blocks inside each card (priority 2) for very long entries
+      el.querySelectorAll('.clinical-block').forEach((bEl) => {
+        const bRect = bEl.getBoundingClientRect();
+        breakPoints.push({
+          canvasY: Math.round((bRect.top - containerRect.top) * scale),
+          priority: 2,
+        });
+      });
+    });
+
+    // Sort ascending
+    breakPoints.sort((a, b) => a.canvasY - b.canvasY);
+
+    const canvas = await html2canvas(container, {
+      scale, // crisp high resolution adapted for mobile and desktop
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      windowWidth: 794,
+      scrollX: 0,
+      scrollY: 0,
+    });
+
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      compress: true,
+    });
+
+    const pageWidth = 210; // A4 mm
+    const pageHeight = 297; // A4 mm
+    const margin = 10; // 10mm margins on all sides (giving 190mm content width)
+    const contentWidth = pageWidth - margin * 2; // 190 mm
+    const contentHeight = pageHeight - margin * 2; // 277 mm
+
+    // Max printable content height per page in canvas pixels
+    const maxPageHeightPx = Math.floor((canvas.width * contentHeight) / contentWidth);
+
+    let currentY = 0;
+    let pageIndex = 0;
+
+    while (currentY < canvas.height - 10) {
+      if (pageIndex > 0) {
+        pdf.addPage();
+      }
+
+      const remainingPx = canvas.height - currentY;
+      let sliceHeightPx: number;
+
+      if (remainingPx <= maxPageHeightPx) {
+        // Fits entirely on current page
+        sliceHeightPx = remainingPx;
+      } else {
+        const targetY = currentY + maxPageHeightPx;
+        const minAcceptableY = currentY + maxPageHeightPx * 0.35; // At least 35% of page filled
+
+        // 1. Search for best priority 1 break point (card top, table row, section title)
+        let chosenY = -1;
+        for (let i = breakPoints.length - 1; i >= 0; i--) {
+          const pt = breakPoints[i];
+          if (pt.priority === 1 && pt.canvasY <= targetY && pt.canvasY >= minAcceptableY) {
+            chosenY = pt.canvasY;
+            break;
+          }
+        }
+
+        // 2. If no priority 1 found, search priority 2 (blocks inside long cards)
+        if (chosenY === -1) {
+          for (let i = breakPoints.length - 1; i >= 0; i--) {
+            const pt = breakPoints[i];
+            if (pt.canvasY <= targetY && pt.canvasY >= minAcceptableY) {
+              chosenY = pt.canvasY;
+              break;
+            }
+          }
+        }
+
+        // 3. If still no breakpoint found, slice at max page height
+        if (chosenY !== -1) {
+          sliceHeightPx = chosenY - currentY;
+        } else {
+          sliceHeightPx = maxPageHeightPx;
+        }
+      }
+
+      const sliceHeightMm = (sliceHeightPx * contentWidth) / canvas.width;
+
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = sliceHeightPx;
+
+      const ctx = pageCanvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+        ctx.drawImage(
+          canvas,
+          0,
+          currentY,
+          canvas.width,
+          sliceHeightPx,
+          0,
+          0,
+          canvas.width,
+          sliceHeightPx
+        );
+
+        const imgData = pageCanvas.toDataURL('image/jpeg', 0.98);
+        pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, sliceHeightMm, undefined, 'FAST');
+      }
+
+      currentY += sliceHeightPx;
+      pageIndex++;
+    }
+
+    const pdfBlob = pdf.output('blob');
+    const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
+
+    // 1. Web Share API on mobile (iOS Safari / Android Chrome / PWA):
+    // Allows immediate saving to Files (iCloud / On My iPhone), sharing directly to WhatsApp/Mail for the therapist, AirDrop, etc.
+    if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+      try {
+        await navigator.share({
+          files: [pdfFile],
+          title: 'Report Clinico - DiariaMente',
+          text: 'Report clinico CBT per la terapeuta generato da DiariaMente',
+        });
+        onToast?.('PDF salvato / condiviso con successo!');
+        return;
+      } catch (shareErr: any) {
+        if (shareErr?.name === 'AbortError') {
+          // User intentionally closed the share sheet
+          return;
+        }
+        console.warn('Web Share failed or blocked, proceeding to direct download:', shareErr);
+      }
+    }
+
+    // 2. Direct browser download
+    try {
+      pdf.save(filename);
+      onToast?.('PDF scaricato con successo!');
+    } catch (saveErr) {
+      console.warn('pdf.save failed, using blob link fallback:', saveErr);
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      link.rel = 'noopener';
+      if (isMobile) {
+        link.target = '_blank';
+      }
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        link.remove();
+        URL.revokeObjectURL(blobUrl);
+      }, 4000);
+      onToast?.('PDF scaricato con successo!');
+    }
+  } catch (err) {
+    console.error('Error generating PDF with jsPDF/html2canvas:', err);
+    // Reliable fallback: direct HTML file download ready to open and print
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const htmlFile = new File([blob], `report-clinico-diariamente-${dateIso}.html`, { type: 'text/html' });
+    if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [htmlFile] })) {
+      try {
+        await navigator.share({ files: [htmlFile], title: htmlFile.name });
+        onToast?.('Report condiviso con successo!');
+        return;
+      } catch (_) {}
+    }
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = `report-clinico-diariamente-${dateIso}.html`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+    }, 4000);
+    onToast?.('Scaricato report alternativo per la stampa');
+  } finally {
+    try {
+      container.remove();
+    } catch (_) {}
+    if (hadDark) {
+      htmlEl.classList.add('dark');
+    }
+    if (savedDataTheme) {
+      htmlEl.setAttribute('data-theme', savedDataTheme);
+    } else {
+      htmlEl.removeAttribute('data-theme');
+    }
+  }
+}
+
+/**
+ * Export a dedicated clinical report for a single journal entry directly to PDF
+ */
+export async function exportSingleEntryPdf(
   entry: CbtEntry,
   allTags: Tag[],
   customQuestions: CustomQuestion[],
   onToast?: (msg: string) => void
-): void {
+): Promise<void> {
   const patientName = (typeof localStorage !== 'undefined' && localStorage.getItem('diariamente_patient_name')) || '';
   const dateIso = entry.eventDatetime.slice(0, 10);
-  const formattedDate = new Date(entry.eventDatetime).toLocaleDateString('it-IT', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
 
   const options: TherapistReportFilterOptions = {
     patientName,
     period: 'custom',
     customStartDate: dateIso,
     customEndDate: dateIso,
-    includeMetrics: true,
-    includeSituationTriggers: true,
-    includeThoughts: true,
-    includeEmotionsSymptoms: true,
-    includeBehaviors: true,
-    includeCustomQuestions: true,
-    includeNotes: true,
-    includeSummaryTable: false,
     sortOrder: 'asc',
   };
 
-  const html = generateTherapistReportHtml([entry], allTags, customQuestions, options);
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const blobUrl = URL.createObjectURL(blob);
-
-  // Attempt to open print preview in new window
-  const printWin = window.open(blobUrl, '_blank');
-  if (!printWin) {
-    // Popup was blocked, trigger direct download
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = `diariamente-report-${dateIso}.html`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    onToast?.(`Report scaricato per: ${formattedDate}`);
-  } else {
-    onToast?.(`Report PDF pronto per la stampa: ${formattedDate}`);
-  }
+  await exportTherapistPdf([entry], allTags, customQuestions, options, onToast);
 }
-
