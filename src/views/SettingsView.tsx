@@ -35,13 +35,10 @@ import {
   Mail,
   Send,
   ShieldAlert,
-  FileCode,
   AlertCircle,
-  Server,
   AlertTriangle
 } from 'lucide-react';
 import { sendPinRecoveryEmail } from '../lib/supabase';
-import { SupabaseEmailTemplateModal } from '../components/SupabaseEmailTemplateModal';
 
 interface SettingsViewProps {
   pinEnabled: boolean;
@@ -120,14 +117,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   );
   const [emailError, setEmailError] = useState<string | null>(null);
   const [isTestingEmail, setIsTestingEmail] = useState(false);
-  const [emailTestFeedback, setEmailTestFeedback] = useState<string | null>(null);
   const [emailTestStatus, setEmailTestStatus] = useState<{
     success: boolean;
     message: string;
     rawError?: string;
   } | null>(null);
-  const [showEmailTemplateModal, setShowEmailTemplateModal] = useState(false);
-  const [emailModalTab, setEmailModalTab] = useState<'preview' | 'code' | 'instructions' | 'smtp'>('preview');
 
   React.useEffect(() => {
     if (recoveryEmail) {
@@ -241,13 +235,10 @@ NOTIFY pgrst, 'reload schema';`;
     }
     setIsTestingEmail(true);
     setEmailTestStatus(null);
-    setEmailTestFeedback(null);
     try {
       const res = await sendPinRecoveryEmail(targetEmail, pinCode);
       setEmailTestStatus(res);
-      if (res.success) {
-        setEmailTestFeedback(res.message);
-      } else {
+      if (!res.success) {
         const errorDetail = res.rawError || res.message;
         console.warn("Invio email di test non riuscito:", errorDetail);
       }
@@ -872,45 +863,6 @@ NOTIFY pgrst, 'reload schema';`;
                       )}
                     </div>
                   )}
-
-                  {/* Help Cards: Template & SMTP Configuration */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEmailModalTab('preview');
-                        setShowEmailTemplateModal(true);
-                      }}
-                      className="flex items-center justify-between p-3 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/15 active:scale-98 border border-indigo-500/25 text-indigo-500 dark:text-indigo-400 text-xs font-bold transition-all cursor-pointer text-left"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <FileCode className="w-4 h-4 shrink-0" />
-                        <div>
-                          <span className="block font-bold">Template Email</span>
-                          <span className="text-[10px] text-[var(--text-secondary)] font-normal">HTML Apple-style</span>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-3.5 h-3.5 shrink-0" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEmailModalTab('smtp');
-                        setShowEmailTemplateModal(true);
-                      }}
-                      className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/15 active:scale-98 border border-amber-500/25 text-amber-600 dark:text-amber-400 text-xs font-bold transition-all cursor-pointer text-left"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <Server className="w-4 h-4 shrink-0" />
-                        <div>
-                          <span className="block font-bold">Configura Server SMTP</span>
-                          <span className="text-[10px] text-[var(--text-secondary)] font-normal">Per ricevere email</span>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-3.5 h-3.5 shrink-0" />
-                    </button>
-                  </div>
                 </div>
               )}
             </div>
@@ -1116,14 +1068,6 @@ NOTIFY pgrst, 'reload schema';`;
           <strong className="font-black text-[var(--text-primary)]">100% Client-Side e Privato:</strong> I tuoi dati restano esclusivamente sul tuo dispositivo in memoria locale e sono trasferibili in sicurezza tramite file di backup `.json`.
         </span>
       </div>
-
-      {/* Supabase Email Template & SMTP Setup Modal */}
-      <SupabaseEmailTemplateModal
-        isOpen={showEmailTemplateModal}
-        onClose={() => setShowEmailTemplateModal(false)}
-        onShowToast={(msg) => setEmailTestFeedback(msg)}
-        initialTab={emailModalTab}
-      />
     </div>
   );
 };
