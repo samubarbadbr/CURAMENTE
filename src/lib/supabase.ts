@@ -121,9 +121,15 @@ export async function loadDataFromCloud(pin: string) {
 }
 
 /**
- * Sends a PIN recovery email via Supabase Auth resetPasswordForEmail / OTP
+ * Sends a PIN recovery email.
+ * First attempts to invoke the Supabase Edge Function 'recover-pin' to deliver
+ * the actual PIN inside the clean, spotlight graphical email template.
+ * If the Edge Function is not deployed, seamlessly uses Supabase Auth OTP / Reset Password.
  */
-export async function sendPinRecoveryEmail(email: string): Promise<{
+export async function sendPinRecoveryEmail(
+  email: string,
+  pin?: string
+): Promise<{
   success: boolean;
   message: string;
   isRateLimited?: boolean;
@@ -134,10 +140,43 @@ export async function sendPinRecoveryEmail(email: string): Promise<{
     return { success: false, message: 'Email non specificata' };
   }
 
-  try {
-    const redirectUrl = typeof window !== 'undefined' ? window.location.origin : undefined;
+  // Get current stored PIN if not explicitly passed
+  let effectivePin = pin?.trim();
+  if (!effectivePin && typeof window !== 'undefined') {
+    try {
+      effectivePin = localStorage.getItem('diariamente_pin_code') || '';
+    } catch {}
+  }
 
-    // 1. Primary method requested: supabase.auth.resetPasswordForEmail
+  try {
+    // 1. Try Supabase Edge Function 'recover-pin'
+    if (effectivePin) {
+      try {
+        const { data, error: fnError } = await supabase.functions.invoke('recover-pin', {
+          body: {
+            email: cleanEmail,
+            pin: effectivePin,
+          },
+        });
+
+        if (!fnError && data?.success) {
+          return {
+            success: true,
+            message: 'Email con il PIN di accesso inviata con successo! Controlla la tua casella di posta.',
+          };
+        }
+      } catch (edgeErr) {
+        // Edge function not yet deployed or active, fallback to Auth OTP
+      }
+    }
+
+    // Ensure the redirect URL preserves GitHub Pages path (e.g. /CURAMENTE/) or dev environment root
+    const redirectUrl =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}${window.location.pathname.endsWith('/') ? window.location.pathname : window.location.pathname + '/'}`
+        : 'https://samubarbadbr.github.io/CURAMENTE/';
+
+    // 2. Primary fallback method: supabase.auth.resetPasswordForEmail
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
       redirectTo: redirectUrl,
     });
@@ -145,21 +184,20 @@ export async function sendPinRecoveryEmail(email: string): Promise<{
     if (!resetError) {
       return {
         success: true,
-        message: "Email di recupero inviata! Controlla la tua casella di posta (e la cartella Spam se non la trovi subito).",
+        message: 'Codice inviato con successo! Inserisci il codice monouso ricevuto per sbloccare l\'app e impostare il tuo nuovo PIN.',
       };
     }
 
-    // Check for rate limit or send failure
     if (resetError.code === 'over_email_send_rate_limit' || resetError.status === 429) {
       return {
         success: false,
         isRateLimited: true,
-        message: "Impossibile inviare l'email al momento. Riprova tra qualche istante o verifica la tua connessione.",
+        message: 'Limite orario invio email superato. Attendi qualche minuto prima di riprovare.',
         rawError: resetError.message,
       };
     }
 
-    // 2. Secondary fallback: supabase.auth.signInWithOtp (transactional magic link/OTP)
+    // 3. Secondary fallback: supabase.auth.signInWithOtp
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email: cleanEmail,
       options: {
@@ -170,7 +208,7 @@ export async function sendPinRecoveryEmail(email: string): Promise<{
     if (!otpError) {
       return {
         success: true,
-        message: "Email di recupero inviata! Controlla la tua casella di posta (e la cartella Spam se non la trovi subito).",
+        message: 'Codice inviato con successo! Inserisci il codice monouso ricevuto per sbloccare l\'app e impostare il tuo nuovo PIN.',
       };
     }
 
@@ -178,28 +216,160 @@ export async function sendPinRecoveryEmail(email: string): Promise<{
       return {
         success: false,
         isRateLimited: true,
-        message: "Impossibile inviare l'email al momento. Riprova tra qualche istante o verifica la tua connessione.",
+        message: 'Limite orario invio email superato. Attendi qualche minuto prima di riprovare.',
         rawError: otpError.message,
       };
     }
 
-    // Attempt sign up if user did not exist
+    return {
+      success: false,
+      message: resetError.message || otpError.message || "Impossibile inviare l'email in questo momento.",
+      rawError: resetError.message || otpError.message,
+    };
+  } catch (err: any) {
+    const errMsg = err?.message || String(err);
+    return {
+      success: false,
+      message: `Impossibile inviare l'email: ${errMsg}`,
+      rawError: errMsg,
+    };
+  }
+}
+
+/**
+ * Checks if the current URL contains Supabase recovery tokens or recovery parameters.
+ * Supports:
+ * - Hash fragments: #access_token=...&type=recovery, #type=recovery
+ * - Query strings: ?token_hash=...&type=recovery, ?code=...
+ */
+export async function handleIncomingRecoveryUrl(): Promise<{ isRecovery: boolean; sessionUser?: any }> {
+  if (typeof window === 'undefined') return { isRecovery: false };
+
+  const hash = window.location.hash || '';
+  const search = window.location.search || '';
+
+  const isRecoveryInHash =
+    hash.includes('type=recovery') ||
+    (hash.includes('access_token=') && hash.includes('type=recovery'));
+  const isRecoveryInSearch =
+    search.includes('type=recovery') ||
+    search.includes('token_hash=') ||
+    search.includes('type=signup') ||
+    search.includes('type=magiclink');
+
+  if (isRecoveryInHash || isRecoveryInSearch) {
+    // If token_hash is in search parameters, verify it explicitly
+    if (search.includes('token_hash=')) {
+      const params = new URLSearchParams(search);
+      const token_hash = params.get('token_hash');
+      const type = (params.get('type') as any) || 'recovery';
+      if (token_hash) {
+        try {
+          const { data, error } = await supabase.auth.verifyOtp({ token_hash, type });
+          if (!error && (data?.session || data?.user)) {
+            return { isRecovery: true, sessionUser: data.user };
+          }
+        } catch (e) {
+          console.warn('Errore verifica token_hash da URL:', e);
+        }
+      }
+    }
+
+    // If code is in search parameters (PKCE flow)
+    if (search.includes('code=')) {
+      const params = new URLSearchParams(search);
+      const code = params.get('code');
+      if (code) {
+        try {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          if (!error && (data?.session || data?.user)) {
+            return { isRecovery: true, sessionUser: data.user };
+          }
+        } catch (e) {
+          console.warn('Errore scambio codice per sessione:', e);
+        }
+      }
+    }
+
+    // Check if session is already active or set from hash fragment
     try {
-      await supabase.auth.signUp({
-        email: cleanEmail,
-        password: 'DiariamentePass2026!',
-      });
-    } catch {}
+      const { data } = await supabase.auth.getSession();
+      return { isRecovery: true, sessionUser: data?.session?.user };
+    } catch {
+      return { isRecovery: true };
+    }
+  }
+
+  // Also check if current session was signed in via recovery
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data?.session && (hash.includes('access_token') || hash.includes('type=recovery'))) {
+      return { isRecovery: true, sessionUser: data.session.user };
+    }
+  } catch {}
+
+  return { isRecovery: false };
+}
+
+/**
+ * Removes auth hash fragments and search query params from the browser URL cleanly
+ * without causing a page reload.
+ */
+export function clearAuthUrlParams() {
+  if (typeof window === 'undefined') return;
+  try {
+    const cleanUrl = window.location.origin + window.location.pathname;
+    window.history.replaceState(null, document.title, cleanUrl);
+  } catch (e) {
+    console.warn('Impossibile pulire i parametri URL:', e);
+  }
+}
+
+/**
+ * Verifies OTP code received in email (type: recovery or email)
+ */
+export async function verifyRecoveryCode(
+  email: string,
+  token: string
+): Promise<{ success: boolean; message: string }> {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanToken = token.trim();
+
+  if (!cleanToken) {
+    return { success: false, message: 'Inserisci il codice di verifica a 6 cifre ricevuto via email.' };
+  }
+
+  try {
+    // 1. Try recovery verification
+    const { data: recData, error: recError } = await supabase.auth.verifyOtp({
+      email: cleanEmail,
+      token: cleanToken,
+      type: 'recovery',
+    });
+
+    if (!recError && (recData?.session || recData?.user)) {
+      return { success: true, message: 'Codice verificato con successo!' };
+    }
+
+    // 2. Try email / token verification
+    const { data: emailData, error: emailError } = await supabase.auth.verifyOtp({
+      email: cleanEmail,
+      token: cleanToken,
+      type: 'email',
+    });
+
+    if (!emailError && (emailData?.session || emailData?.user)) {
+      return { success: true, message: 'Codice verificato con successo!' };
+    }
 
     return {
-      success: true,
-      message: "Email di recupero inviata! Controlla la tua casella di posta (e la cartella Spam se non la trovi subito).",
+      success: false,
+      message: recError?.message || emailError?.message || 'Codice errato o scaduto. Controlla la tua email o richiedine uno nuovo.',
     };
   } catch (err: any) {
     return {
       success: false,
-      message: "Impossibile inviare l'email al momento. Riprova tra qualche istante o verifica la tua connessione.",
-      rawError: err?.message || String(err),
+      message: err?.message || 'Errore durante la verifica del codice.',
     };
   }
 }

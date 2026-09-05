@@ -17,7 +17,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { verifyBiometrics } from '../lib/biometrics';
-import { sendPinRecoveryEmail } from '../lib/supabase';
+import { sendPinRecoveryEmail, verifyRecoveryCode, supabase } from '../lib/supabase';
 
 interface LockScreenProps {
   correctPin: string;
@@ -50,12 +50,13 @@ export const LockScreen: React.FC<LockScreenProps> = ({
   const [recoverySuccessMsg, setRecoverySuccessMsg] = useState('');
   const [recoveryErrorMsg, setRecoveryErrorMsg] = useState('');
 
-  // Reset PIN State
+  // Step 2: Verification Code & Reset PIN State
+  const [verificationCode, setVerificationCode] = useState('');
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+  const [isCodeVerified, setIsCodeVerified] = useState(false);
   const [newResetPin, setNewResetPin] = useState('');
   const [confirmResetPin, setConfirmResetPin] = useState('');
   const [resetPinError, setResetPinError] = useState('');
-  const [revealedPin, setRevealedPin] = useState<string | null>(null);
-  const [isRateLimited, setIsRateLimited] = useState(false);
 
   // Synchronize recovery email if prop changes
   useEffect(() => {
@@ -63,6 +64,40 @@ export const LockScreen: React.FC<LockScreenProps> = ({
       setRecoveryEmailInput(recoveryEmail);
     }
   }, [recoveryEmail]);
+
+  // Listen for Supabase password recovery link hash or auth event
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash || '';
+      const search = window.location.search || '';
+      if (
+        hash.includes('type=recovery') ||
+        hash.includes('access_token') ||
+        search.includes('token_hash') ||
+        search.includes('type=recovery')
+      ) {
+        setShowRecoveryModal(true);
+        setRecoverySent(true);
+        setIsCodeVerified(true);
+        setRecoverySuccessMsg('Accesso verificato tramite link email!');
+      }
+    }
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+        setShowRecoveryModal(true);
+        setRecoverySent(true);
+        setIsCodeVerified(true);
+        setRecoverySuccessMsg('Accesso verificato tramite link email!');
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // Trigger biometric check on mount if enabled
   useEffect(() => {
@@ -113,40 +148,38 @@ export const LockScreen: React.FC<LockScreenProps> = ({
   const handleSendRecoveryEmail = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const cleanEmail = recoveryEmailInput.trim().toLowerCase();
-    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    if (!cleanEmail || !cleanEmail.includes('@')) {
       setRecoveryErrorMsg('Inserisci un indirizzo email valido');
       return;
     }
 
     setIsSendingRecovery(true);
     setRecoveryErrorMsg('');
-    setIsRateLimited(false);
 
     try {
-      const res = await sendPinRecoveryEmail(cleanEmail);
+      const res = await sendPinRecoveryEmail(cleanEmail, correctPin);
       if (res.success) {
         setRecoverySent(true);
         setRecoverySuccessMsg(
-          'Email di recupero inviata! Controlla la tua casella di posta (e la cartella Spam se non la trovi subito).'
+          'Email inviata con successo! Controlla la tua casella di posta per le istruzioni.'
         );
       } else {
+        console.warn('Invio email non riuscito:', res.rawError || res.message);
         setRecoveryErrorMsg(
-          "Impossibile inviare l'email al momento. Riprova tra qualche istante o verifica la tua connessione."
+          res.message || "Impossibile inviare l'email. Riprova tra qualche istante."
         );
       }
-    } catch {
+    } catch (err: any) {
+      console.warn('Errore durante invio email:', err);
       setRecoveryErrorMsg(
-        "Impossibile inviare l'email al momento. Riprova tra qualche istante o verifica la tua connessione."
+        "Errore di connessione. Verifica la connessione e riprova."
       );
     } finally {
       setIsSendingRecovery(false);
     }
   };
 
-  const isEmailMatchingConfigured =
-    recoveryEmailInput.trim().toLowerCase() === (recoveryEmail || 'samuele.lavoroba@gmail.com').trim().toLowerCase();
-
-  const handleConfirmNewPin = (e: React.FormEvent) => {
+  const handleVerifyCodeAndResetPin = async (e: React.FormEvent) => {
     e.preventDefault();
     setResetPinError('');
 
@@ -160,10 +193,42 @@ export const LockScreen: React.FC<LockScreenProps> = ({
       return;
     }
 
-    if (onResetPinSuccess) {
-      onResetPinSuccess(newResetPin);
+    const cleanEmail = recoveryEmailInput.trim().toLowerCase();
+
+    // If verified via email link directly, proceed to reset PIN
+    if (isCodeVerified) {
+      if (onResetPinSuccess) {
+        onResetPinSuccess(newResetPin);
+      }
+      onUnlock();
+      return;
     }
-    onUnlock();
+
+    const cleanCode = verificationCode.trim();
+    if (!cleanCode) {
+      setResetPinError('Inserisci il codice di verifica a 6 cifre ricevuto via email');
+      return;
+    }
+
+    setIsVerifyingCode(true);
+    try {
+      const verifyRes = await verifyRecoveryCode(cleanEmail, cleanCode);
+      if (verifyRes.success) {
+        setIsCodeVerified(true);
+        if (onResetPinSuccess) {
+          onResetPinSuccess(newResetPin);
+        }
+        onUnlock();
+      } else {
+        setResetPinError(
+          verifyRes.message || 'Codice errato o scaduto. Controlla la tua email o richiedine uno nuovo.'
+        );
+      }
+    } catch (err: any) {
+      setResetPinError(err?.message || 'Errore durante la verifica del codice.');
+    } finally {
+      setIsVerifyingCode(false);
+    }
   };
 
   return (
@@ -453,16 +518,16 @@ export const LockScreen: React.FC<LockScreenProps> = ({
                       Recupero PIN di Accesso
                     </h3>
                     <p className="text-xs text-zinc-300">
-                      Invia le istruzioni via email collegate a Supabase
+                      Invia le istruzioni di verifica alla tua email di posta
                     </p>
                   </div>
                 </div>
 
-                {/* Form or Sent state */}
+                {/* State 1: Email Form */}
                 {!recoverySent ? (
                   <form onSubmit={handleSendRecoveryEmail} className="space-y-4 pt-1">
                     <div className="space-y-1.5">
-                      <label className="block text-xs font-bold text-zinc-300">
+                      <label className="block text-xs font-bold text-zinc-200">
                         Indirizzo Email di Recupero:
                       </label>
                       <div className="relative">
@@ -474,179 +539,172 @@ export const LockScreen: React.FC<LockScreenProps> = ({
                             setRecoveryEmailInput(e.target.value);
                             setRecoveryErrorMsg('');
                           }}
-                          placeholder="es. nome@email.com"
+                          placeholder="es. nome@gmail.com"
                           className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white placeholder-zinc-500 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                         />
                         <Mail className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
                       </div>
 
                       <p className="text-[11px] text-zinc-400 leading-relaxed pt-0.5">
-                        Riceverai un link sicuro per verificare la tua identità e reimpostare il tuo PIN di accesso.
+                        Riceverai un'email con il codice di verifica a 6 cifre e il link per confermare la tua identità e impostare un nuovo PIN.
                       </p>
                     </div>
 
                     {recoveryErrorMsg && (
-                      <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 backdrop-blur-md text-zinc-200 text-xs flex items-start space-x-2.5 shadow-lg">
-                        <AlertCircle className="w-4 h-4 text-zinc-400 shrink-0 mt-0.5" />
-                        <span className="font-medium text-zinc-300 leading-relaxed">{recoveryErrorMsg}</span>
+                      <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 backdrop-blur-md text-zinc-200 text-xs flex items-start space-x-2.5 shadow-lg">
+                        <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                        <span className="font-medium text-rose-200 leading-relaxed">{recoveryErrorMsg}</span>
                       </div>
                     )}
 
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+                    <button
+                      type="submit"
+                      disabled={isSendingRecovery}
+                      className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-98 text-white text-xs sm:text-sm font-black transition-all flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/30 cursor-pointer disabled:opacity-50"
+                    >
+                      {isSendingRecovery ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin stroke-[2.5]" />
+                          <span>Invio email in corso...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="w-4 h-4 stroke-[2.2]" />
+                          <span>Invia Email di Recupero</span>
+                        </>
+                      )}
+                    </button>
+                  </form>
+                ) : (
+                  /* State 2: Green Confirmation Banner + Code / PIN Entry */
+                  <div className="space-y-4 pt-1">
+                    <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 backdrop-blur-md text-zinc-200 text-xs space-y-1.5 shadow-xl">
+                      <div className="flex items-start space-x-2.5">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-400 stroke-[2.2] shrink-0 mt-0.5" />
+                        <div>
+                          <span className="text-xs sm:text-sm font-bold text-emerald-300 block leading-snug">
+                            Email inviata con successo!
+                          </span>
+                          <span className="text-[11px] text-zinc-300 leading-relaxed block mt-0.5">
+                            Controlla la tua casella di posta per le istruzioni (e la cartella Spam se non la trovi subito).
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Form for Verification Code & New PIN */}
+                    <form onSubmit={handleVerifyCodeAndResetPin} className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3.5">
+                      <div className="flex items-center space-x-2 text-xs font-bold text-zinc-200">
+                        <KeyRound className="w-4 h-4 text-indigo-400" />
+                        <span>Reimposta Nuovo PIN di Accesso:</span>
+                      </div>
+
+                      {/* Code Input (if not already verified via link) */}
+                      {!isCodeVerified ? (
+                        <div className="space-y-1">
+                          <label className="block text-[11px] font-bold text-zinc-300">
+                            Codice di Verifica Ricevuto via Email:
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            maxLength={8}
+                            value={verificationCode}
+                            onChange={(e) => {
+                              setVerificationCode(e.target.value.replace(/\s+/g, ''));
+                              setResetPinError('');
+                            }}
+                            placeholder="Codice a 6 cifre (es. 123456)"
+                            className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-base font-mono tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                          <span className="block text-[10px] text-zinc-400">
+                            Puoi inserire il codice a 6 cifre oppure aprire il link ricevuto via email.
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-300 font-bold flex items-center space-x-2">
+                          <CheckCircle2 className="w-4 h-4 shrink-0" />
+                          <span>Identità verificata dal link dell'email!</span>
+                        </div>
+                      )}
+
+                      {/* 4-digit New PIN & Confirm PIN */}
+                      <div className="grid grid-cols-2 gap-2 pt-0.5">
+                        <div>
+                          <label className="block text-[10px] font-bold text-zinc-400 mb-1">
+                            Nuovo PIN (4 cifre)
+                          </label>
+                          <input
+                            type="password"
+                            maxLength={4}
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={newResetPin}
+                            onChange={(e) => {
+                              setNewResetPin(e.target.value.replace(/\D/g, '').slice(0, 4));
+                              setResetPinError('');
+                            }}
+                            placeholder="••••"
+                            className="w-full text-center px-3 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-base font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-zinc-400 mb-1">
+                            Conferma PIN
+                          </label>
+                          <input
+                            type="password"
+                            maxLength={4}
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={confirmResetPin}
+                            onChange={(e) => {
+                              setConfirmResetPin(e.target.value.replace(/\D/g, '').slice(0, 4));
+                              setResetPinError('');
+                            }}
+                            placeholder="••••"
+                            className="w-full text-center px-3 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-base font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+                      </div>
+
+                      {resetPinError && (
+                        <p className="text-[11px] font-bold text-rose-400 text-center">
+                          {resetPinError}
+                        </p>
+                      )}
+
                       <button
                         type="submit"
-                        disabled={isSendingRecovery}
-                        className="flex-1 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-98 text-white text-xs sm:text-sm font-black transition-all flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/30 cursor-pointer disabled:opacity-50"
+                        disabled={
+                          isVerifyingCode ||
+                          (!isCodeVerified && verificationCode.trim().length < 6) ||
+                          newResetPin.length !== 4 ||
+                          confirmResetPin.length !== 4
+                        }
+                        className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-98 text-white text-xs font-black transition-all flex items-center justify-center space-x-2 shadow-md cursor-pointer disabled:opacity-40"
                       >
-                        {isSendingRecovery ? (
+                        {isVerifyingCode ? (
                           <>
-                            <Loader2 className="w-4 h-4 animate-spin stroke-[2.5]" />
-                            <span>Invio in corso...</span>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Verifica in corso...</span>
                           </>
                         ) : (
                           <>
-                            <Mail className="w-4 h-4 stroke-[2.2]" />
-                            <span>Invia Email di Recupero</span>
+                            <span>Conferma e Salva Nuovo PIN</span>
+                            <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
                           </>
                         )}
                       </button>
-
-                      {/* Immediate verification option if user knows the email */}
-                      {isEmailMatchingConfigured && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setRecoverySent(true);
-                            setRecoverySuccessMsg("Identità verificata tramite email registrata!");
-                          }}
-                          className="py-3 px-4 rounded-xl bg-white/10 hover:bg-white/15 active:scale-98 border border-white/20 text-white text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
-                          title="Se non ricevi la mail, puoi reimpostare il PIN subito confermando l'email"
-                        >
-                          <KeyRound className="w-3.5 h-3.5 text-emerald-400" />
-                          <span>Reimposta subito</span>
-                        </button>
-                      )}
-                    </div>
-                  </form>
-                ) : (
-                  /* POST-SEND RECOVERY STATE WITH DISCREET GLASSMORPHISM NOTIFICATION */
-                  <div className="space-y-4 pt-1">
-                    <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md text-zinc-200 text-xs space-y-2 shadow-xl">
-                      <div className="flex items-start space-x-2.5">
-                        <CheckCircle2 className="w-4 h-4 text-white stroke-[2.2] shrink-0 mt-0.5" />
-                        <span className="text-xs sm:text-sm font-bold text-white leading-snug">
-                          {recoverySuccessMsg || "Email di recupero inviata! Controlla la tua casella di posta (e la cartella Spam se non la trovi subito)."}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-zinc-400 pl-6.5 leading-relaxed">
-                        Le istruzioni sono state inviate a <strong className="text-zinc-200 font-semibold">{recoveryEmailInput}</strong>. Se non trovi il messaggio entro pochi istanti, controlla anche la cartella Spam.
-                      </p>
-                    </div>
-
-                    {/* Reveal current PIN button or Reset PIN Form */}
-                    {correctPin && (
-                      <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
-                        <div>
-                          <span className="block text-xs font-bold text-zinc-300">
-                            Hai solo dimenticato il codice?
-                          </span>
-                          <span className="block text-[10px] text-zinc-400">
-                            Email verificata con successo
-                          </span>
-                        </div>
-                        {revealedPin ? (
-                          <div className="flex items-center space-x-2 bg-emerald-500/20 border border-emerald-500/30 px-3 py-1.5 rounded-lg">
-                            <span className="text-[10px] text-emerald-300 font-bold">PIN:</span>
-                            <span className="text-base font-mono font-black text-white tracking-widest">
-                              {revealedPin}
-                            </span>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setRevealedPin(correctPin)}
-                            className="text-xs font-bold px-3 py-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 transition-all cursor-pointer"
-                          >
-                            Rivela PIN Attuale
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Direct In-App PIN Reset Form so the user can immediately regain access */}
-                    <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
-                      <div className="flex items-center space-x-2 text-xs font-bold text-zinc-200">
-                        <KeyRound className="w-4 h-4 text-indigo-400" />
-                        <span>Reimposta Nuovo PIN a 4 Cifre:</span>
-                      </div>
-
-                      <form onSubmit={handleConfirmNewPin} className="space-y-3">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-[10px] font-bold text-zinc-400 mb-1">
-                              Nuovo PIN
-                            </label>
-                            <input
-                              type="password"
-                              maxLength={4}
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              value={newResetPin}
-                              onChange={(e) => {
-                                setNewResetPin(e.target.value.replace(/\D/g, '').slice(0, 4));
-                                setResetPinError('');
-                              }}
-                              placeholder="••••"
-                              className="w-full text-center px-3 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-base font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-bold text-zinc-400 mb-1">
-                              Conferma PIN
-                            </label>
-                            <input
-                              type="password"
-                              maxLength={4}
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              value={confirmResetPin}
-                              onChange={(e) => {
-                                setConfirmResetPin(e.target.value.replace(/\D/g, '').slice(0, 4));
-                                setResetPinError('');
-                              }}
-                              placeholder="••••"
-                              className="w-full text-center px-3 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-base font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            />
-                          </div>
-                        </div>
-
-                        {resetPinError && (
-                          <p className="text-[11px] font-bold text-rose-400 text-center">
-                            {resetPinError}
-                          </p>
-                        )}
-
-                        <button
-                          type="submit"
-                          disabled={newResetPin.length !== 4 || confirmResetPin.length !== 4}
-                          className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white text-xs font-black transition-all flex items-center justify-center space-x-2 shadow-md cursor-pointer disabled:opacity-40"
-                        >
-                          <span>Salva Nuovo PIN e Sblocca Diariamente</span>
-                          <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
-                        </button>
-                      </form>
-                    </div>
+                    </form>
 
                     <div className="flex items-center justify-between pt-1">
                       <button
                         type="button"
-                        onClick={() => {
-                          setRecoverySent(false);
-                          setRecoveryErrorMsg('');
-                          setRevealedPin(null);
-                        }}
-                        className="text-[11px] font-bold text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                        disabled={isSendingRecovery}
+                        onClick={handleSendRecoveryEmail}
+                        className="text-[11px] font-bold text-zinc-400 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
                       >
                         Reinvia email
                       </button>
@@ -656,7 +714,10 @@ export const LockScreen: React.FC<LockScreenProps> = ({
                         onClick={() => {
                           setShowRecoveryModal(false);
                           setRecoverySent(false);
-                          setRevealedPin(null);
+                          setVerificationCode('');
+                          setNewResetPin('');
+                          setConfirmResetPin('');
+                          setResetPinError('');
                         }}
                         className="text-[11px] font-bold text-zinc-300 hover:text-white px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
                       >

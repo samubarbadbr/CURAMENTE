@@ -19,7 +19,13 @@ import { CustomQuestionsView } from './views/CustomQuestionsView';
 import { CustomQuestionsService } from './services/customQuestions';
 import { TherapistExportModal } from './components/TherapistExportModal';
 import { generateTherapistCsv, exportSingleEntryPdf } from './services/therapistReportGenerator';
-import { saveRecoveryEmailToCloud } from './lib/supabase';
+import { ResetPinModal } from './components/ResetPinModal';
+import {
+  saveRecoveryEmailToCloud,
+  handleIncomingRecoveryUrl,
+  clearAuthUrlParams,
+  supabase,
+} from './lib/supabase';
 
 const viewOrder: Record<ViewType, number> = {
   timeline: 0,
@@ -127,6 +133,7 @@ export default function App() {
   const [biometricsEnabled, setBiometricsEnabled] = useState(false);
   const [biometricCredentialId, setBiometricCredentialId] = useState<string>('');
   const [isBiometricsSupported, setIsBiometricsSupported] = useState(false);
+  const [showResetPinModal, setShowResetPinModal] = useState(false);
 
   // Cloud Sync state
   const [syncPin, setSyncPin] = useState<string>('');
@@ -460,10 +467,15 @@ export default function App() {
           setIsBiometricsSupported(bioSupported);
         }
 
-        if (pinEnabledRow?.value && pinCodeRow?.value) {
+        const localPin = localStorage.getItem('diariamente_pin_code');
+        const localPinEnabled = localStorage.getItem('diariamente_pin_enabled') === 'true';
+        const effectivePinCode = pinCodeRow?.value || localPin || '';
+        const effectivePinEnabled = (pinEnabledRow?.value ?? localPinEnabled) && Boolean(effectivePinCode);
+
+        if (effectivePinEnabled && effectivePinCode) {
           if (isMounted) {
             setPinEnabled(true);
-            setPinCode(pinCodeRow.value);
+            setPinCode(effectivePinCode);
             setIsLocked(true);
           }
         }
@@ -543,6 +555,38 @@ export default function App() {
       window.removeEventListener('offline', handleOffline);
     };
   }, [applyTheme, loadEntries]);
+
+  // Recovery Return Hook: Detect incoming email recovery link or PASSWORD_RECOVERY event
+  useEffect(() => {
+    let isSubscribed = true;
+
+    // 1. Immediate URL check for recovery token in hash or search query
+    handleIncomingRecoveryUrl().then((res) => {
+      if (!isSubscribed) return;
+      if (res.isRecovery) {
+        setShowResetPinModal(true);
+        setIsLocked(false);
+        clearAuthUrlParams();
+      }
+    });
+
+    // 2. Auth state change listener for PASSWORD_RECOVERY or recovery SIGNED_IN event
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (!isSubscribed) return;
+      if (event === 'PASSWORD_RECOVERY') {
+        setShowResetPinModal(true);
+        setIsLocked(false);
+        clearAuthUrlParams();
+      }
+    });
+
+    return () => {
+      isSubscribed = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // Reload entries on filter change
   useEffect(() => {
@@ -736,6 +780,8 @@ export default function App() {
       await DB.put('settings', { key: 'pin_recovery_email', value: cleanEmail });
       try {
         localStorage.setItem('diariamente_recovery_email', cleanEmail);
+        localStorage.setItem('diariamente_pin_code', newPin);
+        localStorage.setItem('diariamente_pin_enabled', 'true');
       } catch {}
 
       setPinEnabled(true);
@@ -750,6 +796,39 @@ export default function App() {
     } catch (err) {
       console.error(err);
       showToast('Errore salvataggio impostazioni di sicurezza');
+      return false;
+    }
+  };
+
+  const handleSaveNewPinFromRecovery = async (newPin: string): Promise<boolean> => {
+    if (!newPin || !/^\d{4}$/.test(newPin)) {
+      showToast('PIN non valido. Inserisci esattamente 4 cifre.');
+      return false;
+    }
+    const cleanEmail = (recoveryEmail || 'samuele.lavoroba@gmail.com').trim().toLowerCase();
+    try {
+      await DB.put('settings', { key: 'pin_enabled', value: true });
+      await DB.put('settings', { key: 'pin_code', value: newPin });
+      await DB.put('settings', { key: 'pin_recovery_email', value: cleanEmail });
+      try {
+        localStorage.setItem('diariamente_recovery_email', cleanEmail);
+        localStorage.setItem('diariamente_pin_code', newPin);
+        localStorage.setItem('diariamente_pin_enabled', 'true');
+      } catch {}
+
+      setPinEnabled(true);
+      setPinCode(newPin);
+      setRecoveryEmail(cleanEmail);
+      setIsLocked(false);
+
+      // Save to Supabase Cloud
+      saveRecoveryEmailToCloud(cleanEmail, newPin);
+
+      showToast('PIN aggiornato con successo!');
+      return true;
+    } catch (err) {
+      console.error('Errore salvataggio nuovo PIN da recupero:', err);
+      showToast('Errore durante il salvataggio del nuovo PIN');
       return false;
     }
   };
@@ -1005,6 +1084,14 @@ export default function App() {
           }}
         />
       )}
+
+      {/* Modal Imposta Nuovo PIN al rilevamento del rientro dall'email */}
+      <ResetPinModal
+        isOpen={showResetPinModal}
+        onClose={() => setShowResetPinModal(false)}
+        recoveryEmail={recoveryEmail}
+        onSaveNewPin={handleSaveNewPinFromRecovery}
+      />
 
       {/* Cerchio Luminoso di Sfondo (Halo Glow Reflector: 600px x 600px) */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden z-0 flex items-center justify-center">

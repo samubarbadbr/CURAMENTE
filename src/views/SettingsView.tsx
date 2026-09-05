@@ -36,7 +36,9 @@ import {
   Send,
   ShieldAlert,
   FileCode,
-  AlertCircle
+  AlertCircle,
+  Server,
+  AlertTriangle
 } from 'lucide-react';
 import { sendPinRecoveryEmail } from '../lib/supabase';
 import { SupabaseEmailTemplateModal } from '../components/SupabaseEmailTemplateModal';
@@ -119,7 +121,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [emailError, setEmailError] = useState<string | null>(null);
   const [isTestingEmail, setIsTestingEmail] = useState(false);
   const [emailTestFeedback, setEmailTestFeedback] = useState<string | null>(null);
+  const [emailTestStatus, setEmailTestStatus] = useState<{
+    success: boolean;
+    message: string;
+    rawError?: string;
+  } | null>(null);
   const [showEmailTemplateModal, setShowEmailTemplateModal] = useState(false);
+  const [emailModalTab, setEmailModalTab] = useState<'preview' | 'code' | 'instructions' | 'smtp'>('preview');
 
   React.useEffect(() => {
     if (recoveryEmail) {
@@ -225,26 +233,31 @@ NOTIFY pgrst, 'reload schema';`;
   const handleTestRecoveryEmail = async () => {
     const targetEmail = (recoveryEmail || recoveryEmailDraft || '').trim().toLowerCase();
     if (!targetEmail || !targetEmail.includes('@')) {
-      setEmailTestFeedback('Inserisci prima un indirizzo email valido');
+      setEmailTestStatus({
+        success: false,
+        message: 'Inserisci prima un indirizzo email valido',
+      });
       return;
     }
     setIsTestingEmail(true);
+    setEmailTestStatus(null);
     setEmailTestFeedback(null);
     try {
-      const res = await sendPinRecoveryEmail(targetEmail);
+      const res = await sendPinRecoveryEmail(targetEmail, pinCode);
+      setEmailTestStatus(res);
       if (res.success) {
-        setEmailTestFeedback(
-          'Email di recupero inviata! Controlla la tua casella di posta (e la cartella Spam se non la trovi subito).'
-        );
+        setEmailTestFeedback(res.message);
       } else {
-        setEmailTestFeedback(
-          "Impossibile inviare l'email al momento. Riprova tra qualche istante o verifica la tua connessione."
-        );
+        const errorDetail = res.rawError || res.message;
+        console.warn("Invio email di test non riuscito:", errorDetail);
       }
-    } catch {
-      setEmailTestFeedback(
-        "Impossibile inviare l'email al momento. Riprova tra qualche istante o verifica la tua connessione."
-      );
+    } catch (err: any) {
+      console.warn("Errore test email:", err);
+      setEmailTestStatus({
+        success: false,
+        message: "Errore durante l'invio dell'email di test. Riprova più tardi.",
+        rawError: err?.message,
+      });
     } finally {
       setIsTestingEmail(false);
     }
@@ -753,6 +766,17 @@ NOTIFY pgrst, 'reload schema';`;
                 </form>
               ) : (
                 <div className="space-y-3 pt-1">
+                  {/* Notice clarifying that PIN change doesn't require email */}
+                  <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-start space-x-2.5">
+                    <KeyRound className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
+                    <div className="text-xs space-y-0.5">
+                      <span className="font-bold text-[var(--text-primary)] block">Vuoi cambiare il tuo PIN?</span>
+                      <span className="text-[var(--text-secondary)] leading-relaxed block">
+                        Non serve inviare né ricevere alcuna email! Puoi cambiarlo subito da qui cliccando su <strong>"Modifica PIN"</strong>.
+                      </span>
+                    </div>
+                  </div>
+
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <span className="text-sm font-mono font-bold tracking-widest text-[var(--text-primary)]">
@@ -769,15 +793,16 @@ NOTIFY pgrst, 'reload schema';`;
                           setIsEditingAppPin(true);
                           setAppPinDraft('');
                         }}
-                        className="text-xs font-bold text-[#5B67CA] hover:underline px-2 py-1 cursor-pointer"
+                        className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs font-bold transition-all shadow-sm flex items-center space-x-1.5 cursor-pointer"
                       >
-                        Modifica
+                        <KeyRound className="w-3.5 h-3.5" />
+                        <span>Modifica PIN</span>
                       </button>
                       {onLockApp && (
                         <button
                           type="button"
                           onClick={onLockApp}
-                          className="px-2.5 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-solid)] text-[11px] font-bold text-[var(--text-primary)] hover:bg-[var(--bg-page)] active:scale-95 transition-all shadow-xs cursor-pointer"
+                          className="px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)] text-[11px] font-bold text-[var(--text-primary)] hover:bg-[var(--bg-page)] active:scale-95 transition-all shadow-xs cursor-pointer"
                         >
                           Blocca Ora
                         </button>
@@ -791,7 +816,7 @@ NOTIFY pgrst, 'reload schema';`;
                       <Mail className="w-3.5 h-3.5 text-[#5B67CA] shrink-0" />
                       <div className="truncate">
                         <span className="text-[10px] font-bold text-[var(--text-secondary)] block leading-tight">
-                          Email di Recupero:
+                          Email di Recupero Registrata:
                         </span>
                         <span className="text-xs font-mono font-bold text-[var(--text-primary)] truncate">
                           {recoveryEmail || recoveryEmailDraft || 'Non specificata'}
@@ -815,29 +840,77 @@ NOTIFY pgrst, 'reload schema';`;
                     </button>
                   </div>
 
-                  {emailTestFeedback && (
-                    <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 backdrop-blur-md text-xs font-medium flex items-start space-x-2.5 shadow-md">
-                      {emailTestFeedback.includes('Impossibile') ? (
-                        <AlertCircle className="w-4 h-4 shrink-0 text-zinc-400 mt-0.5" />
+                  {/* Diagnostic status for email test */}
+                  {emailTestStatus && (
+                    <div className="pt-1">
+                      {emailTestStatus.success ? (
+                        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs flex items-start space-x-2.5 shadow-sm">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-bold text-emerald-400 block text-xs sm:text-sm">
+                              Email inviata con successo! Controlla la tua casella di posta per le istruzioni.
+                            </span>
+                            <span className="text-[11px] text-zinc-400 block mt-0.5">
+                              Controlla la posta in arrivo e la cartella Spam di {recoveryEmail || recoveryEmailDraft}.
+                            </span>
+                          </div>
+                        </div>
                       ) : (
-                        <CheckCircle2 className="w-4 h-4 shrink-0 text-white stroke-[2.2] mt-0.5" />
+                        <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-xs flex items-start space-x-2.5 shadow-sm">
+                          <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-bold text-rose-400 block text-xs sm:text-sm">
+                              {emailTestStatus.message || "Errore durante l'invio dell'email di test"}
+                            </span>
+                            {emailTestStatus.rawError && (
+                              <span className="text-[11px] text-zinc-400 font-mono block mt-1">
+                                Dettaglio: {emailTestStatus.rawError}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       )}
-                      <span className="text-zinc-200 leading-relaxed">{emailTestFeedback}</span>
                     </div>
                   )}
 
-                  {/* Recovery Email Template Button */}
-                  <button
-                    type="button"
-                    onClick={() => setShowEmailTemplateModal(true)}
-                    className="w-full flex items-center justify-between p-2.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/15 active:scale-98 border border-indigo-500/25 text-indigo-500 dark:text-indigo-400 text-xs font-bold transition-all cursor-pointer"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <FileCode className="w-4 h-4 shrink-0" />
-                      <span>Template Email di Recupero (HTML & CSS Inline)</span>
-                    </div>
-                    <ChevronRight className="w-3.5 h-3.5 shrink-0" />
-                  </button>
+                  {/* Help Cards: Template & SMTP Configuration */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmailModalTab('preview');
+                        setShowEmailTemplateModal(true);
+                      }}
+                      className="flex items-center justify-between p-3 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/15 active:scale-98 border border-indigo-500/25 text-indigo-500 dark:text-indigo-400 text-xs font-bold transition-all cursor-pointer text-left"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <FileCode className="w-4 h-4 shrink-0" />
+                        <div>
+                          <span className="block font-bold">Template Email</span>
+                          <span className="text-[10px] text-[var(--text-secondary)] font-normal">HTML Apple-style</span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 shrink-0" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmailModalTab('smtp');
+                        setShowEmailTemplateModal(true);
+                      }}
+                      className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/15 active:scale-98 border border-amber-500/25 text-amber-600 dark:text-amber-400 text-xs font-bold transition-all cursor-pointer text-left"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Server className="w-4 h-4 shrink-0" />
+                        <div>
+                          <span className="block font-bold">Configura Server SMTP</span>
+                          <span className="text-[10px] text-[var(--text-secondary)] font-normal">Per ricevere email</span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 shrink-0" />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -1044,11 +1117,12 @@ NOTIFY pgrst, 'reload schema';`;
         </span>
       </div>
 
-      {/* Supabase Email Template Modal */}
+      {/* Supabase Email Template & SMTP Setup Modal */}
       <SupabaseEmailTemplateModal
         isOpen={showEmailTemplateModal}
         onClose={() => setShowEmailTemplateModal(false)}
         onShowToast={(msg) => setEmailTestFeedback(msg)}
+        initialTab={emailModalTab}
       />
     </div>
   );
