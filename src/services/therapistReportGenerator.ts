@@ -294,7 +294,9 @@ export function generateTherapistReportHtml(
         minute: '2-digit',
       });
 
-      const emoLabels = (e.emotionTagIds || []).map((id) => tagMap.get(id) || id);
+      const emoLabels = (e.emotionTagIds || [])
+        .map((id) => tagMap.get(id))
+        .filter((label): label is string => Boolean(label && !label.startsWith('tag-')));
       const thought = e.negativeThought ? escapeHtml(e.negativeThought) : '—';
       const beliefLevel = e.thoughtBeliefLevel !== undefined ? e.thoughtBeliefLevel : 0;
 
@@ -343,7 +345,9 @@ export function generateTherapistReportHtml(
         minute: '2-digit',
       });
 
-      const physTags = (e.physicalSymptomTagIds || []).map((id) => tagMap.get(id) || id);
+      const physTags = (e.physicalSymptomTagIds || [])
+        .map((id) => tagMap.get(id))
+        .filter((label): label is string => Boolean(label && !label.startsWith('tag-')));
       const physDetail = e.physicalSymptomsText ? e.physicalSymptomsText.trim() : '';
       let physicalHtml = '';
       if (physTags.length > 0 && physDetail) {
@@ -701,7 +705,10 @@ export function generateTherapistCsv(
     });
     const situation = e.situation || '';
     const triggers = e.triggerFactors || '';
-    const emoList = (e.emotionTagIds || []).map((id) => tagMap.get(id) || id).join(', ');
+    const emoList = (e.emotionTagIds || [])
+      .map((id) => tagMap.get(id))
+      .filter((label): label is string => Boolean(label && !label.startsWith('tag-')))
+      .join(', ');
     const thoughtBelief = e.thoughtBeliefLevel !== undefined ? e.thoughtBeliefLevel : 0;
     const thoughtCell = e.negativeThought
       ? `${e.negativeThought} (Quanto credo al pensiero: ${thoughtBelief}/100)`
@@ -734,7 +741,9 @@ export function generateTherapistCsv(
       minute: '2-digit',
     });
 
-    const physTags = (e.physicalSymptomTagIds || []).map((id) => tagMap.get(id) || id);
+    const physTags = (e.physicalSymptomTagIds || [])
+      .map((id) => tagMap.get(id))
+      .filter((label): label is string => Boolean(label && !label.startsWith('tag-')));
     const physDetail = e.physicalSymptomsText ? e.physicalSymptomsText.trim() : '';
     let physicalText = '';
     if (physTags.length > 0 && physDetail) {

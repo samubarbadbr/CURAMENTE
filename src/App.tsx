@@ -688,6 +688,30 @@ export default function App() {
     await DB.delete('tags', tagId);
     const updatedTags = await cleanupAndDeduplicateTags();
     setAllTags(updatedTags);
+
+    // Also strip the deleted tagId from all existing entries in memory and database
+    const allEntries = await DB.getAll<CbtEntry>('entries');
+    let hasModifiedEntries = false;
+    for (const entry of allEntries) {
+      let modified = false;
+      if (entry.emotionTagIds && entry.emotionTagIds.includes(tagId)) {
+        entry.emotionTagIds = entry.emotionTagIds.filter((id) => id !== tagId);
+        modified = true;
+      }
+      if (entry.physicalSymptomTagIds && entry.physicalSymptomTagIds.includes(tagId)) {
+        entry.physicalSymptomTagIds = entry.physicalSymptomTagIds.filter((id) => id !== tagId);
+        modified = true;
+      }
+      if (modified) {
+        await DB.put('entries', entry);
+        hasModifiedEntries = true;
+      }
+    }
+    if (hasModifiedEntries) {
+      const refreshedEntries = await DB.getAll<CbtEntry>('entries');
+      setEntries(refreshedEntries);
+    }
+
     showToast('Tag eliminato');
 
     if (syncPin) {

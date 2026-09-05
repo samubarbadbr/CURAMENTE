@@ -158,26 +158,19 @@ export async function cleanupAndDeduplicateTags(): Promise<Tag[]> {
     await DB.put('tags', tag);
   }
 
-  // Remap entry references if any duplicates were cleaned
-  if (remapping.size > 0 && allEntries.length > 0) {
+  // Remap entry references if any duplicates were cleaned and remove references to deleted tags
+  const validTagIds = new Set(canonicalTags.map((t) => t.id));
+  if (allEntries.length > 0) {
     for (const entry of allEntries) {
       let entryChanged = false;
 
-      const newEmotionIds = (entry.emotionTagIds || []).map((id) => {
-        if (remapping.has(id)) {
-          entryChanged = true;
-          return remapping.get(id)!;
-        }
-        return id;
-      });
+      const newEmotionIds = (entry.emotionTagIds || [])
+        .map((id) => (remapping.has(id) ? remapping.get(id)! : id))
+        .filter((id) => validTagIds.has(id));
 
-      const newSymptomIds = (entry.physicalSymptomTagIds || []).map((id) => {
-        if (remapping.has(id)) {
-          entryChanged = true;
-          return remapping.get(id)!;
-        }
-        return id;
-      });
+      const newSymptomIds = (entry.physicalSymptomTagIds || [])
+        .map((id) => (remapping.has(id) ? remapping.get(id)! : id))
+        .filter((id) => validTagIds.has(id));
 
       const uniqueEmotions = Array.from(new Set(newEmotionIds));
       const uniqueSymptoms = Array.from(new Set(newSymptomIds));

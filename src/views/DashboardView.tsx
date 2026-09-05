@@ -488,18 +488,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           return (
             <div
               key={type}
-              className="p-3.5 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] space-y-2.5 shadow-2xs"
+              className="p-3.5 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] space-y-2.5 shadow-2xs overflow-hidden"
             >
               {/* Header: Description & Badge */}
-              <div className="flex items-start justify-between gap-3">
-                <p className="text-xs font-bold text-[var(--text-primary)] leading-relaxed flex-1 break-words">
+              <div className="flex items-start justify-between gap-3 min-w-0">
+                <p className="text-xs font-bold text-[var(--text-primary)] leading-relaxed flex-1 min-w-0 break-words break-all [overflow-wrap:anywhere]">
                   {type}
                 </p>
                 <div className="flex items-center space-x-1.5 shrink-0">
-                  <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-rose-500/15 text-rose-500 border border-rose-500/30">
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-rose-500/15 text-rose-500 border border-rose-500/30 whitespace-nowrap">
                     {count} {count === 1 ? 'volta' : 'volte'}
                   </span>
-                  <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                  <span className="text-[10px] font-bold text-[var(--text-secondary)] whitespace-nowrap">
                     ({percent}%)
                   </span>
                 </div>
@@ -616,7 +616,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* Chart 3: Avoidance Frequency List */}
-      <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
+      <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm overflow-hidden">
         <div>
           <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)] flex items-center space-x-2">
             <Ban className="w-4 h-4 text-rose-500 stroke-[2.5]" />
