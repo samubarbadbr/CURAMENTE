@@ -330,17 +330,23 @@ export function clearAuthUrlParams() {
  */
 export async function verifyRecoveryCode(
   email: string,
-  token: string
+  token: string,
+  expectedPin?: string
 ): Promise<{ success: boolean; message: string }> {
   const cleanEmail = email.trim().toLowerCase();
   const cleanToken = token.trim();
 
   if (!cleanToken) {
-    return { success: false, message: 'Inserisci il codice di verifica a 6 cifre ricevuto via email.' };
+    return { success: false, message: 'Inserisci il codice di verifica ricevuto via email.' };
+  }
+
+  // Se corrisponde al PIN atteso inviato via email (es. tramite Edge function)
+  if (expectedPin && cleanToken === expectedPin.trim()) {
+    return { success: true, message: 'Codice verificato con successo!' };
   }
 
   try {
-    // 1. Try recovery verification
+    // 1. Prova verifica OTP di tipo recovery (Supabase password recovery)
     const { data: recData, error: recError } = await supabase.auth.verifyOtp({
       email: cleanEmail,
       token: cleanToken,
@@ -351,7 +357,7 @@ export async function verifyRecoveryCode(
       return { success: true, message: 'Codice verificato con successo!' };
     }
 
-    // 2. Try email / token verification
+    // 2. Prova verifica OTP di tipo email / magiclink
     const { data: emailData, error: emailError } = await supabase.auth.verifyOtp({
       email: cleanEmail,
       token: cleanToken,
@@ -362,9 +368,18 @@ export async function verifyRecoveryCode(
       return { success: true, message: 'Codice verificato con successo!' };
     }
 
+    // Error message handling
+    const rawError = recError?.message || emailError?.message || '';
+    let userMsg = 'Codice errato o scaduto. Controlla la tua email e riprova.';
+    if (rawError.toLowerCase().includes('expired')) {
+      userMsg = 'Il codice di verifica è scaduto. Richiedi un nuovo codice.';
+    } else if (rawError.toLowerCase().includes('invalid')) {
+      userMsg = 'Codice di verifica non valido. Verifica le cifre ricevute per email.';
+    }
+
     return {
       success: false,
-      message: recError?.message || emailError?.message || 'Codice errato o scaduto. Controlla la tua email o richiedine uno nuovo.',
+      message: userMsg,
     };
   } catch (err: any) {
     return {

@@ -53,7 +53,6 @@ export const LockScreen: React.FC<LockScreenProps> = ({
   // Step 2: Verification Code & Reset PIN State
   const [verificationCode, setVerificationCode] = useState('');
   const [isVerifyingCode, setIsVerifyingCode] = useState(false);
-  const [isCodeVerified, setIsCodeVerified] = useState(false);
   const [newResetPin, setNewResetPin] = useState('');
   const [confirmResetPin, setConfirmResetPin] = useState('');
   const [resetPinError, setResetPinError] = useState('');
@@ -65,7 +64,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({
     }
   }, [recoveryEmail]);
 
-  // Listen for Supabase password recovery link hash or auth event
+  // Clean any recovery URL fragments if present
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const hash = window.location.hash || '';
@@ -73,30 +72,17 @@ export const LockScreen: React.FC<LockScreenProps> = ({
       if (
         hash.includes('type=recovery') ||
         hash.includes('access_token') ||
-        search.includes('token_hash') ||
-        search.includes('type=recovery')
+        search.includes('token_hash')
       ) {
         setShowRecoveryModal(true);
         setRecoverySent(true);
-        setIsCodeVerified(true);
-        setRecoverySuccessMsg('Accesso verificato tramite link email!');
+        // Clean URL parameters without automatically bypassing code verification
+        try {
+          const cleanUrl = window.location.origin + window.location.pathname;
+          window.history.replaceState(null, document.title, cleanUrl);
+        } catch (_) {}
       }
     }
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
-        setShowRecoveryModal(true);
-        setRecoverySent(true);
-        setIsCodeVerified(true);
-        setRecoverySuccessMsg('Accesso verificato tramite link email!');
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
   }, []);
 
   // Trigger biometric check on mount if enabled
@@ -183,38 +169,28 @@ export const LockScreen: React.FC<LockScreenProps> = ({
     e.preventDefault();
     setResetPinError('');
 
+    const cleanCode = verificationCode.trim();
+    if (!cleanCode || cleanCode.length < 4) {
+      setResetPinError('Inserisci il codice di verifica ricevuto via email');
+      return;
+    }
+
     if (!/^\d{4}$/.test(newResetPin)) {
       setResetPinError('Il nuovo PIN deve contenere esattamente 4 cifre numeriche');
       return;
     }
 
     if (newResetPin !== confirmResetPin) {
-      setResetPinError('I due PIN inseriti non coincidono');
+      setResetPinError('I due nuovi PIN inseriti non coincidono');
       return;
     }
 
     const cleanEmail = recoveryEmailInput.trim().toLowerCase();
 
-    // If verified via email link directly, proceed to reset PIN
-    if (isCodeVerified) {
-      if (onResetPinSuccess) {
-        onResetPinSuccess(newResetPin);
-      }
-      onUnlock();
-      return;
-    }
-
-    const cleanCode = verificationCode.trim();
-    if (!cleanCode) {
-      setResetPinError('Inserisci il codice di verifica a 6 cifre ricevuto via email');
-      return;
-    }
-
     setIsVerifyingCode(true);
     try {
-      const verifyRes = await verifyRecoveryCode(cleanEmail, cleanCode);
+      const verifyRes = await verifyRecoveryCode(cleanEmail, cleanCode, correctPin);
       if (verifyRes.success) {
-        setIsCodeVerified(true);
         if (onResetPinSuccess) {
           onResetPinSuccess(newResetPin);
         }
@@ -599,34 +575,28 @@ export const LockScreen: React.FC<LockScreenProps> = ({
                         <span>Reimposta Nuovo PIN di Accesso:</span>
                       </div>
 
-                      {/* Code Input (if not already verified via link) */}
-                      {!isCodeVerified ? (
-                        <div className="space-y-1">
-                          <label className="block text-[11px] font-bold text-zinc-300">
-                            Codice di Verifica Ricevuto via Email:
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            maxLength={8}
-                            value={verificationCode}
-                            onChange={(e) => {
-                              setVerificationCode(e.target.value.replace(/\s+/g, ''));
-                              setResetPinError('');
-                            }}
-                            placeholder="Codice a 6 cifre (es. 123456)"
-                            className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-base font-mono tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-                          <span className="block text-[10px] text-zinc-400">
-                            Puoi inserire il codice a 6 cifre oppure aprire il link ricevuto via email.
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-300 font-bold flex items-center space-x-2">
-                          <CheckCircle2 className="w-4 h-4 shrink-0" />
-                          <span>Identità verificata dal link dell'email!</span>
-                        </div>
-                      )}
+                      {/* Code Input (Always required) */}
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-zinc-300">
+                          Codice di Verifica Ricevuto via Email:
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          maxLength={12}
+                          autoComplete="one-time-code"
+                          value={verificationCode}
+                          onChange={(e) => {
+                            setVerificationCode(e.target.value.replace(/\s+/g, ''));
+                            setResetPinError('');
+                          }}
+                          placeholder="Inserisci il codice ricevuto"
+                          className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-base font-mono tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-zinc-500 placeholder:text-xs placeholder:font-sans placeholder:tracking-normal"
+                        />
+                        <span className="block text-[10px] text-zinc-400">
+                          Inserisci il codice numerico inviato alla tua email per confermare la tua identità.
+                        </span>
+                      </div>
 
                       {/* 4-digit New PIN & Confirm PIN */}
                       <div className="grid grid-cols-2 gap-2 pt-0.5">
@@ -679,7 +649,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({
                         type="submit"
                         disabled={
                           isVerifyingCode ||
-                          (!isCodeVerified && verificationCode.trim().length < 6) ||
+                          verificationCode.trim().length < 4 ||
                           newResetPin.length !== 4 ||
                           confirmResetPin.length !== 4
                         }
