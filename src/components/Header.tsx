@@ -1,6 +1,7 @@
 import React from 'react';
 import { Plus, Sun, Moon, WifiOff, Brain, EyeOff, Eye, Home } from 'lucide-react';
 import { ViewType, ThemeMode } from '../types';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface HeaderProps {
   currentView: ViewType;
@@ -81,6 +82,8 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Action Buttons (Top Right) - Shifted left slightly on mobile with safe inset */}
       <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0 mr-1 sm:mr-0">
+        <PWAInstallButton variant="header" />
+
         {onTogglePrivacyMode && (
           <button
             type="button"

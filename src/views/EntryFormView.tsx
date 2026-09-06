@@ -3,6 +3,7 @@ import { CbtEntry, FormTab, Tag, CustomQuestion } from '../types';
 import { CustomQuestionsService } from '../services/customQuestions';
 import { TagPicker } from '../components/TagPicker';
 import { GradientSlider } from '../components/GradientSlider';
+import { TextImproveModal } from '../components/TextImproveModal';
 import {
   Save,
   X,
@@ -18,6 +19,7 @@ import {
   ChevronRight,
   ChevronLeft,
   Sparkles,
+  Wand2,
   Heart,
   TrendingUp,
   Smile,
@@ -117,6 +119,71 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
   }, [draft.eventDatetime]);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // AI text proofreading & improvement modal state
+  const [improveModal, setImproveModal] = useState<{
+    isOpen: boolean;
+    text: string;
+    fieldTitle: string;
+    fieldName: keyof CbtEntry | string;
+    isCustomQuestion?: boolean;
+    questionId?: string;
+  }>({
+    isOpen: false,
+    text: '',
+    fieldTitle: '',
+    fieldName: '',
+  });
+
+  const handleOpenImproveModal = (
+    fieldName: keyof CbtEntry,
+    fieldTitle: string,
+    currentText: string
+  ) => {
+    if (!currentText.trim()) return;
+    setImproveModal({
+      isOpen: true,
+      text: currentText,
+      fieldTitle,
+      fieldName,
+    });
+  };
+
+  const handleOpenImproveCustomQuestion = (
+    qId: string,
+    fieldTitle: string,
+    currentText: string
+  ) => {
+    if (!currentText.trim()) return;
+    setImproveModal({
+      isOpen: true,
+      text: currentText,
+      fieldTitle,
+      fieldName: qId,
+      isCustomQuestion: true,
+      questionId: qId,
+    });
+  };
+
+  const handleApplyImprovement = (improvedText: string) => {
+    if (improveModal.isCustomQuestion && improveModal.questionId) {
+      handleCustomAnswerChange(improveModal.questionId, improvedText);
+    } else if (improveModal.fieldName) {
+      updateDraft(improveModal.fieldName as keyof CbtEntry, improvedText as any);
+    }
+  };
+
+  const handleQuickImprove = () => {
+    if (draft.negativeThought?.trim()) {
+      handleOpenImproveModal('negativeThought', 'Pensiero Negativo', draft.negativeThought);
+    } else if (draft.situation?.trim()) {
+      handleOpenImproveModal('situation', 'Situazione', draft.situation);
+    } else if (draft.notes?.trim()) {
+      handleOpenImproveModal('notes', 'Note Aggiuntive', draft.notes);
+    } else {
+      alert('Inserisci prima del testo in Situazione o Pensiero Negativo per poterlo correggere.');
+    }
+  };
 
   // Smooth scroll to top on step/section change
   const scrollToTop = () => {
@@ -231,6 +298,16 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
         <div className="flex items-center space-x-2">
           <button
             type="button"
+            onClick={handleQuickImprove}
+            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 active:scale-95 transition-all cursor-pointer"
+            title="Correggi bozza con AI ✨"
+          >
+            <Wand2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Correggi Testo</span>
+            <span>✨</span>
+          </button>
+          <button
+            type="button"
             onClick={onCancel}
             className="p-2.5 rounded-full text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] active:scale-95 transition-all cursor-pointer"
             aria-label="Annulla"
@@ -295,9 +372,22 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
 
           {/* Situazione con Caricamento Foto */}
           <div className="glass-panel rounded-[20px] p-4 space-y-3.5 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
-            <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-              Situazione (Dove ti trovavi? Con chi?)
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+                Situazione (Dove ti trovavi? Con chi?)
+              </label>
+              {draft.situation?.trim() && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenImproveModal('situation', 'Situazione', draft.situation)}
+                  className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer shadow-xs active:scale-95"
+                  title="Correggi refusi, grammatica e fluidità"
+                >
+                  <Wand2 className="w-3.5 h-3.5" />
+                  <span>Correggi testo ✨</span>
+                </button>
+              )}
+            </div>
             <textarea
               rows={3}
               value={draft.situation}
@@ -443,9 +533,22 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
           {/* Pensiero Negativo + Convinzione */}
           <div className="glass-panel rounded-[20px] p-4 space-y-4 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
             <div className="space-y-2">
-              <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-                Pensiero Negativo Automatico
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+                  Pensiero Negativo Automatico
+                </label>
+                {draft.negativeThought?.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenImproveModal('negativeThought', 'Pensiero Negativo', draft.negativeThought)}
+                    className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer shadow-xs active:scale-95"
+                    title="Correggi refusi, grammatica e fluidità"
+                  >
+                    <Wand2 className="w-3.5 h-3.5" />
+                    <span>Correggi testo ✨</span>
+                  </button>
+                )}
+              </div>
               <textarea
                 rows={3}
                 value={draft.negativeThought}
@@ -506,9 +609,22 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                         <label className="text-xs font-black text-[var(--text-primary)] leading-tight">
                           {q.prompt}
                         </label>
-                        <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                          {q.category}
-                        </span>
+                        <div className="flex items-center space-x-1.5 shrink-0">
+                          {q.responseType === 'text' && typeof currentValue === 'string' && currentValue.trim() && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenImproveCustomQuestion(q.id, q.prompt, currentValue)}
+                              className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
+                              title="Correggi testo con AI"
+                            >
+                              <Wand2 className="w-2.5 h-2.5" />
+                              <span>Correggi ✨</span>
+                            </button>
+                          )}
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                            {q.category}
+                          </span>
+                        </div>
                       </div>
 
                       {/* 1. Free text response */}
@@ -620,9 +736,21 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
         <div className="space-y-4 animate-fade-in">
           {/* Sintomi fisici */}
           <div className="glass-panel rounded-[20px] p-4 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
-            <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-              Sintomi Fisici &amp; Sensazioni
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+                Sintomi Fisici &amp; Sensazioni
+              </label>
+              {draft.physicalSymptomsText?.trim() && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenImproveModal('physicalSymptomsText', 'Sintomi Fisici', draft.physicalSymptomsText)}
+                  className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
+                >
+                  <Wand2 className="w-3.5 h-3.5" />
+                  <span>Correggi ✨</span>
+                </button>
+              )}
+            </div>
             <TagPicker
               category="physical_symptom"
               allTags={allTags}
@@ -643,9 +771,21 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
           {/* Pensieri Negativi Estesi & Intensità */}
           <div className="glass-panel rounded-[20px] p-4 space-y-4 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
             <div className="space-y-2">
-              <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-                Pensieri Negativi (Approfondimento)
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+                  Pensieri Negativi (Approfondimento)
+                </label>
+                {draft.negativeThoughtsExtended?.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenImproveModal('negativeThoughtsExtended', 'Pensieri Negativi (Approfondimento)', draft.negativeThoughtsExtended)}
+                    className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
+                  >
+                    <Wand2 className="w-3.5 h-3.5" />
+                    <span>Correggi ✨</span>
+                  </button>
+                )}
+              </div>
               <textarea
                 rows={3}
                 value={draft.negativeThoughtsExtended}
@@ -674,9 +814,21 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
 
           {/* Controllo Sintomi */}
           <div className="glass-panel rounded-[20px] p-4 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
-            <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-              Controllo dei Sintomi
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+                Controllo dei Sintomi
+              </label>
+              {draft.symptomControlDescription?.trim() && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenImproveModal('symptomControlDescription', 'Controllo Sintomi', draft.symptomControlDescription)}
+                  className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
+                >
+                  <Wand2 className="w-3.5 h-3.5" />
+                  <span>Correggi ✨</span>
+                </button>
+              )}
+            </div>
             <textarea
               rows={3}
               value={draft.symptomControlDescription}
@@ -693,9 +845,21 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
 
           {/* Ricerca Rassicurazioni */}
           <div className="glass-panel rounded-[20px] p-4 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
-            <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-              Ricerca di Rassicurazioni
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+                Ricerca di Rassicurazioni
+              </label>
+              {draft.reassuranceSeekingType?.trim() && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenImproveModal('reassuranceSeekingType', 'Ricerca Rassicurazioni', draft.reassuranceSeekingType)}
+                  className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
+                >
+                  <Wand2 className="w-3.5 h-3.5" />
+                  <span>Correggi ✨</span>
+                </button>
+              )}
+            </div>
             <textarea
               rows={3}
               value={draft.reassuranceSeekingType}
@@ -712,9 +876,21 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
 
           {/* Evitamenti */}
           <div className="glass-panel rounded-[20px] p-4 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
-            <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-              Evitamenti
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+                Evitamenti
+              </label>
+              {draft.avoidanceType?.trim() && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenImproveModal('avoidanceType', 'Evitamenti', draft.avoidanceType)}
+                  className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
+                >
+                  <Wand2 className="w-3.5 h-3.5" />
+                  <span>Correggi ✨</span>
+                </button>
+              )}
+            </div>
             <textarea
               rows={3}
               value={draft.avoidanceType}
@@ -742,9 +918,21 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
 
           {/* Note */}
           <div className="glass-panel rounded-[20px] p-4 space-y-2 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
-            <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-              Note Aggiuntive
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+                Note Aggiuntive
+              </label>
+              {draft.notes?.trim() && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenImproveModal('notes', 'Note Aggiuntive', draft.notes)}
+                  className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
+                >
+                  <Wand2 className="w-3.5 h-3.5" />
+                  <span>Correggi ✨</span>
+                </button>
+              )}
+            </div>
             <textarea
               rows={3}
               value={draft.notes}
@@ -775,6 +963,15 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* AI Text Improvement Modal */}
+      <TextImproveModal
+        isOpen={improveModal.isOpen}
+        initialText={improveModal.text}
+        fieldTitle={improveModal.fieldTitle}
+        onApply={handleApplyImprovement}
+        onClose={() => setImproveModal((prev) => ({ ...prev, isOpen: false }))}
+      />
     </form>
   );
 };

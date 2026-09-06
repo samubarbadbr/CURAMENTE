@@ -36,9 +36,11 @@ import {
   Send,
   ShieldAlert,
   AlertCircle,
-  AlertTriangle
+  AlertTriangle,
+  WifiOff,
 } from 'lucide-react';
 import { sendPinRecoveryEmail } from '../lib/supabase';
+import { PWAInstallButton } from '../components/PWAInstallButton';
 
 interface SettingsViewProps {
   pinEnabled: boolean;
@@ -225,6 +227,14 @@ NOTIFY pgrst, 'reload schema';`;
   };
 
   const handleTestRecoveryEmail = async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setEmailTestStatus({
+        success: false,
+        message: 'Connessione assente. Riprova quando sarai di nuovo online oppure usa lo sblocco locale.',
+      });
+      return;
+    }
+
     const targetEmail = (recoveryEmail || recoveryEmailDraft || '').trim().toLowerCase();
     if (!targetEmail || !targetEmail.includes('@')) {
       setEmailTestStatus({
@@ -487,6 +497,61 @@ NOTIFY pgrst, 'reload schema';`;
         </div>
       </div>
 
+
+      {/* PWA INSTALLATION & OFFLINE SECTION */}
+      <div className="glass-panel rounded-[22px] p-5 space-y-4 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm relative overflow-hidden">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 rounded-2xl bg-indigo-500/15 text-indigo-500 border border-indigo-500/30 shrink-0">
+              <Smartphone className="w-5 h-5 stroke-[2.5]" />
+            </div>
+            <div>
+              <span className="block text-base font-black text-[var(--text-primary)]">
+                App & Funzionamento Offline (PWA)
+              </span>
+              <span className="block text-xs font-bold text-[var(--text-secondary)]">
+                Installazione su Home Screen, Service Worker e cache locale
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[11px] font-bold shrink-0">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>100% Offline</span>
+          </div>
+        </div>
+
+        {/* PWA Install Button Card Component */}
+        <PWAInstallButton variant="card" />
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-xs">
+          <div className="p-3 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] space-y-1">
+            <span className="font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+              <Database className="w-3.5 h-3.5 text-indigo-400" /> Dati & PIN Locali
+            </span>
+            <p className="text-[11px] text-[var(--text-secondary)] leading-tight">
+              Tutte le voci del diario e la verifica del PIN sono salvate nel database locale (IndexedDB / localStorage).
+            </p>
+          </div>
+
+          <div className="p-3 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] space-y-1">
+            <span className="font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Cache Service Worker
+            </span>
+            <p className="text-[11px] text-[var(--text-secondary)] leading-tight">
+              I file dell'app (HTML, JS, CSS, icone) vengono salvati in cache per aprirsi anche in aereo o senza internet.
+            </p>
+          </div>
+
+          <div className="p-3 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] space-y-1">
+            <span className="font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+              <WifiOff className="w-3.5 h-3.5 text-amber-400" /> Sicurezza Senza Rete
+            </span>
+            <p className="text-[11px] text-[var(--text-secondary)] leading-tight">
+              Se sei offline, puoi comunque sbloccare con PIN o impronta. Il recupero email ti avviserà di riconnetterti.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* BACKUP & DATA TRANSFER SECTION */}
       <div className="glass-panel rounded-[22px] p-5 space-y-4 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm relative overflow-hidden">
@@ -1025,26 +1090,6 @@ NOTIFY pgrst, 'reload schema';`;
           </div>
         )}
       </div>
-
-      {/* INTRO SCREEN QUICK ACCESS */}
-      {onShowSplash && (
-        <div className="glass-panel rounded-[20px] p-2 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
-          <button
-            type="button"
-            onClick={onShowSplash}
-            className="w-full flex items-center justify-between p-3.5 text-left text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] active:scale-98 rounded-2xl transition-all duration-150 cursor-pointer"
-          >
-            <div className="flex items-center space-x-3">
-              <Sparkles className="w-4 h-4 text-[var(--accent-primary)] stroke-[2.5]" />
-              <div>
-                <span className="text-xs font-black block">Mostra Schermata di Copertina</span>
-                <span className="text-[11px] font-bold text-[var(--text-secondary)]">Rivedi la pagina introduttiva di benvenuto</span>
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
-          </button>
-        </div>
-      )}
 
       {/* DANGER ZONE */}
       <div className="glass-panel rounded-[20px] p-2 border border-rose-500/40 bg-[var(--bg-surface)] shadow-sm">

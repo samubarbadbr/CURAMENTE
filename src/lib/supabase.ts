@@ -140,6 +140,14 @@ export async function sendPinRecoveryEmail(
     return { success: false, message: 'Email non specificata' };
   }
 
+  // Controllo connessione offline
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return {
+      success: false,
+      message: 'Connessione assente. Riprova quando sarai di nuovo online oppure usa lo sblocco locale.',
+    };
+  }
+
   // Get current stored PIN if not explicitly passed
   let effectivePin = pin?.trim();
   if (!effectivePin && typeof window !== 'undefined') {
@@ -343,6 +351,14 @@ export async function verifyRecoveryCode(
   // Se corrisponde al PIN atteso inviato via email (es. tramite Edge function)
   if (expectedPin && cleanToken === expectedPin.trim()) {
     return { success: true, message: 'Codice verificato con successo!' };
+  }
+
+  // Se offline e non corrisponde allo sblocco locale
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return {
+      success: false,
+      message: 'Connessione assente. Riprova quando sarai di nuovo online oppure usa lo sblocco locale.',
+    };
   }
 
   try {

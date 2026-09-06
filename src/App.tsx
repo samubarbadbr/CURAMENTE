@@ -20,6 +20,7 @@ import { CustomQuestionsService } from './services/customQuestions';
 import { TherapistExportModal } from './components/TherapistExportModal';
 import { generateTherapistCsv, exportSingleEntryPdf } from './services/therapistReportGenerator';
 import { ResetPinModal } from './components/ResetPinModal';
+import { OfflineIndicator } from './components/OfflineIndicator';
 import {
   saveRecoveryEmailToCloud,
   handleIncomingRecoveryUrl,
@@ -58,7 +59,7 @@ const pageVariants = {
 };
 
 const pageTransition = {
-  type: 'spring',
+  type: 'spring' as const,
   stiffness: 340,
   damping: 30,
   mass: 0.75,
@@ -87,7 +88,7 @@ export default function App() {
   // Filters & Theme
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('30');
   const [dashPeriod, setDashPeriod] = useState<PeriodFilter>('30');
-  const [themeMode, setThemeMode] = useState<ThemeMode>('light');
+  const [themeMode, setThemeMode] = useState<ThemeMode>('minimal');
 
   // Visual Privacy Mode (Modalità Sguardo Veloce)
   const [isPrivacyModeEnabled, setIsPrivacyModeEnabled] = useState<boolean>(() => {
@@ -840,6 +841,9 @@ export default function App() {
   const handleTogglePin = async (enabled: boolean) => {
     if (enabled) {
       await DB.put('settings', { key: 'pin_enabled', value: true });
+      try {
+        localStorage.setItem('diariamente_pin_enabled', 'true');
+      } catch {}
       setPinEnabled(true);
       if (!pinCode) {
         showToast('Imposta un PIN a 4 cifre per completare la protezione');
@@ -849,6 +853,9 @@ export default function App() {
     } else {
       await DB.put('settings', { key: 'pin_enabled', value: false });
       await DB.put('settings', { key: 'biometrics_enabled', value: false });
+      try {
+        localStorage.setItem('diariamente_pin_enabled', 'false');
+      } catch {}
       setPinEnabled(false);
       setBiometricsEnabled(false);
       showToast('Protezione PIN e biometrica disattivata');
@@ -1229,8 +1236,12 @@ export default function App() {
                   syncStatus={syncStatus}
                   lastSyncedAt={lastSyncedAt}
                   onSaveSyncPin={handleSaveSyncPin}
-                  onManualSyncPush={() => handleSyncPush(syncPin)}
-                  onManualSyncPull={() => handleSyncPull(syncPin, true)}
+                  onManualSyncPush={async () => {
+                    await handleSyncPush(syncPin);
+                  }}
+                  onManualSyncPull={async () => {
+                    await handleSyncPull(syncPin, true);
+                  }}
                   onTestConnection={handleTestConnection}
                   onExportJson={handleExportJson}
                   onExportTherapistReport={handleOpenTherapistModal}
@@ -1261,6 +1272,7 @@ export default function App() {
       )}
 
       <Toast message={toastMsg} />
+      <OfflineIndicator />
 
       <ConfirmModal
         isOpen={confirmModal.isOpen}

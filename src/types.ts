@@ -54,6 +54,11 @@ export interface CbtEntry {
   photo?: string; // Base64 encoded image for multi-device sync
   notes: string;
   customAnswers?: Record<string, string | number | boolean>;
+  safetyBehaviors?: string;
+  avoidanceBehaviors?: string;
+  evidenceForThought?: string;
+  evidenceAgainstThought?: string;
+  alternativeThought?: string;
 }
 
 export interface AppSettings {

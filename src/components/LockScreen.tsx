@@ -133,6 +133,13 @@ export const LockScreen: React.FC<LockScreenProps> = ({
 
   const handleSendRecoveryEmail = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+
+    // Check offline status
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setRecoveryErrorMsg('Connessione assente. Riprova quando sarai di nuovo online oppure usa lo sblocco locale.');
+      return;
+    }
+
     const cleanEmail = recoveryEmailInput.trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes('@')) {
       setRecoveryErrorMsg('Inserisci un indirizzo email valido');

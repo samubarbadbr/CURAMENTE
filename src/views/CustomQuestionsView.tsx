@@ -33,6 +33,7 @@ interface CustomQuestionsViewProps {
   onToggleQuestion: (id: string, isEnabled: boolean) => void;
   onResetDefaults: () => void;
   onBackToDiary?: () => void;
+  onBack?: () => void;
 }
 
 const CATEGORY_META: Record<
@@ -83,7 +84,9 @@ export const CustomQuestionsView: React.FC<CustomQuestionsViewProps> = ({
   onToggleQuestion,
   onResetDefaults,
   onBackToDiary,
+  onBack,
 }) => {
+  const handleBack = onBackToDiary || onBack;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<CustomQuestion | null>(null);
   const [filterCategory, setFilterCategory] = useState<string>('all');
@@ -127,10 +130,10 @@ export const CustomQuestionsView: React.FC<CustomQuestionsViewProps> = ({
       {/* Top Header Row with Metallic Nuova Domanda button */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
         <div className="flex items-center space-x-3">
-          {onBackToDiary && (
+          {handleBack && (
             <button
               type="button"
-              onClick={onBackToDiary}
+              onClick={handleBack}
               className="p-2.5 rounded-full bg-[var(--bg-subtle)] border border-[var(--border-solid)] text-[var(--text-primary)] hover:bg-[var(--bg-surface)] active:scale-95 transition-all cursor-pointer mr-0.5"
               title="Torna al diario"
             >
