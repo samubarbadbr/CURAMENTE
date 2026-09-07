@@ -575,13 +575,13 @@ export function generateTherapistReportHtml(
 
     .section-title {
       border-bottom: 2px solid #4f46e5;
-      padding: 0 0 4px 0;
-      font-size: 11px;
+      padding: 0 0 6px 0;
+      font-size: 11.5px;
       font-weight: 900;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.05em;
       color: #1e1b4b;
-      margin: 12px 0 8px 0;
+      margin: 20px 0 12px 0;
       display: block;
     }
   </style>
@@ -590,32 +590,32 @@ export function generateTherapistReportHtml(
 
   <div class="report-container">
     
-    <!-- HEADER PDF ESSENZIALE E COMPATTO (Spazio ottimizzato per nome e data) -->
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px; border-bottom: 1.5px solid #e2e8f0; background: #ffffff;">
+    <!-- HEADER PDF CLINICO PROFESSIONALE ED ELEGANTE -->
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 22px; border-bottom: 2px solid #e2e8f0; background: #ffffff;">
       <tr>
-        <td style="padding: 0 0 6px 0; text-align: left; vertical-align: middle;">
-          <div class="report-header-title" style="font-size: 18px; color: #4f46e5; font-weight: 900; line-height: 1.1; letter-spacing: -0.01em;">
+        <td style="padding: 4px 0 16px 0; text-align: left; vertical-align: middle;">
+          <div class="report-header-title" style="font-size: 21px; color: #4338ca; font-weight: 900; line-height: 1.15; letter-spacing: 0.04em;">
             DIARIAMENTE
           </div>
-          <div class="report-subtitle" style="font-size: 9.5px; color: #64748b; margin-top: 2px; font-weight: 600; line-height: 1.2;">
+          <div class="report-subtitle" style="font-size: 11px; color: #475569; margin-top: 6px; font-weight: 600; line-height: 1.3; letter-spacing: 0.01em;">
             Report Clinico di Psicoterapia Cognitivo-Comportamentale
           </div>
         </td>
-        <td style="padding: 0 0 6px 0; text-align: right; vertical-align: middle; white-space: nowrap;">
-          <div style="display: inline-block; text-align: right; border: 1px solid #cbd5e1; background: #f8fafc; padding: 4px 9px; border-radius: 5px;">
-            ${
-              options.patientName
-                ? `
-              <div style="font-size: 10px; font-weight: 700; color: #0f172a; line-height: 1.2;">
-                Paziente: <strong style="color: #312e81; font-weight: 800;">${escapeHtml(options.patientName)}</strong>
+        <td style="padding: 4px 0 16px 0; text-align: right; vertical-align: middle; white-space: nowrap;">
+          ${
+            options.patientName
+              ? `
+            <div style="display: inline-block; text-align: right; border: 1.5px solid #cbd5e1; background: #f8fafc; padding: 6px 14px; border-radius: 8px;">
+              <div style="font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; line-height: 1.1;">
+                Paziente
               </div>
-            `
-                : ''
-            }
-            <div style="font-size: 9.5px; font-weight: 600; color: #475569; line-height: 1.2; margin-top: 1px;">
-              Data: <strong style="color: #0f172a; font-weight: 700;">${escapeHtml(dateRangeDisplay)}</strong>
+              <div style="font-size: 13px; font-weight: 900; color: #1e1b4b; line-height: 1.2; margin-top: 2px;">
+                ${escapeHtml(options.patientName)}
+              </div>
             </div>
-          </div>
+          `
+              : ''
+          }
         </td>
       </tr>
     </table>
@@ -1012,9 +1012,7 @@ export async function exportTherapistPdf(
         pdf.setFontSize(8.5);
         pdf.setTextColor(71, 85, 105);
         pdf.text('DiariaMente — Report Clinico CBT', marginSideMm, 9.5);
-        const rightSubtitle = [options.patientName ? `Paziente: ${options.patientName}` : '', dateRangeDisplay]
-          .filter(Boolean)
-          .join(' • ');
+        const rightSubtitle = options.patientName ? `Paziente: ${options.patientName}` : '';
         if (rightSubtitle) {
           pdf.text(rightSubtitle, a4WidthMm - marginSideMm, 9.5, { align: 'right' });
         }

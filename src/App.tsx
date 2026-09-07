@@ -99,20 +99,11 @@ export default function App() {
     }
   });
 
-  // Splash Screen / Intro Cover Screen state
-  const [showSplash, setShowSplash] = useState<boolean>(() => {
-    try {
-      return sessionStorage.getItem('diariamente_splash_dismissed') !== 'true';
-    } catch {
-      return true;
-    }
-  });
+  // Splash Screen / Dynamic Loading Screen state (mostrata ad ogni primo ingresso o ricarica)
+  const [showSplash, setShowSplash] = useState<boolean>(true);
 
   const handleDismissSplash = () => {
     setShowSplash(false);
-    try {
-      sessionStorage.setItem('diariamente_splash_dismissed', 'true');
-    } catch {}
   };
 
   const handleTogglePrivacyMode = () => {
@@ -1057,7 +1048,7 @@ export default function App() {
     showToast('Domande predefinite ripristinate!');
   };
 
-  if (!isDbReady) {
+  if (!isDbReady && !showSplash) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--bg-page)] text-[var(--text-primary)]">
         <div className="text-center space-y-3">
@@ -1070,10 +1061,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen w-full app-root-container flex flex-col font-sans transition-colors duration-200">
-      {/* Splash Screen / Intro Cover Screen */}
+      {/* Splash Screen / Dynamic Loading Screen */}
       <AnimatePresence>
         {showSplash && (
-          <SplashScreen onStart={handleDismissSplash} />
+          <SplashScreen
+            onComplete={handleDismissSplash}
+            onStart={handleDismissSplash}
+            isReady={isDbReady}
+          />
         )}
       </AnimatePresence>
 
@@ -1117,13 +1112,9 @@ export default function App() {
 
       {/* Main App Container */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.96, filter: 'blur(8px)' }}
-        animate={{
-          opacity: showSplash ? 0 : 1,
-          scale: showSplash ? 0.96 : 1,
-          filter: showSplash ? 'blur(8px)' : 'blur(0px)',
-        }}
-        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: showSplash ? 0 : 1 }}
+        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
         className="flex-1 w-full max-w-2xl lg:max-w-3xl mx-auto flex flex-col relative"
       >
         <Header

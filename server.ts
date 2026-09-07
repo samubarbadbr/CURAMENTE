@@ -8,12 +8,36 @@ import 'dotenv/config';
 const app = express();
 const PORT = 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+
+// Enable CORS and credentials for mobile & web preview requests
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
+// Health check for AI correction service
+app.get('/api/correct-text', (_req, res) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.json({ status: 'ok', hasApiKey: Boolean(process.env.GEMINI_API_KEY) });
+});
 
 // API route for AI text proofreading & correction
 app.post('/api/correct-text', async (req, res) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
   try {
-    const { text } = req.body;
+    const { text } = req.body || {};
     if (!text || typeof text !== 'string' || !text.trim()) {
       return res.status(400).json({ error: 'Nessun testo fornito per la correzione.' });
     }
@@ -72,9 +96,8 @@ async function startServer() {
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
-        hmr: {
-          server,
-        },
+        hmr: false,
+        ws: false,
       },
       appType: 'spa',
     });

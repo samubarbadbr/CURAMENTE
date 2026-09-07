@@ -202,10 +202,10 @@ html[data-theme='amethyst'] {
 
 .glass-header, header {
   background-color: var(--bg-surface) !important;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-bottom: 1px solid var(--border-solid) !important;
-  padding-top: calc(0.875rem + env(safe-area-inset-top, 0px));
+  padding-top: calc(0.875rem + env(safe-area-inset-top, 0px)) !important;
 }
 
 .btn-primary, button.btn-primary {

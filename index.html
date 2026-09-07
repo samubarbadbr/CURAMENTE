@@ -1,6 +1,122 @@
 <!doctype html>
 <html lang="it">
   <head>
+    <script>
+      (function() {
+        if (typeof window !== 'undefined') {
+          if (window.WebSocket) {
+            var NativeWebSocket = window.WebSocket;
+            window.WebSocket = function(url, protocols) {
+              var urlStr = String(url || '');
+              var isViteHmr =
+                protocols === 'vite-hmr' ||
+                (Array.isArray(protocols) && protocols.indexOf('vite-hmr') !== -1) ||
+                urlStr.indexOf('vite-hmr') !== -1;
+              if (isViteHmr) {
+                var noop = function() {};
+                var listeners = {};
+                var dummySocket = {
+                  readyState: 1,
+                  url: urlStr,
+                  protocol: 'vite-hmr',
+                  send: noop,
+                  close: noop,
+                  addEventListener: function(event, fn) {
+                    listeners[event] = listeners[event] || [];
+                    listeners[event].push(fn);
+                    if (event === 'open') {
+                      setTimeout(fn, 10);
+                    }
+                  },
+                  removeEventListener: function(event, fn) {
+                    if (listeners[event]) {
+                      listeners[event] = listeners[event].filter(function(cb) { return cb !== fn; });
+                    }
+                  },
+                  dispatchEvent: function() { return false; },
+                  onopen: null,
+                  onclose: null,
+                  onerror: null,
+                  onmessage: null,
+                };
+                setTimeout(function() {
+                  if (typeof dummySocket.onopen === 'function') dummySocket.onopen();
+                }, 10);
+                return dummySocket;
+              }
+              return new NativeWebSocket(url, protocols);
+            };
+            window.WebSocket.prototype = NativeWebSocket.prototype;
+          }
+
+          window.addEventListener('unhandledrejection', function(event) {
+            var reason = event && event.reason;
+            var str = String(reason && (reason.message || reason) || '');
+            if (str.indexOf('WebSocket') !== -1 || str.indexOf('vite') !== -1 || str.indexOf('closed without opened') !== -1) {
+              event.preventDefault();
+              if (typeof event.stopImmediatePropagation === 'function') {
+                event.stopImmediatePropagation();
+              }
+            }
+          });
+
+          var filterVite = function(args) {
+            if (!args || !args.length) return false;
+            for (var i = 0; i < args.length; i++) {
+              var item = args[i];
+              var text = '';
+              try {
+                if (typeof item === 'string') {
+                  text = item;
+                } else if (item && typeof item === 'object') {
+                  text = (item.message || '') + ' ' + (item.stack || '') + ' ' + (item.type || '') + ' ' + String(item);
+                } else {
+                  text = String(item || '');
+                }
+              } catch (e) {
+                text = '';
+              }
+              if (
+                text.indexOf('[vite]') !== -1 ||
+                text.indexOf('vite-hmr') !== -1 ||
+                text.indexOf('WebSocket') !== -1 ||
+                text.indexOf('closed without opened') !== -1 ||
+                text.indexOf('connecting...') !== -1
+              ) {
+                return true;
+              }
+            }
+            return false;
+          };
+
+          var origError = console.error;
+          console.error = function() {
+            if (filterVite(arguments)) return;
+            origError.apply(console, arguments);
+          };
+          var origWarn = console.warn;
+          console.warn = function() {
+            if (filterVite(arguments)) return;
+            origWarn.apply(console, arguments);
+          };
+          var origInfo = console.info;
+          console.info = function() {
+            if (filterVite(arguments)) return;
+            origInfo.apply(console, arguments);
+          };
+          var origDebug = console.debug;
+          console.debug = function() {
+            if (filterVite(arguments)) return;
+            origDebug.apply(console, arguments);
+          };
+          var origLog = console.log;
+          console.log = function() {
+            if (filterVite(arguments)) return;
+            origLog.apply(console, arguments);
+          };
+        }
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Diariamente</title>

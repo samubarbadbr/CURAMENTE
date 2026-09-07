@@ -33,7 +33,12 @@ export const Header: React.FC<HeaderProps> = ({
       window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   return (
-    <header className="sticky top-0 z-30 w-full glass-header px-4 sm:px-6 py-3 flex items-center justify-between border-b transition-colors duration-200">
+    <header className="sticky top-0 z-30 w-full glass-header px-4 sm:px-6 pb-3 pt-[calc(0.875rem+env(safe-area-inset-top,0px))] flex items-center justify-between border-b transition-colors duration-200 relative">
+      {/* Elastic Overscroll Cover: prevents any scrolled content from leaking above the header on iOS / Mobile */}
+      <div
+        className="absolute bottom-full left-0 right-0 h-48 bg-[var(--bg-surface)] backdrop-blur-2xl pointer-events-none -z-10"
+        aria-hidden="true"
+      />
       {/* Top Left: Unified Sophisticated & Larger Brand Element */}
       <div className="flex items-center">
         {onShowSplash ? (

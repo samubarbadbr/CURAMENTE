@@ -375,9 +375,9 @@ NOTIFY pgrst, 'reload schema';`;
 
         {/* PIN Box */}
         <div className="p-4 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <KeyRound className="w-4 h-4 text-[#5B67CA]" />
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center space-x-2 min-w-0">
+              <KeyRound className="w-4 h-4 text-[#5B67CA] shrink-0" />
               <span className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
                 PIN Personale Sincronizzazione Cloud:
               </span>
@@ -386,7 +386,7 @@ NOTIFY pgrst, 'reload schema';`;
               <button
                 type="button"
                 onClick={() => setIsEditingPin(true)}
-                className="text-[11px] font-black text-[#5B67CA] hover:underline cursor-pointer"
+                className="text-[11px] font-black text-[#5B67CA] hover:underline cursor-pointer shrink-0"
               >
                 Cambia PIN
               </button>
@@ -572,26 +572,26 @@ NOTIFY pgrst, 'reload schema';`;
         </div>
 
         {/* TWO PRIMARY ACTION BUTTONS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
           {/* Button 1: Download JSON Backup */}
           <button
             type="button"
             onClick={onExportJson}
-            className="flex flex-col items-start justify-between p-4 rounded-2xl bg-[#5B67CA] hover:bg-[#4A55B8] text-white transition-all active:scale-98 shadow-md cursor-pointer text-left border border-[#5B67CA]/50 group"
+            className="flex flex-col items-start justify-between p-4.5 sm:p-5 rounded-2xl bg-[#5B67CA] hover:bg-[#4A55B8] text-white transition-all active:scale-98 shadow-md cursor-pointer text-left border border-[#5B67CA]/50 group min-h-[136px]"
           >
-            <div className="flex items-center justify-between w-full mb-2">
-              <div className="p-2 rounded-xl bg-white/20 text-white">
+            <div className="flex items-center justify-between w-full gap-2 mb-3">
+              <div className="p-2.5 rounded-xl bg-white/20 text-white shrink-0">
                 <Download className="w-5 h-5 stroke-[2.5]" />
               </div>
-              <span className="text-[10px] font-extrabold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full text-white">
+              <span className="text-[10px] font-black uppercase tracking-wider bg-white/25 px-2.5 py-1 rounded-full text-white shrink-0 border border-white/20 shadow-xs">
                 Consigliato
               </span>
             </div>
-            <div>
+            <div className="space-y-1">
               <span className="block text-sm font-black text-white leading-tight">
                 Scarica File di Backup (.json)
               </span>
-              <span className="block text-[11px] font-semibold text-white/80 mt-1">
+              <span className="block text-[11px] font-medium text-white/85 leading-snug">
                 Salva subito tutti i dati del diario in un file ripristinabile.
               </span>
             </div>
@@ -601,21 +601,21 @@ NOTIFY pgrst, 'reload schema';`;
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="flex flex-col items-start justify-between p-4 rounded-2xl bg-[var(--bg-subtle)] hover:opacity-90 text-[var(--text-primary)] border-2 border-[#5B67CA]/40 transition-all active:scale-98 shadow-sm cursor-pointer text-left group"
+            className="flex flex-col items-start justify-between p-4.5 sm:p-5 rounded-2xl bg-[var(--bg-subtle)] hover:opacity-90 text-[var(--text-primary)] border-2 border-[#5B67CA]/40 transition-all active:scale-98 shadow-sm cursor-pointer text-left group min-h-[136px]"
           >
-            <div className="flex items-center justify-between w-full mb-2">
-              <div className="p-2 rounded-xl bg-[#5B67CA]/15 text-[#5B67CA]">
+            <div className="flex items-center justify-between w-full gap-2 mb-3">
+              <div className="p-2.5 rounded-xl bg-[#5B67CA]/15 text-[#5B67CA] shrink-0">
                 <Upload className="w-5 h-5 stroke-[2.5]" />
               </div>
-              <span className="text-[10px] font-extrabold uppercase tracking-wider bg-[#5B67CA]/15 text-[#5B67CA] px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-black uppercase tracking-wider bg-[#5B67CA]/15 text-[#5B67CA] px-2.5 py-1 rounded-full shrink-0 border border-[#5B67CA]/20">
                 Ripristino
               </span>
             </div>
-            <div>
+            <div className="space-y-1">
               <span className="block text-sm font-black text-[var(--text-primary)] leading-tight">
                 Carica File di Backup
               </span>
-              <span className="block text-[11px] font-bold text-[var(--text-secondary)] mt-1">
+              <span className="block text-[11px] font-medium text-[var(--text-secondary)] leading-snug">
                 Seleziona il file .json per ripristinare o sincronizzare in 1 sec.
               </span>
             </div>
@@ -688,13 +688,13 @@ NOTIFY pgrst, 'reload schema';`;
 
       {/* SECURITY & BIOMETRICS SECTION */}
       <div className="glass-panel rounded-[20px] p-5 space-y-4 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-2xl bg-[#5B67CA]/15 text-[#5B67CA] border border-[#5B67CA]/30">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center space-x-3 min-w-0">
+            <div className="p-2.5 rounded-2xl bg-[#5B67CA]/15 text-[#5B67CA] border border-[#5B67CA]/30 shrink-0">
               <Lock className="w-5 h-5 stroke-[2.5]" />
             </div>
-            <div>
-              <span className="block text-sm font-black text-[var(--text-primary)]">
+            <div className="min-w-0">
+              <span className="block text-sm font-black text-[var(--text-primary)] truncate">
                 Protezione con PIN dell'App
               </span>
               <span className="block text-xs font-bold text-[var(--text-secondary)]">
@@ -703,7 +703,7 @@ NOTIFY pgrst, 'reload schema';`;
             </div>
           </div>
 
-          <label className="relative inline-flex items-center cursor-pointer">
+          <label className="relative inline-flex items-center cursor-pointer shrink-0">
             <input
               type="checkbox"
               checked={pinEnabled}
@@ -718,16 +718,16 @@ NOTIFY pgrst, 'reload schema';`;
         {pinEnabled && (
           <div className="pt-3 border-t border-[var(--border-subtle)] space-y-4">
             {/* PIN Code & Recovery Email Setting / Editing Box */}
-            <div className="bg-[var(--bg-subtle)] rounded-2xl p-4 border border-[var(--border-solid)] space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <KeyRound className="w-4 h-4 text-[#5B67CA] stroke-[2.5]" />
+            <div className="bg-[var(--bg-subtle)] rounded-2xl p-3.5 sm:p-4 border border-[var(--border-solid)] space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center space-x-2 min-w-0">
+                  <KeyRound className="w-4 h-4 text-[#5B67CA] stroke-[2.5] shrink-0" />
                   <span className="text-xs font-black text-[var(--text-primary)]">
-                    Codice PIN a 4 Cifre &amp; Email di Recupero
+                    Codice PIN &amp; Email di Recupero
                   </span>
                 </div>
                 {pinCode && !isEditingAppPin && (
-                  <span className="text-[11px] font-black text-emerald-600 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                  <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20 shrink-0">
                     Configurato
                   </span>
                 )}
@@ -825,40 +825,41 @@ NOTIFY pgrst, 'reload schema';`;
                   {/* Notice clarifying that PIN change doesn't require email */}
                   <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-start space-x-2.5">
                     <KeyRound className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
-                    <div className="text-xs space-y-0.5">
+                    <div className="text-xs space-y-0.5 min-w-0">
                       <span className="font-bold text-[var(--text-primary)] block">Vuoi cambiare il tuo PIN?</span>
-                      <span className="text-[var(--text-secondary)] leading-relaxed block">
+                      <span className="text-[var(--text-secondary)] leading-relaxed block text-[11px]">
                         Non serve inviare né ricevere alcuna email! Puoi cambiarlo subito da qui cliccando su <strong>"Modifica PIN"</strong>.
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-mono font-bold tracking-widest text-[var(--text-primary)]">
+                  {/* Active PIN indicator and action buttons - optimized for mobile responsiveness */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                    <div className="flex items-center space-x-2.5 min-w-0">
+                      <span className="text-sm font-mono font-bold tracking-widest text-[var(--text-primary)] px-2.5 py-0.5 rounded-md bg-[var(--bg-subtle)] border border-[var(--border-solid)]">
                         ••••
                       </span>
-                      <span className="text-[11px] font-bold text-[var(--text-secondary)]">
-                        (PIN a 4 cifre attivo)
+                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        PIN attivo
                       </span>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
                       <button
                         type="button"
                         onClick={() => {
                           setIsEditingAppPin(true);
                           setAppPinDraft('');
                         }}
-                        className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs font-bold transition-all shadow-sm flex items-center space-x-1.5 cursor-pointer"
+                        className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs font-bold transition-all shadow-sm flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap min-h-[38px]"
                       >
-                        <KeyRound className="w-3.5 h-3.5" />
+                        <KeyRound className="w-3.5 h-3.5 shrink-0" />
                         <span>Modifica PIN</span>
                       </button>
                       {onLockApp && (
                         <button
                           type="button"
                           onClick={onLockApp}
-                          className="px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)] text-[11px] font-bold text-[var(--text-primary)] hover:bg-[var(--bg-page)] active:scale-95 transition-all shadow-xs cursor-pointer"
+                          className="px-3 py-2 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] text-xs font-bold text-[var(--text-primary)] hover:bg-[var(--bg-page)] active:scale-95 transition-all shadow-xs cursor-pointer shrink-0 whitespace-nowrap min-h-[38px]"
                         >
                           Blocca Ora
                         </button>
@@ -866,15 +867,15 @@ NOTIFY pgrst, 'reload schema';`;
                     </div>
                   </div>
 
-                  {/* Registered recovery email row */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
-                    <div className="flex items-center space-x-2 overflow-hidden">
-                      <Mail className="w-3.5 h-3.5 text-[#5B67CA] shrink-0" />
-                      <div className="truncate">
+                  {/* Registered recovery email row - fully responsive on mobile */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                    <div className="flex items-start sm:items-center space-x-2.5 min-w-0">
+                      <Mail className="w-4 h-4 text-[#5B67CA] shrink-0 mt-0.5 sm:mt-0" />
+                      <div className="min-w-0">
                         <span className="text-[10px] font-bold text-[var(--text-secondary)] block leading-tight">
                           Email di Recupero Registrata:
                         </span>
-                        <span className="text-xs font-mono font-bold text-[var(--text-primary)] truncate">
+                        <span className="text-xs font-mono font-bold text-[var(--text-primary)] break-all block mt-0.5">
                           {recoveryEmail || recoveryEmailDraft || 'Non specificata'}
                         </span>
                       </div>
@@ -884,13 +885,13 @@ NOTIFY pgrst, 'reload schema';`;
                       type="button"
                       onClick={handleTestRecoveryEmail}
                       disabled={isTestingEmail}
-                      className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-[#5B67CA]/10 hover:bg-[#5B67CA]/20 text-[#5B67CA] border border-[#5B67CA]/20 transition-all flex items-center space-x-1 cursor-pointer shrink-0"
+                      className="w-full sm:w-auto text-xs font-bold px-3 py-2 rounded-lg bg-[#5B67CA]/10 hover:bg-[#5B67CA]/20 text-[#5B67CA] border border-[#5B67CA]/20 transition-all flex items-center justify-center space-x-1.5 cursor-pointer shrink-0 min-h-[36px]"
                       title="Verifica l'invio delle istruzioni di recupero"
                     >
                       {isTestingEmail ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
                       ) : (
-                        <Send className="w-3 h-3" />
+                        <Send className="w-3.5 h-3.5 shrink-0" />
                       )}
                       <span>{isTestingEmail ? 'Invio test...' : 'Test Invio Email'}</span>
                     </button>
@@ -933,12 +934,12 @@ NOTIFY pgrst, 'reload schema';`;
             </div>
 
             {/* Face ID / Touch ID Biometrics Toggle (Always shown or if supported) */}
-            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-solid)]">
-              <div className="flex items-center space-x-3">
+            <div className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-solid)]">
+              <div className="flex items-center space-x-3 min-w-0">
                 <div className="p-2 rounded-xl bg-violet-500/15 text-violet-500 border border-violet-500/30 shrink-0">
                   <ScanFace className="w-4 h-4 stroke-[2.5]" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="block text-xs font-black text-[var(--text-primary)]">
                     Face ID / Touch ID
                   </span>
@@ -948,7 +949,7 @@ NOTIFY pgrst, 'reload schema';`;
                 </div>
               </div>
 
-              <label className="relative inline-flex items-center cursor-pointer">
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
                 <input
                   type="checkbox"
                   checked={biometricsEnabled}
