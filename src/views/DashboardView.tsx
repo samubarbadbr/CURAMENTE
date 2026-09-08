@@ -1,10 +1,12 @@
 import React from 'react';
-import { CbtEntry, PeriodFilter } from '../types';
+import { CbtEntry, PeriodFilter, Tag } from '../types';
 import { BarChart3, FileSpreadsheet, TrendingUp, ShieldAlert, HeartHandshake, Ban, Activity } from 'lucide-react';
 import { CustomDropdown } from '../components/CustomDropdown';
+import { CalendarHeatmap } from '../components/CalendarHeatmap';
 
 interface DashboardViewProps {
   entries: CbtEntry[];
+  allTags?: Tag[];
   dashPeriod: PeriodFilter;
   onPeriodChange: (period: PeriodFilter) => void;
   onExportReport: () => void;
@@ -12,6 +14,7 @@ interface DashboardViewProps {
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   entries,
+  allTags = [],
   dashPeriod,
   onPeriodChange,
   onExportReport,
@@ -584,6 +587,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <span className="block text-xs font-black text-[var(--text-primary)]">Evitamenti Totali</span>
         </div>
       </div>
+
+      {/* GitHub-style Calendar Heatmap - Mappa del Calore dei Pensieri (ultimi 12 mesi) */}
+      <CalendarHeatmap entries={entries} allTags={allTags} />
 
       {/* Chart 1: Overall Anxiety Trend */}
       <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">

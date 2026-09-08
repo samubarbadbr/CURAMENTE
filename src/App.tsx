@@ -1195,6 +1195,7 @@ export default function App() {
               {currentView === 'dashboard' && (
                 <DashboardView
                   entries={entries}
+                  allTags={allTags}
                   dashPeriod={dashPeriod}
                   onPeriodChange={(p) => setDashPeriod(p)}
                   onExportReport={() => setIsDashboardExportOpen(true)}

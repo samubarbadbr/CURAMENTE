@@ -52,6 +52,8 @@ export interface CbtEntry {
   avoidanceCount: number;
   overallAnxietyLevel: number; // 0-100
   photo?: string; // Base64 encoded image for multi-device sync
+  audioNote?: string; // Base64 data URL for local voice note
+  audioDuration?: number; // Duration in seconds
   notes: string;
   customAnswers?: Record<string, string | number | boolean>;
   safetyBehaviors?: string;

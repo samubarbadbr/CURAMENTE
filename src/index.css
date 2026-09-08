@@ -31,6 +31,11 @@ html.dark:not(.theme-midnight):not(.theme-minimal):not(.theme-earth):not(.theme-
   --badge-border: rgba(255, 255, 255, 0.2);
   --ring-color: #FFFFFF;
   --panel-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --heatmap-empty: rgba(255, 255, 255, 0.06);
+  --heatmap-l1: rgba(99, 102, 241, 0.35);
+  --heatmap-l2: rgba(99, 102, 241, 0.60);
+  --heatmap-l3: rgba(99, 102, 241, 0.85);
+  --heatmap-l4: #818cf8;
 }
 
 /* 2. LIGHT MINIMAL / MINIMALISTA (Pure White #FFFFFF, Light Slate #F4F4F5, Deep Black #0F172A) */
@@ -58,6 +63,11 @@ html[data-theme='light'] {
   --badge-border: #CBD5E1;
   --ring-color: #0F172A;
   --panel-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --heatmap-empty: #e2e8f0;
+  --heatmap-l1: #c7d2fe;
+  --heatmap-l2: #818cf8;
+  --heatmap-l3: #6366f1;
+  --heatmap-l4: #4338ca;
 }
 
 /* 3. MIDNIGHT BLUE / NOTTE (Deep Navy #0A1120, Dark Blue Surface #131F37, Cyan #38BDF8) */
@@ -85,6 +95,11 @@ html[data-theme='ocean'] {
   --badge-border: rgba(56, 189, 248, 0.35);
   --ring-color: #38BDF8;
   --panel-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --heatmap-empty: rgba(255, 255, 255, 0.08);
+  --heatmap-l1: rgba(56, 189, 248, 0.30);
+  --heatmap-l2: rgba(56, 189, 248, 0.55);
+  --heatmap-l3: rgba(56, 189, 248, 0.80);
+  --heatmap-l4: #38bdf8;
 }
 
 /* 4. WARM EARTH / NATURA */
@@ -110,6 +125,11 @@ html[data-theme='earth'] {
   --badge-border: #D8CCA8;
   --ring-color: #C85A32;
   --panel-shadow: 0 1px 3px rgba(44, 34, 30, 0.05);
+  --heatmap-empty: #ded6c7;
+  --heatmap-l1: rgba(200, 90, 50, 0.30);
+  --heatmap-l2: rgba(200, 90, 50, 0.55);
+  --heatmap-l3: rgba(200, 90, 50, 0.80);
+  --heatmap-l4: #c85a32;
 }
 
 /* 5. AMETISTA / DEEP VIOLET */
@@ -137,6 +157,11 @@ html[data-theme='amethyst'] {
   --badge-border: rgba(167, 139, 250, 0.35);
   --ring-color: #8B5CF6;
   --panel-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --heatmap-empty: rgba(255, 255, 255, 0.08);
+  --heatmap-l1: rgba(167, 139, 250, 0.30);
+  --heatmap-l2: rgba(167, 139, 250, 0.55);
+  --heatmap-l3: rgba(167, 139, 250, 0.80);
+  --heatmap-l4: #a78bfa;
 }
 
 @layer base {

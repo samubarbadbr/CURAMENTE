@@ -31,7 +31,9 @@ import {
   Sliders,
   ToggleLeft,
   Settings2,
+  Mic,
 } from 'lucide-react';
+import { AudioRecorder } from '../components/AudioRecorder';
 
 interface EntryFormViewProps {
   initialDraft: CbtEntry;
@@ -562,6 +564,27 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                   </button>
                 </div>
               )}
+            </div>
+
+            {/* SEZIONE AUDIO-NOTA VELOCE (VOCALE IN LOCALE) */}
+            <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-1.5 text-[11px] font-bold text-[var(--text-primary)]">
+                  <Mic className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Audio-Nota Veloce (Opzionale)</span>
+                </div>
+              </div>
+              <AudioRecorder
+                audioNote={draft.audioNote}
+                audioDuration={draft.audioDuration}
+                onChange={(base64, duration) => {
+                  setDraft((prev) => ({
+                    ...prev,
+                    audioNote: base64,
+                    audioDuration: duration,
+                  }));
+                }}
+              />
             </div>
           </div>
 

@@ -17,6 +17,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Mic,
 } from 'lucide-react';
 import { CustomDropdown } from '../components/CustomDropdown';
 
@@ -573,6 +574,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                             <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-[var(--badge-bg)] text-[var(--badge-text)] border border-[var(--badge-border)]" title="Foto allegata">
                               <Camera className="w-3 h-3 stroke-[2.5]" />
                               <span>Foto</span>
+                            </span>
+                          )}
+                          {entry.audioNote && (
+                            <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-400 border border-rose-500/30" title="Audio-nota vocale allegata">
+                              <Mic className="w-3 h-3 stroke-[2.5]" />
+                              <span>Audio</span>
                             </span>
                           )}
                         </div>

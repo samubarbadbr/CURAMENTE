@@ -21,6 +21,7 @@ import {
   X,
   FileDown,
 } from 'lucide-react';
+import { AudioPlayerView } from '../components/AudioRecorder';
 
 interface DetailViewProps {
   entry: CbtEntry;
@@ -195,6 +196,16 @@ export const DetailView: React.FC<DetailViewProps> = ({
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Audio-Nota Vocale se registrata */}
+          {entry.audioNote && (
+            <div className="pt-2 border-t border-[var(--border-subtle)]">
+              <AudioPlayerView
+                audioSrc={entry.audioNote}
+                duration={entry.audioDuration}
+              />
             </div>
           )}
         </div>
