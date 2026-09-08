@@ -9,7 +9,7 @@ export const DEFAULT_CUSTOM_QUESTIONS: CustomQuestion[] = [
     category: 'Gratitudine',
     responseType: 'text',
     frequency: 'daily',
-    isEnabled: true,
+    isEnabled: false,
     isDefault: true,
     createdAt: new Date('2026-01-01T08:00:00.000Z').toISOString(),
     order: 1,
@@ -20,7 +20,7 @@ export const DEFAULT_CUSTOM_QUESTIONS: CustomQuestion[] = [
     category: 'Mood',
     responseType: 'scale_10',
     frequency: 'daily',
-    isEnabled: true,
+    isEnabled: false,
     isDefault: true,
     createdAt: new Date('2026-01-01T08:05:00.000Z').toISOString(),
     order: 2,
@@ -31,7 +31,7 @@ export const DEFAULT_CUSTOM_QUESTIONS: CustomQuestion[] = [
     category: 'Crescita',
     responseType: 'boolean',
     frequency: 'daily',
-    isEnabled: true,
+    isEnabled: false,
     isDefault: true,
     createdAt: new Date('2026-01-01T08:10:00.000Z').toISOString(),
     order: 3,
@@ -40,25 +40,45 @@ export const DEFAULT_CUSTOM_QUESTIONS: CustomQuestion[] = [
 
 export const CustomQuestionsService = {
   /**
-   * Load custom questions from localStorage, seeding defaults if empty
+   * Load custom questions from localStorage, allowing 0 questions
    */
   load(): CustomQuestion[] {
     try {
       const data = localStorage.getItem(STORAGE_KEY);
-      if (!data) {
+      if (data === null) {
+        // Initial setup only: seed default questions, hidden by default
         this.save(DEFAULT_CUSTOM_QUESTIONS);
         return DEFAULT_CUSTOM_QUESTIONS;
       }
       const parsed = JSON.parse(data);
-      if (!Array.isArray(parsed) || parsed.length === 0) {
-        this.save(DEFAULT_CUSTOM_QUESTIONS);
-        return DEFAULT_CUSTOM_QUESTIONS;
+      if (!Array.isArray(parsed)) {
+        return [];
       }
+      // Allows 0 questions ([]) without re-seeding
       return parsed;
     } catch (err) {
       console.warn('Error reading custom questions from storage:', err);
-      return DEFAULT_CUSTOM_QUESTIONS;
+      return [];
     }
+  },
+
+  /**
+   * Ensure default questions are set to hidden (isEnabled: false) on PIN unlock / login
+   */
+  hideDefaultQuestions(): CustomQuestion[] {
+    const list = this.load();
+    let hasChanged = false;
+    const updated = list.map((q) => {
+      if (q.isDefault && q.isEnabled) {
+        hasChanged = true;
+        return { ...q, isEnabled: false };
+      }
+      return q;
+    });
+    if (hasChanged) {
+      this.save(updated);
+    }
+    return updated;
   },
 
   /**

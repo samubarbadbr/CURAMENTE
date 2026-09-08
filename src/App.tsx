@@ -18,6 +18,7 @@ import { SettingsView } from './views/SettingsView';
 import { CustomQuestionsView } from './views/CustomQuestionsView';
 import { CustomQuestionsService } from './services/customQuestions';
 import { TherapistExportModal } from './components/TherapistExportModal';
+import { DashboardExportModal } from './components/DashboardExportModal';
 import { generateTherapistCsv, exportSingleEntryPdf } from './services/therapistReportGenerator';
 import { ResetPinModal } from './components/ResetPinModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
@@ -151,6 +152,7 @@ export default function App() {
 
   // Therapist Report Export Modal state
   const [isTherapistExportModalOpen, setIsTherapistExportModalOpen] = useState(false);
+  const [isDashboardExportOpen, setIsDashboardExportOpen] = useState(false);
   const [exportEntries, setExportEntries] = useState<CbtEntry[]>([]);
 
   const handleOpenTherapistModal = async () => {
@@ -1015,7 +1017,7 @@ export default function App() {
 
   // Custom Questions State & Handlers
   const [customQuestions, setCustomQuestions] = useState<CustomQuestion[]>(() =>
-    CustomQuestionsService.load()
+    CustomQuestionsService.hideDefaultQuestions()
   );
 
   const handleCreateCustomQuestion = (data: Omit<CustomQuestion, 'id' | 'createdAt' | 'isDefault'>) => {
@@ -1079,9 +1081,15 @@ export default function App() {
           recoveryEmail={recoveryEmail}
           biometricsEnabled={biometricsEnabled}
           biometricCredentialId={biometricCredentialId}
-          onUnlock={() => setIsLocked(false)}
+          onUnlock={() => {
+            const hidden = CustomQuestionsService.hideDefaultQuestions();
+            setCustomQuestions(hidden);
+            setIsLocked(false);
+          }}
           onResetPinSuccess={(newPin) => {
             handleSavePinAndRecoveryEmail(newPin, recoveryEmail || 'samuele.lavoroba@gmail.com');
+            const hidden = CustomQuestionsService.hideDefaultQuestions();
+            setCustomQuestions(hidden);
             setIsLocked(false);
           }}
         />
@@ -1189,7 +1197,7 @@ export default function App() {
                   entries={entries}
                   dashPeriod={dashPeriod}
                   onPeriodChange={(p) => setDashPeriod(p)}
-                  onExportReport={handleOpenTherapistModal}
+                  onExportReport={() => setIsDashboardExportOpen(true)}
                 />
               )}
 
@@ -1201,7 +1209,6 @@ export default function App() {
                   onDeleteQuestion={handleDeleteCustomQuestion}
                   onToggleQuestion={handleToggleCustomQuestion}
                   onResetDefaults={handleResetCustomQuestionsDefaults}
-                  onBack={() => navigateToView('timeline')}
                 />
               )}
 
@@ -1280,6 +1287,14 @@ export default function App() {
         entries={exportEntries.length > 0 ? exportEntries : entries}
         allTags={allTags}
         customQuestions={customQuestions}
+        onShowToast={showToast}
+      />
+
+      <DashboardExportModal
+        isOpen={isDashboardExportOpen}
+        onClose={() => setIsDashboardExportOpen(false)}
+        entries={entries}
+        dashPeriod={dashPeriod}
         onShowToast={showToast}
       />
     </div>

@@ -24,7 +24,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentView, onSelectView 
       <div className="glass-nav rounded-full p-1.5 flex items-center justify-around shadow-2xl border border-[var(--border-solid)] bg-[var(--bg-surface)] backdrop-blur-2xl pointer-events-auto relative">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = currentView === item.id;
+          const isActive =
+            item.id === 'timeline'
+              ? currentView === 'timeline' || currentView === 'entry' || currentView === 'detail'
+              : currentView === item.id;
           return (
             <button
               key={item.id}

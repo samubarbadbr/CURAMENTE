@@ -19,7 +19,6 @@ import {
   Calendar,
   RotateCcw,
   CheckCircle2,
-  ArrowLeft,
   Layers,
 } from 'lucide-react';
 import { CustomQuestion, QuestionCategory } from '../types';
@@ -83,10 +82,7 @@ export const CustomQuestionsView: React.FC<CustomQuestionsViewProps> = ({
   onDeleteQuestion,
   onToggleQuestion,
   onResetDefaults,
-  onBackToDiary,
-  onBack,
 }) => {
-  const handleBack = onBackToDiary || onBack;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<CustomQuestion | null>(null);
   const [filterCategory, setFilterCategory] = useState<string>('all');
@@ -130,16 +126,6 @@ export const CustomQuestionsView: React.FC<CustomQuestionsViewProps> = ({
       {/* Top Header Row with Metallic Nuova Domanda button */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
         <div className="flex items-center space-x-3">
-          {handleBack && (
-            <button
-              type="button"
-              onClick={handleBack}
-              className="p-2.5 rounded-full bg-[var(--bg-subtle)] border border-[var(--border-solid)] text-[var(--text-primary)] hover:bg-[var(--bg-surface)] active:scale-95 transition-all cursor-pointer mr-0.5"
-              title="Torna al diario"
-            >
-              <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
-            </button>
-          )}
           <div className="space-y-0.5">
             <h2 className="text-2xl font-black text-[var(--text-primary)] tracking-tight">
               Editor Domande Custom
@@ -220,10 +206,14 @@ export const CustomQuestionsView: React.FC<CustomQuestionsViewProps> = ({
               </div>
               <div>
                 <h4 className="text-base font-black text-[var(--text-primary)]">
-                  Nessuna domanda presente in questa categoria
+                  {questions.length === 0
+                    ? 'Non ci sono domande custom al momento utilizzabili, creane una!'
+                    : 'Nessuna domanda presente in questa categoria'}
                 </h4>
                 <p className="text-xs font-bold text-[var(--text-secondary)] mt-1 max-w-sm mx-auto">
-                  Crea la tua prima domanda personalizzata oppure ripristina il set iniziale di default.
+                  {questions.length === 0
+                    ? 'Puoi aggiungere nuove riflessioni personalizzate per il diario oppure ripristinare il set di base.'
+                    : 'Crea una domanda in questa categoria oppure passa alla visualizzazione completa.'}
                 </p>
               </div>
               <div className="flex items-center justify-center space-x-3 pt-2">

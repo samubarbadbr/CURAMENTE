@@ -1,6 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { CbtEntry, Tag, PeriodFilter } from '../types';
-import { Calendar, Sparkles, ChevronRight, Activity, Pencil, Camera, EyeOff, Eye, FileDown } from 'lucide-react';
+import {
+  Calendar,
+  Sparkles,
+  ChevronRight,
+  Activity,
+  Pencil,
+  Camera,
+  EyeOff,
+  Eye,
+  FileDown,
+  Search,
+  X,
+  Tag as TagIcon,
+  RotateCcw,
+  Check,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 import { CustomDropdown } from '../components/CustomDropdown';
 
 interface TimelineViewProps {
@@ -30,6 +47,13 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 }) => {
   // Set of individual entry IDs revealed manually on touch/click
   const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
+
+  // Search and Tag filtering state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedEmotionIds, setSelectedEmotionIds] = useState<string[]>([]);
+  const [selectedSymptomIds, setSelectedSymptomIds] = useState<string[]>([]);
+  const [combinationMode, setCombinationMode] = useState<'any' | 'all'>('any');
+  const [showSymptomsSection, setShowSymptomsSection] = useState(false);
 
   const toggleRevealEntry = (entryId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -79,9 +103,123 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     { value: 'all', label: 'Tutto il periodo' },
   ];
 
-  // Group entries by day header
+  // Available Emotion Tags & Symptom Tags
+  const emotionTags = useMemo(() => {
+    const list = allTags.filter((t) => t.category === 'emotion');
+    if (list.length > 0) return list;
+    return allTags;
+  }, [allTags]);
+
+  const symptomTags = useMemo(() => {
+    return allTags.filter((t) => t.category === 'physical_symptom');
+  }, [allTags]);
+
+  // Counts of occurrences in currently loaded entries for each tag
+  const tagCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    entries.forEach((e) => {
+      e.emotionTagIds?.forEach((id) => {
+        counts[id] = (counts[id] || 0) + 1;
+      });
+      e.physicalSymptomTagIds?.forEach((id) => {
+        counts[id] = (counts[id] || 0) + 1;
+      });
+    });
+    return counts;
+  }, [entries]);
+
+  const toggleEmotionTag = (tagId: string) => {
+    setSelectedEmotionIds((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+    );
+  };
+
+  const toggleSymptomTag = (tagId: string) => {
+    setSelectedSymptomIds((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+    );
+  };
+
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setSelectedEmotionIds([]);
+    setSelectedSymptomIds([]);
+    setCombinationMode('any');
+  };
+
+  const hasActiveFilters =
+    searchQuery.trim().length > 0 ||
+    selectedEmotionIds.length > 0 ||
+    selectedSymptomIds.length > 0;
+
+  // Filter entries based on search query, emotion combinations, and symptom tags
+  const filteredEntries = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const queryWords = query ? query.split(/\s+/).filter(Boolean) : [];
+
+    return entries.filter((entry) => {
+      // 1. Emotion combination filter
+      if (selectedEmotionIds.length > 0) {
+        const entryEmotions = entry.emotionTagIds || [];
+        if (combinationMode === 'all') {
+          // Must include all selected emotions (AND)
+          const hasAll = selectedEmotionIds.every((id) => entryEmotions.includes(id));
+          if (!hasAll) return false;
+        } else {
+          // Must include at least one selected emotion (OR)
+          const hasAny = selectedEmotionIds.some((id) => entryEmotions.includes(id));
+          if (!hasAny) return false;
+        }
+      }
+
+      // 2. Symptom tags filter
+      if (selectedSymptomIds.length > 0) {
+        const entrySymptoms = entry.physicalSymptomTagIds || [];
+        const hasAnySymptom = selectedSymptomIds.some((id) => entrySymptoms.includes(id));
+        if (!hasAnySymptom) return false;
+      }
+
+      // 3. Keyword Search filter across multiple text fields and tag names
+      if (queryWords.length > 0) {
+        const emotionLabels = getTagLabels(entry.emotionTagIds || []);
+        const symptomLabels = getTagLabels(entry.physicalSymptomTagIds || []);
+        const customAnswersText = entry.customAnswers
+          ? Object.values(entry.customAnswers).join(' ')
+          : '';
+
+        const searchableContent = [
+          entry.situation || '',
+          entry.negativeThought || '',
+          entry.negativeThoughtsExtended || '',
+          entry.triggerFactors || '',
+          entry.notes || '',
+          entry.physicalSymptomsText || '',
+          entry.symptomControlDescription || '',
+          entry.reassuranceSeekingType || '',
+          entry.avoidanceType || '',
+          entry.safetyBehaviors || '',
+          entry.avoidanceBehaviors || '',
+          entry.alternativeThought || '',
+          entry.evidenceForThought || '',
+          entry.evidenceAgainstThought || '',
+          ...emotionLabels,
+          ...symptomLabels,
+          customAnswersText,
+        ]
+          .join(' ')
+          .toLowerCase();
+
+        const matchesAllWords = queryWords.every((word) => searchableContent.includes(word));
+        if (!matchesAllWords) return false;
+      }
+
+      return true;
+    });
+  }, [entries, searchQuery, selectedEmotionIds, selectedSymptomIds, combinationMode, allTags]);
+
+  // Group filtered entries by day header
   const groups: { dayLabel: string; items: CbtEntry[] }[] = [];
-  entries.forEach((entry) => {
+  filteredEntries.forEach((entry) => {
     const label = formatDateHeader(entry.eventDatetime);
     let group = groups.find((g) => g.dayLabel === label);
     if (!group) {
@@ -148,6 +286,201 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         </div>
       </div>
 
+      {/* Search & Tag Filter Bar (visible when entries exist) */}
+      {entries.length > 0 && (
+        <div className="glass-panel rounded-[20px] p-4 sm:p-5 border border-[var(--border-solid)] bg-[var(--bg-surface)] space-y-3.5 shadow-sm">
+          {/* Search Input */}
+          <div className="relative flex items-center">
+            <div className="absolute left-3.5 pointer-events-none text-[var(--text-muted)] flex items-center">
+              <Search className="w-4 h-4 stroke-[2.2]" />
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cerca per parole chiave (situazione, pensieri, note)..."
+              className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] text-sm font-medium text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--ring-color)]/30 focus:border-[var(--accent-primary)] transition-all"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 p-1 rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-all cursor-pointer"
+                title="Cancella testo"
+                aria-label="Cancella testo ricerca"
+              >
+                <X className="w-3.5 h-3.5 stroke-[2.5]" />
+              </button>
+            )}
+          </div>
+
+          {/* Emotion Tag Filters */}
+          <div className="space-y-2 pt-1 border-t border-[var(--border-subtle)]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center space-x-1.5 text-xs font-black text-[var(--text-primary)]">
+                <TagIcon className="w-3.5 h-3.5 text-[var(--text-secondary)] stroke-[2.2]" />
+                <span>Filtra per Emozioni:</span>
+                {selectedEmotionIds.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-[var(--accent-primary)] text-[var(--accent-btn-text)]">
+                    {selectedEmotionIds.length} selezionat{selectedEmotionIds.length === 1 ? 'a' : 'e'}
+                  </span>
+                )}
+              </div>
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={handleClearFilters}
+                  className="inline-flex items-center space-x-1 text-[11px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-3 h-3 stroke-[2.2]" />
+                  <span>Azzera tutti i filtri</span>
+                </button>
+              )}
+            </div>
+
+            {/* Emotion Chips */}
+            <div className="flex flex-wrap gap-1.5 pt-0.5">
+              {emotionTags.map((tag) => {
+                const isSelected = selectedEmotionIds.includes(tag.id);
+                const count = tagCounts[tag.id] ?? 0;
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => toggleEmotionTag(tag.id)}
+                    className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
+                      isSelected
+                        ? 'bg-[var(--accent-primary)] text-[var(--accent-btn-text)] border-[var(--accent-primary)] shadow-xs scale-102'
+                        : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] border-[var(--border-solid)]'
+                    }`}
+                  >
+                    {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                    <span>{tag.label}</span>
+                    {count > 0 && (
+                      <span
+                        className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                          isSelected
+                            ? 'bg-black/20 text-current'
+                            : 'bg-[var(--border-solid)] text-[var(--text-muted)]'
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Combination Mode Toggle (when 2+ emotions selected) */}
+            {selectedEmotionIds.length > 1 && (
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs border-t border-[var(--border-subtle)]">
+                <span className="text-[11px] font-bold text-[var(--text-secondary)]">
+                  Combinazione emozioni:
+                </span>
+                <div className="inline-flex rounded-lg bg-[var(--bg-subtle)] p-0.5 border border-[var(--border-solid)]">
+                  <button
+                    type="button"
+                    onClick={() => setCombinationMode('any')}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                      combinationMode === 'any'
+                        ? 'bg-[var(--accent-primary)] text-[var(--accent-btn-text)] shadow-xs'
+                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                    }`}
+                  >
+                    Almeno una (OR)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCombinationMode('all')}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                      combinationMode === 'all'
+                        ? 'bg-[var(--accent-primary)] text-[var(--accent-btn-text)] shadow-xs'
+                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                    }`}
+                  >
+                    Tutte insieme (AND)
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Optional Physical Symptoms Accordion */}
+            {symptomTags.length > 0 && (
+              <div className="pt-1.5">
+                <button
+                  type="button"
+                  onClick={() => setShowSymptomsSection((prev) => !prev)}
+                  className="inline-flex items-center space-x-1 text-[11px] font-bold text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                >
+                  {showSymptomsSection ? (
+                    <ChevronUp className="w-3 h-3 stroke-[2.2]" />
+                  ) : (
+                    <ChevronDown className="w-3 h-3 stroke-[2.2]" />
+                  )}
+                  <span>
+                    {showSymptomsSection ? 'Nascondi sintomi fisici' : 'Filtra anche per sintomi fisici'}
+                    {selectedSymptomIds.length > 0 && ` (${selectedSymptomIds.length} attivi)`}
+                  </span>
+                </button>
+
+                {showSymptomsSection && (
+                  <div className="flex flex-wrap gap-1.5 pt-2 animate-fade-in">
+                    {symptomTags.map((tag) => {
+                      const isSelected = selectedSymptomIds.includes(tag.id);
+                      const count = tagCounts[tag.id] ?? 0;
+                      return (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          onClick={() => toggleSymptomTag(tag.id)}
+                          className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer border ${
+                            isSelected
+                              ? 'bg-[var(--accent-primary)] text-[var(--accent-btn-text)] border-[var(--accent-primary)] shadow-xs scale-102'
+                              : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] border-[var(--border-solid)]'
+                          }`}
+                        >
+                          {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                          <span>{tag.label}</span>
+                          {count > 0 && (
+                            <span
+                              className={`text-[9px] px-1.5 py-0.2 rounded-full font-black ${
+                                isSelected
+                                  ? 'bg-black/20 text-current'
+                                  : 'bg-[var(--border-solid)] text-[var(--text-muted)]'
+                              }`}
+                            >
+                              {count}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Active Filter Counter */}
+          {hasActiveFilters && (
+            <div className="flex items-center justify-between pt-1 border-t border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] font-medium">
+              <span>
+                Mostrando <strong className="text-[var(--text-primary)] font-black">{filteredEntries.length}</strong> su <strong className="text-[var(--text-primary)] font-black">{entries.length}</strong> voci registrate
+              </span>
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="text-xs font-bold text-[var(--text-primary)] underline hover:opacity-80 cursor-pointer"
+              >
+                Rimuovi tutti i filtri
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Empty State */}
       {entries.length === 0 ? (
         <div className="glass-panel rounded-[20px] p-6 sm:p-8 text-center space-y-4 my-6 border border-dashed border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
@@ -169,6 +502,28 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           >
             <Sparkles className="w-4 h-4 stroke-[2.5]" />
             <span className="font-bold">Registra Prima Voce</span>
+          </button>
+        </div>
+      ) : filteredEntries.length === 0 ? (
+        <div className="glass-panel rounded-[20px] p-6 sm:p-8 text-center space-y-4 my-6 border border-dashed border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm animate-fade-in">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-[var(--badge-bg)] text-[var(--badge-text)] border border-[var(--badge-border)]">
+            <Search className="w-7 h-7" />
+          </div>
+          <div className="space-y-1.5">
+            <h3 className="text-lg font-black text-[var(--text-primary)]">
+              Nessun risultato con i filtri correnti
+            </h3>
+            <p className="text-xs font-bold text-[var(--text-secondary)] max-w-xs mx-auto leading-relaxed">
+              Nessuna voce di diario corrisponde alle parole chiave o alla combinazione di emozioni selezionate.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleClearFilters}
+            className="btn-primary inline-flex items-center space-x-2 px-5 py-2.5 min-h-[42px] rounded-full shadow-md active:scale-95 transition-all duration-150 cursor-pointer mx-auto"
+          >
+            <RotateCcw className="w-4 h-4 stroke-[2.5]" />
+            <span className="font-bold">Azzera Filtri di Ricerca</span>
           </button>
         </div>
       ) : (
@@ -302,14 +657,24 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                       <div className="flex items-center justify-between pt-1">
                         <div className="flex flex-wrap gap-1.5">
                           {emotionLabels.length > 0 ? (
-                            emotionLabels.map((lbl, idx) => (
-                              <span
-                                key={`t-lbl-${lbl}-${idx}`}
-                                className="px-2.5 py-1 rounded-full text-xs font-bold bg-[var(--bg-subtle)] text-[var(--text-primary)] border border-[var(--border-solid)]"
-                              >
-                                {lbl}
-                              </span>
-                            ))
+                            emotionLabels.map((lbl, idx) => {
+                              const isTagSelected = selectedEmotionIds.some((id) => {
+                                const found = allTags.find((t) => t.id === id);
+                                return found && found.label.toLowerCase() === lbl.toLowerCase();
+                              });
+                              return (
+                                <span
+                                  key={`t-lbl-${lbl}-${idx}`}
+                                  className={`px-2.5 py-1 rounded-full text-xs font-bold border transition-colors ${
+                                    isTagSelected
+                                      ? 'bg-[var(--accent-primary)] text-[var(--accent-btn-text)] border-[var(--accent-primary)] font-black shadow-xs'
+                                      : 'bg-[var(--bg-subtle)] text-[var(--text-primary)] border-[var(--border-solid)]'
+                                  }`}
+                                >
+                                  {lbl}
+                                </span>
+                              );
+                            })
                           ) : (
                             <span className="text-xs font-bold text-[var(--text-muted)] italic">Nessuna emozione</span>
                           )}

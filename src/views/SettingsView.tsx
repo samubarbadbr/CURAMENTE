@@ -9,6 +9,9 @@ import {
   Trash2,
   ShieldCheck,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  Code2,
   FileText,
   Table,
   Printer,
@@ -106,7 +109,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pinInput, setPinInput] = useState(syncPin);
   const [isEditingPin, setIsEditingPin] = useState(!syncPin);
-  const [showSqlGuide, setShowSqlGuide] = useState(false);
+  const [showTechnicalSpecs, setShowTechnicalSpecs] = useState(false);
   const [copiedSql, setCopiedSql] = useState(false);
 
   // App Lock PIN local state
@@ -437,7 +440,7 @@ NOTIFY pgrst, 'reload schema';`;
 
               {lastSyncedAt && (
                 <div className="text-[11px] font-bold text-[var(--text-secondary)]">
-                  Ultimo aggiornamento: {new Date(lastSyncedAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                  Ultimo aggiornamento: {new Date(lastSyncedAt).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })} alle {new Date(lastSyncedAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
                 </div>
               )}
             </div>
@@ -507,10 +510,10 @@ NOTIFY pgrst, 'reload schema';`;
             </div>
             <div>
               <span className="block text-base font-black text-[var(--text-primary)]">
-                App & Funzionamento Offline (PWA)
+                Installazione App &amp; Offline
               </span>
               <span className="block text-xs font-bold text-[var(--text-secondary)]">
-                Installazione su Home Screen, Service Worker e cache locale
+                Usa DiariaMente sulla schermata del dispositivo, accessibile anche senza rete
               </span>
             </div>
           </div>
@@ -523,33 +526,68 @@ NOTIFY pgrst, 'reload schema';`;
         {/* PWA Install Button Card Component */}
         <PWAInstallButton variant="card" />
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-xs">
-          <div className="p-3 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] space-y-1">
-            <span className="font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-              <Database className="w-3.5 h-3.5 text-indigo-400" /> Dati & PIN Locali
-            </span>
-            <p className="text-[11px] text-[var(--text-secondary)] leading-tight">
-              Tutte le voci del diario e la verifica del PIN sono salvate nel database locale (IndexedDB / localStorage).
-            </p>
-          </div>
+        {/* COLLAPSIBLE DETTAGLI TECNICI & ARCHITETTURA (Per sviluppatore / acquirente) */}
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={() => setShowTechnicalSpecs(!showTechnicalSpecs)}
+            className="w-full flex items-center justify-between p-3 rounded-xl bg-[var(--bg-subtle)]/70 hover:bg-[var(--bg-subtle)] border border-[var(--border-solid)] text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer"
+          >
+            <div className="flex items-center space-x-2">
+              <Code2 className="w-4 h-4 text-indigo-400 shrink-0" />
+              <span>Specifiche tecniche &amp; Architettura (Sviluppatore / Acquirente)</span>
+            </div>
+            <div className="flex items-center space-x-1 text-[11px] font-medium text-[var(--text-muted)]">
+              <span>{showTechnicalSpecs ? 'Comprimi' : 'Mostra dettagli'}</span>
+              {showTechnicalSpecs ? (
+                <ChevronUp className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5" />
+              )}
+            </div>
+          </button>
 
-          <div className="p-3 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] space-y-1">
-            <span className="font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Cache Service Worker
-            </span>
-            <p className="text-[11px] text-[var(--text-secondary)] leading-tight">
-              I file dell'app (HTML, JS, CSS, icone) vengono salvati in cache per aprirsi anche in aereo o senza internet.
-            </p>
-          </div>
+          {showTechnicalSpecs && (
+            <div className="mt-2.5 p-4 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] space-y-3 animate-fade-in text-xs">
+              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
+                <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text-primary)]">
+                  Riepilogo Architettura &amp; Specifiche Tecniche
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+                  Client-First PWA
+                </span>
+              </div>
 
-          <div className="p-3 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] space-y-1">
-            <span className="font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-              <WifiOff className="w-3.5 h-3.5 text-amber-400" /> Sicurezza Senza Rete
-            </span>
-            <p className="text-[11px] text-[var(--text-secondary)] leading-tight">
-              Se sei offline, puoi comunque sbloccare con PIN o impronta. Il recupero email ti avviserà di riconnetterti.
-            </p>
-          </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)]/70 space-y-1">
+                  <span className="font-bold text-[var(--text-primary)] flex items-center gap-1.5 text-[11px]">
+                    <Database className="w-3.5 h-3.5 text-indigo-400 shrink-0" /> Persistenza Dati Locale
+                  </span>
+                  <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                    Database IndexedDB asincrono con fallback su LocalStorage. Voci, tag e digest PIN isolati nel client locale.
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)]/70 space-y-1">
+                  <span className="font-bold text-[var(--text-primary)] flex items-center gap-1.5 text-[11px]">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> Service Worker Cache
+                  </span>
+                  <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                    Strategia Cache-First su bundle statico (HTML, JS, CSS, icone PWA). Avvio immediato e 100% offline garantito.
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)]/70 space-y-1">
+                  <span className="font-bold text-[var(--text-primary)] flex items-center gap-1.5 text-[11px]">
+                    <WifiOff className="w-3.5 h-3.5 text-amber-400 shrink-0" /> Sicurezza &amp; Auth Offline
+                  </span>
+                  <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                    Verifica credenziali crittografica locale (PIN SHA-256 + WebAuthn biometrico FIDO2) senza dipendenza da rete.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

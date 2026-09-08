@@ -6,6 +6,7 @@ import {
   generateTherapistCsv,
   exportTherapistPdf,
 } from '../services/therapistReportGenerator';
+import { CustomDatePicker } from './CustomDatePicker';
 import {
   X,
   FileText,
@@ -165,20 +166,7 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
     const filename = `diariamente-report-clinico-${new Date().toISOString().slice(0, 10)}.csv`;
     const csvFile = new File([blob], filename, { type: 'text/csv;charset=utf-8;' });
 
-    // Web Share on mobile devices if supported
-    if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [csvFile] })) {
-      try {
-        await navigator.share({
-          files: [csvFile],
-          title: filename,
-        });
-        onShowToast('File CSV salvato / condiviso con successo');
-        return;
-      } catch (err: any) {
-        if (err?.name === 'AbortError') return;
-      }
-    }
-
+    // Direct download
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -309,43 +297,36 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
             </div>
 
             {/* Date Pickers: Data Inizio & Data Fine */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <div className="space-y-1">
-                <span className="text-[11px] font-bold text-[var(--text-secondary)]">Data Inizio:</span>
-                <input
-                  type="date"
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 relative z-20">
+              <div>
+                <CustomDatePicker
+                  label="Data Inizio:"
                   value={customStartDate}
-                  onChange={(e) => {
-                    setCustomStartDate(e.target.value);
+                  onChange={(val) => {
+                    setCustomStartDate(val);
                     setPeriod('custom');
                   }}
-                  className="w-full px-3 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)] text-xs font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] transition-all"
                 />
               </div>
-              <div className="space-y-1">
-                <span className="text-[11px] font-bold text-[var(--text-secondary)]">Data Fine:</span>
-                <input
-                  type="date"
+              <div>
+                <CustomDatePicker
+                  label="Data Fine:"
                   value={customEndDate}
-                  onChange={(e) => {
-                    setCustomEndDate(e.target.value);
+                  onChange={(val) => {
+                    setCustomEndDate(val);
                     setPeriod('custom');
                   }}
-                  className="w-full px-3 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)] text-xs font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] transition-all"
                 />
               </div>
             </div>
 
             {/* Last Session Date Configuration (saved in localStorage) */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] text-[var(--text-secondary)] border-t border-[var(--border-solid)]/60">
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-[11px] text-[var(--text-secondary)] border-t border-[var(--border-solid)]/60 relative z-20">
               <span>Data di riferimento ultima seduta:</span>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="date"
+              <div className="w-44">
+                <CustomDatePicker
                   value={lastSessionDate}
-                  onChange={(e) => handleLastSessionDateChange(e.target.value)}
-                  className="px-2 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-solid)] text-[11px] font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
-                  title="Modifica la data dell'ultima seduta col terapeuta"
+                  onChange={(val) => handleLastSessionDateChange(val)}
                 />
               </div>
             </div>

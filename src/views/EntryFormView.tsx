@@ -4,6 +4,7 @@ import { CustomQuestionsService } from '../services/customQuestions';
 import { TagPicker } from '../components/TagPicker';
 import { GradientSlider } from '../components/GradientSlider';
 import { TextImproveModal } from '../components/TextImproveModal';
+import { CustomDatePicker } from '../components/CustomDatePicker';
 import {
   Save,
   X,
@@ -357,21 +358,84 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
       {activeTab === 'section_a' && (
         <div className="space-y-4 animate-fade-in">
           {/* Data e ora */}
-          <div className="glass-panel rounded-[20px] p-4 space-y-2 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
-            <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-              DATA E ORA DELL'EVENTO
-            </label>
-            <input
-              type="datetime-local"
-              required
-              value={toDatetimeLocalValue(draft.eventDatetime)}
-              onChange={(e) => updateDraft('eventDatetime', new Date(e.target.value).toISOString())}
-              className="w-full px-3.5 py-2.5 text-sm font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none cursor-pointer"
-            />
+          <div className="glass-panel rounded-[20px] p-4 space-y-2.5 border border-[var(--border-solid)] bg-[var(--bg-surface)] relative z-30">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+                DATA E ORA DELL'EVENTO
+              </label>
+              <button
+                type="button"
+                onClick={() => updateDraft('eventDatetime', new Date().toISOString())}
+                className="text-[11px] font-black text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
+              >
+                Imposta su adesso
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <CustomDatePicker
+                  label="Data dell'evento:"
+                  value={(() => {
+                    try {
+                      const d = new Date(draft.eventDatetime);
+                      return !isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+                    } catch {
+                      return new Date().toISOString().slice(0, 10);
+                    }
+                  })()}
+                  onChange={(newDateStr) => {
+                    try {
+                      const prevDate = new Date(draft.eventDatetime);
+                      const hours = !isNaN(prevDate.getTime()) ? prevDate.getHours() : new Date().getHours();
+                      const minutes = !isNaN(prevDate.getTime()) ? prevDate.getMinutes() : new Date().getMinutes();
+                      const [y, m, d] = newDateStr.split('-').map(Number);
+                      const combined = new Date(y, m - 1, d, hours, minutes);
+                      updateDraft('eventDatetime', combined.toISOString());
+                    } catch {
+                      updateDraft('eventDatetime', new Date(newDateStr).toISOString());
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-[11px] font-bold text-[var(--text-secondary)]">Orario:</span>
+                <input
+                  type="time"
+                  value={(() => {
+                    try {
+                      const d = new Date(draft.eventDatetime);
+                      if (isNaN(d.getTime())) return '12:00';
+                      const hh = String(d.getHours()).padStart(2, '0');
+                      const mm = String(d.getMinutes()).padStart(2, '0');
+                      return `${hh}:${mm}`;
+                    } catch {
+                      return '12:00';
+                    }
+                  })()}
+                  onChange={(e) => {
+                    const timeVal = e.target.value;
+                    if (!timeVal) return;
+                    try {
+                      const [hh, mm] = timeVal.split(':').map(Number);
+                      const prevDate = new Date(draft.eventDatetime);
+                      const baseDate = !isNaN(prevDate.getTime()) ? prevDate : new Date();
+                      baseDate.setHours(hh);
+                      baseDate.setMinutes(mm);
+                      updateDraft('eventDatetime', baseDate.toISOString());
+                    } catch (err) {
+                      console.error('Error setting time:', err);
+                    }
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)] text-xs font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] transition-all cursor-pointer"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Situazione con Caricamento Foto */}
-          <div className="glass-panel rounded-[20px] p-4 space-y-3.5 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
+          <div className="glass-panel rounded-[20px] p-4 space-y-3.5 border border-[var(--border-solid)] bg-[var(--bg-surface)] relative z-10">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
                 Situazione (Dove ti trovavi? Con chi?)
@@ -567,35 +631,53 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
           </div>
 
           {/* Domande e Riflessioni Custom */}
-          {customQuestions.length > 0 && (
-            <div className="glass-panel rounded-[20px] p-5 space-y-4 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
-              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2.5">
-                <div className="flex items-center space-x-2">
-                  <div className="p-1.5 rounded-lg bg-indigo-500/15 text-indigo-400">
-                    <Sparkles className="w-4 h-4 stroke-[2.5]" />
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-                      Riflessioni &amp; Domande Guidate
-                    </h3>
-                    <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-                      Domande attive per oggi ({customQuestions.length})
-                    </p>
-                  </div>
+          <div className="glass-panel rounded-[20px] p-5 space-y-4 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2.5">
+              <div className="flex items-center space-x-2">
+                <div className="p-1.5 rounded-lg bg-indigo-500/15 text-indigo-400">
+                  <Sparkles className="w-4 h-4 stroke-[2.5]" />
                 </div>
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+                    Riflessioni &amp; Domande Guidate
+                  </h3>
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                    {customQuestions.length > 0
+                      ? `Domande attive per oggi (${customQuestions.length})`
+                      : '0 domande attive'}
+                  </p>
+                </div>
+              </div>
 
+              {onOpenCustomQuestions && (
+                <button
+                  type="button"
+                  onClick={onOpenCustomQuestions}
+                  className="text-[11px] font-black text-indigo-400 hover:text-indigo-300 flex items-center space-x-1 transition-colors cursor-pointer"
+                >
+                  <Settings2 className="w-3.5 h-3.5" />
+                  <span>Personalizza</span>
+                </button>
+              )}
+            </div>
+
+            {customQuestions.length === 0 ? (
+              <div className="py-4 px-3 text-center space-y-2.5 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-solid)]/70">
+                <p className="text-xs font-bold text-[var(--text-secondary)]">
+                  Non ci sono domande custom al momento utilizzabili, creane una!
+                </p>
                 {onOpenCustomQuestions && (
                   <button
                     type="button"
                     onClick={onOpenCustomQuestions}
-                    className="text-[11px] font-black text-indigo-400 hover:text-indigo-300 flex items-center space-x-1 transition-colors cursor-pointer"
+                    className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-[11px] font-black bg-indigo-500/15 text-indigo-400 hover:bg-indigo-500/25 border border-indigo-500/30 transition-all cursor-pointer"
                   >
-                    <Settings2 className="w-3.5 h-3.5" />
-                    <span>Personalizza</span>
+                    <Plus className="w-3 h-3 stroke-[3]" />
+                    <span>Crea o attiva domande</span>
                   </button>
                 )}
               </div>
-
+            ) : (
               <div className="space-y-4 pt-1">
                 {customQuestions.map((q) => {
                   const currentValue = draft.customAnswers?.[q.id];
@@ -706,8 +788,8 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                   );
                 })}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Navigation & Action to Section B */}
           <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">

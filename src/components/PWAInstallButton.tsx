@@ -106,7 +106,7 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
             </button>
           </div>
           <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-            Una volta installata, Diariamente funziona come una vera applicazione nativa senza barra del browser, permettendo di scrivere e consultare il diario anche in aereo o senza connessione internet.
+            Funziona a schermo intero come app autonoma, attiva anche in aereo o senza connessione.
           </p>
         </div>
 

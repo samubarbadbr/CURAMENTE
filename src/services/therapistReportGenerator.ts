@@ -1034,32 +1034,12 @@ export async function exportTherapistPdf(
     }
 
     const pdfBlob = pdf.output('blob');
-    const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
 
-    // 1. Condivisione nativa Web Share (dispositivi mobili iOS Safari / Android)
-    if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-      try {
-        await navigator.share({
-          files: [pdfFile],
-          title: 'Report Clinico - DiariaMente',
-          text: 'Report clinico CBT generato da DiariaMente',
-        });
-        onToast?.('PDF salvato / condiviso con successo!');
-        return;
-      } catch (shareErr: any) {
-        if (shareErr?.name === 'AbortError') {
-          return;
-        }
-        console.warn('Web Share non completato, fallback al download diretto:', shareErr);
-      }
-    }
-
-    // 2. Download diretto del file .pdf nel browser
+    // Download diretto del file .pdf nel browser
     try {
       pdf.save(filename);
       onToast?.('PDF scaricato con successo!');
     } catch (saveErr) {
-      console.warn('pdf.save fallito, uso fallback blob URL:', saveErr);
       const blobUrl = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = blobUrl;
