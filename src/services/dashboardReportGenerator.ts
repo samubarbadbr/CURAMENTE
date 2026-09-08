@@ -141,20 +141,6 @@ export function generateDashboardCsv(
   return csv;
 }
 
-// Helper to render perfectly centered badges in html2canvas
-function renderBadgeHtml(
-  content: string | number,
-  bg: string,
-  color: string,
-  border: string,
-  width = '24px',
-  fontSize = '10px'
-): string {
-  const isAuto = width === 'auto';
-  const widthStyle = isAuto ? 'min-width: 26px; padding: 0 6px;' : `width: ${width}; min-width: ${width}; padding: 0;`;
-  return `<span class="report-badge" style="display: inline-block !important; ${widthStyle} height: 18px !important; line-height: 18px !important; text-align: center !important; vertical-align: middle !important; border-radius: 4px; font-weight: 800; font-size: ${fontSize}; box-sizing: border-box !important; background: ${bg}; color: ${color}; border: 1px solid ${border}; margin: 0 auto;">${content}</span>`;
-}
-
 export async function exportDashboardPdf(
   entries: CbtEntry[],
   options: DashboardReportOptions,
@@ -179,14 +165,10 @@ export async function exportDashboardPdf(
         <tr style="border-bottom: 1px solid #e2e8f0;">
           <td style="padding: 8px 12px; font-weight: 700; color: #1e293b; vertical-align: middle; word-break: break-word;">${escapeHtml(a.type)}</td>
           <td style="padding: 8px 12px; text-align: center; vertical-align: middle;">
-            <div style="text-align: center; display: block; line-height: 18px;">
-              ${renderBadgeHtml(a.count, '#eef2ff', '#4338ca', '#c7d2fe', '26px', '10px')}
-            </div>
+            <span style="font-weight: 800; font-size: 11px; color: #4338ca; font-variant-numeric: tabular-nums;">${a.count}</span>
           </td>
           <td style="padding: 8px 12px; text-align: center; vertical-align: middle;">
-            <div style="text-align: center; display: block; line-height: 18px;">
-              ${renderBadgeHtml(`${a.percent}%`, '#fff1f2', '#e11d48', '#fecdd3', '38px', '10px')}
-            </div>
+            <span style="font-weight: 800; font-size: 11px; color: #e11d48; font-variant-numeric: tabular-nums;">${a.percent}%</span>
           </td>
         </tr>
       `).join('')
@@ -200,19 +182,13 @@ export async function exportDashboardPdf(
         const timeStr = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 
         const anxiety = typeof e.overallAnxietyLevel === 'number' ? e.overallAnxietyLevel : '-';
-        let anxietyBg = '#ecfdf5';
         let anxietyColor = '#059669';
-        let anxietyBorder = '#a7f3d0';
 
         if (typeof e.overallAnxietyLevel === 'number') {
           if (e.overallAnxietyLevel > 60) {
-            anxietyBg = '#fff1f2';
             anxietyColor = '#e11d48';
-            anxietyBorder = '#fecdd3';
           } else if (e.overallAnxietyLevel > 30) {
-            anxietyBg = '#fffbeb';
             anxietyColor = '#d97706';
-            anxietyBorder = '#fde68a';
           }
         }
 
@@ -231,31 +207,31 @@ export async function exportDashboardPdf(
             </td>
             <td style="padding: 6px 4px; vertical-align: middle; text-align: center;">
               ${typeof e.overallAnxietyLevel === 'number' ? `
-                <div style="text-align: center; display: block; line-height: 18px;">
-                  ${renderBadgeHtml(anxiety, anxietyBg, anxietyColor, anxietyBorder, '26px', '10px')}
-                </div>
+                <span style="font-weight: 800; font-size: 11px; color: ${anxietyColor}; font-variant-numeric: tabular-nums;">
+                  ${anxiety}
+                </span>
               ` : '<span style="color: #94a3b8; font-weight: 700;">-</span>'}
             </td>
             <td style="padding: 6px 4px; vertical-align: middle; text-align: center;">
               ${controlCount > 0 ? `
-                <div style="text-align: center; display: block; line-height: 18px;">
-                  ${renderBadgeHtml(controlCount, '#eef2ff', '#4338ca', '#c7d2fe', '24px', '10px')}
-                </div>
-              ` : '<span style="color: #94a3b8; font-weight: 700; font-size: 10px;">0</span>'}
+                <span style="font-weight: 800; font-size: 11px; color: #4338ca; font-variant-numeric: tabular-nums;">
+                  ${controlCount}
+                </span>
+              ` : '<span style="color: #94a3b8; font-weight: 600; font-size: 11px;">0</span>'}
             </td>
             <td style="padding: 6px 4px; vertical-align: middle; text-align: center;">
               ${reassuranceCount > 0 ? `
-                <div style="text-align: center; display: block; line-height: 18px;">
-                  ${renderBadgeHtml(reassuranceCount, '#fffbeb', '#b45309', '#fde68a', '24px', '10px')}
-                </div>
-              ` : '<span style="color: #94a3b8; font-weight: 700; font-size: 10px;">0</span>'}
+                <span style="font-weight: 800; font-size: 11px; color: #b45309; font-variant-numeric: tabular-nums;">
+                  ${reassuranceCount}
+                </span>
+              ` : '<span style="color: #94a3b8; font-weight: 600; font-size: 11px;">0</span>'}
             </td>
             <td style="padding: 8px 10px; vertical-align: top; color: #334155; font-size: 9.5px; line-height: 1.35; word-break: break-word;">
               ${e.avoidanceType ? `
                 <div style="font-weight: 600; color: #1e293b;">${escapeHtml(e.avoidanceType)}</div>
                 ${e.avoidanceCount ? `
-                  <div style="margin-top: 3px;">
-                    ${renderBadgeHtml(`${e.avoidanceCount} ${e.avoidanceCount === 1 ? 'volta' : 'volte'}`, '#fee2e2', '#b91c1c', '#fecdd3', 'auto', '8.5px')}
+                  <div style="margin-top: 2px; font-size: 9px; font-weight: 700; color: #b91c1c;">
+                    ${e.avoidanceCount} ${e.avoidanceCount === 1 ? 'volta' : 'volte'}
                   </div>
                 ` : ''}
               ` : '<span style="color: #94a3b8; font-style: italic;">Nessuno</span>'}
@@ -302,17 +278,6 @@ export async function exportDashboardPdf(
       overflow-wrap: break-word;
     }
     tbody tr:nth-child(even) { background-color: #f8fafc; }
-    .report-badge {
-      display: inline-block !important;
-      text-align: center !important;
-      line-height: 18px !important;
-      height: 18px !important;
-      vertical-align: middle !important;
-      box-sizing: border-box !important;
-      letter-spacing: 0 !important;
-      font-variant-numeric: tabular-nums !important;
-      padding: 0 !important;
-    }
   </style>
 </head>
 <body>
