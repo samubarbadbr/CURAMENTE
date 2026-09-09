@@ -33,7 +33,6 @@ import {
   Settings2,
   Mic,
 } from 'lucide-react';
-import { AudioRecorder } from '../components/AudioRecorder';
 
 interface EntryFormViewProps {
   initialDraft: CbtEntry;
@@ -137,6 +136,46 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
     fieldTitle: '',
     fieldName: '',
   });
+
+  // Speech dictation state for handwriting / situation textarea
+  const [isDictating, setIsDictating] = useState(false);
+  const speechRecognitionRef = useRef<any>(null);
+
+  const toggleDictation = () => {
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) {
+      alert('La dettatura vocale diretta richiede un browser compatibile (es. Google Chrome, Safari, Edge).');
+      return;
+    }
+
+    if (isDictating) {
+      speechRecognitionRef.current?.stop();
+      setIsDictating(false);
+      return;
+    }
+
+    try {
+      const rec = new SpeechRec();
+      rec.lang = 'it-IT';
+      rec.continuous = false;
+      rec.interimResults = false;
+
+      rec.onstart = () => setIsDictating(true);
+      rec.onresult = (event: any) => {
+        const transcript = event.results[0]?.[0]?.transcript || '';
+        if (transcript) {
+          updateDraft('situation', draft.situation ? `${draft.situation} ${transcript}` : transcript);
+        }
+      };
+      rec.onerror = () => setIsDictating(false);
+      rec.onend = () => setIsDictating(false);
+
+      speechRecognitionRef.current = rec;
+      rec.start();
+    } catch {
+      setIsDictating(false);
+    }
+  };
 
   const handleOpenImproveModal = (
     fieldName: keyof CbtEntry,
@@ -442,17 +481,32 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
                 Situazione (Dove ti trovavi? Con chi?)
               </label>
-              {draft.situation?.trim() && (
+              <div className="flex items-center space-x-1.5">
                 <button
                   type="button"
-                  onClick={() => handleOpenImproveModal('situation', 'Situazione', draft.situation)}
-                  className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer shadow-xs active:scale-95"
-                  title="Correggi refusi, grammatica e fluidità"
+                  onClick={toggleDictation}
+                  className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 border ${
+                    isDictating
+                      ? 'bg-rose-500 text-white border-rose-600 animate-pulse'
+                      : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-[var(--border-solid)]'
+                  }`}
+                  title={isDictating ? 'Ferma dettatura' : 'Detta a voce nel campo'}
                 >
-                  <Wand2 className="w-3.5 h-3.5" />
-                  <span>Correggi testo ✨</span>
+                  <Mic className="w-3.5 h-3.5 text-rose-500" />
+                  <span>{isDictating ? 'Ascolto...' : 'Detta'}</span>
                 </button>
-              )}
+                {draft.situation?.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenImproveModal('situation', 'Situazione', draft.situation)}
+                    className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer shadow-xs active:scale-95"
+                    title="Correggi refusi, grammatica e fluidità"
+                  >
+                    <Wand2 className="w-3.5 h-3.5" />
+                    <span>Correggi testo ✨</span>
+                  </button>
+                )}
+              </div>
             </div>
             <textarea
               rows={3}
@@ -564,27 +618,6 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                   </button>
                 </div>
               )}
-            </div>
-
-            {/* SEZIONE AUDIO-NOTA VELOCE (VOCALE IN LOCALE) */}
-            <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-1.5 text-[11px] font-bold text-[var(--text-primary)]">
-                  <Mic className="w-3.5 h-3.5 text-rose-500" />
-                  <span>Audio-Nota Veloce (Opzionale)</span>
-                </div>
-              </div>
-              <AudioRecorder
-                audioNote={draft.audioNote}
-                audioDuration={draft.audioDuration}
-                onChange={(base64, duration) => {
-                  setDraft((prev) => ({
-                    ...prev,
-                    audioNote: base64,
-                    audioDuration: duration,
-                  }));
-                }}
-              />
             </div>
           </div>
 

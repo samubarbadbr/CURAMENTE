@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { motion } from 'motion/react';
 import { CbtEntry, Tag, PeriodFilter } from '../types';
 import {
   Calendar,
@@ -530,41 +531,52 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       ) : (
         /* Timeline List Grouped by Day */
         <div className="space-y-6">
-          {groups.map((group) => (
-            <div key={group.dayLabel} className="space-y-3">
-              <div className="flex items-center space-x-2 px-1">
-                <span className="text-xs font-black uppercase tracking-wider text-[var(--accent-primary)]">
-                  {group.dayLabel}
-                </span>
-                <div className="flex-1 h-px bg-[var(--border-solid)]" />
-              </div>
+          {(() => {
+            let runningIndex = 0;
+            return groups.map((group) => (
+              <div key={group.dayLabel} className="space-y-3">
+                <div className="flex items-center space-x-2 px-1">
+                  <span className="text-xs font-black uppercase tracking-wider text-[var(--accent-primary)]">
+                    {group.dayLabel}
+                  </span>
+                  <div className="flex-1 h-px bg-[var(--border-solid)]" />
+                </div>
 
-              <div className="space-y-3">
-                {group.items.map((entry) => {
-                  const emotionLabels = getTagLabels(entry.emotionTagIds);
-                  const anxiety = entry.overallAnxietyLevel ?? 0;
-                  const isRevealed = revealedIds.has(entry.id);
-                  const shouldBlur = isPrivacyModeEnabled && !isRevealed;
+                <div className="space-y-3">
+                  {group.items.map((entry) => {
+                    const cardIndex = runningIndex++;
+                    const staggerDelay = Math.min(cardIndex * 0.045, 0.4);
+                    const emotionLabels = getTagLabels(entry.emotionTagIds);
+                    const anxiety = entry.overallAnxietyLevel ?? 0;
+                    const isRevealed = revealedIds.has(entry.id);
+                    const shouldBlur = isPrivacyModeEnabled && !isRevealed;
 
-                  // Dynamic badge styling based on anxiety
-                  let anxietyBadgeStyle = 'bg-emerald-500/15 text-[var(--text-primary)] border-emerald-500/30';
-                  let barColor = 'bg-emerald-500';
-                  if (anxiety > 35 && anxiety <= 68) {
-                    anxietyBadgeStyle = 'bg-amber-500/15 text-[var(--text-primary)] border-amber-500/30';
-                    barColor = 'bg-amber-500';
-                  } else if (anxiety > 68) {
-                    anxietyBadgeStyle = 'bg-rose-500/15 text-[var(--text-primary)] border-rose-500/30';
-                    barColor = 'bg-rose-500';
-                  }
+                    // Dynamic badge styling based on anxiety
+                    let anxietyBadgeStyle = 'bg-emerald-500/15 text-[var(--text-primary)] border-emerald-500/30';
+                    let barColor = 'bg-emerald-500';
+                    if (anxiety > 35 && anxiety <= 68) {
+                      anxietyBadgeStyle = 'bg-amber-500/15 text-[var(--text-primary)] border-amber-500/30';
+                      barColor = 'bg-amber-500';
+                    } else if (anxiety > 68) {
+                      anxietyBadgeStyle = 'bg-rose-500/15 text-[var(--text-primary)] border-rose-500/30';
+                      barColor = 'bg-rose-500';
+                    }
 
-                  return (
-                    <div
-                      key={entry.id}
-                      onClick={() => onSelectEntry(entry.id)}
-                      className={`privacy-card glass-panel rounded-[20px] p-4 sm:p-5 transition-all duration-150 hover:shadow-md hover:-translate-y-0.5 active:scale-98 cursor-pointer border border-[var(--border-solid)] bg-[var(--bg-surface)] group space-y-3 ${
-                        isRevealed ? 'privacy-revealed' : ''
-                      }`}
-                    >
+                    return (
+                      <motion.div
+                        key={entry.id}
+                        initial={{ opacity: 0, y: 14, scale: 0.985 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{
+                          duration: 0.35,
+                          delay: staggerDelay,
+                          ease: [0.16, 1, 0.3, 1],
+                        }}
+                        onClick={() => onSelectEntry(entry.id)}
+                        className={`privacy-card glass-panel rounded-[20px] p-4 sm:p-5 transition-all duration-150 hover:shadow-md hover:-translate-y-0.5 active:scale-98 cursor-pointer border border-[var(--border-solid)] bg-[var(--bg-surface)] group space-y-3 ${
+                          isRevealed ? 'privacy-revealed' : ''
+                        }`}
+                      >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center space-x-2">
                           <span className="text-xs font-black text-[var(--text-primary)]">
@@ -689,12 +701,13 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
                         <ChevronRight className="w-4 h-4 text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors shrink-0" />
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>
             </div>
-          ))}
+          ));
+        })()}
         </div>
       )}
     </div>

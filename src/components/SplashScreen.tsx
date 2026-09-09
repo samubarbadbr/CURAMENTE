@@ -105,10 +105,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
           aria-hidden="true"
         />
 
-        {/* Accentuated Frosted Glass Logo Card (Glassmorph prominente come prima) */}
+        {/* Accentuated Frosted Glass Logo Card */}
         <motion.div
           animate={{
-            scale: [1, 1.03, 1],
+            scale: [1, 1.025, 1],
             opacity: [0.96, 1, 0.96],
           }}
           transition={{
@@ -116,30 +116,17 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
             repeat: Infinity,
             ease: 'easeInOut',
           }}
-          className="relative z-10 w-40 h-40 sm:w-48 sm:h-48 rounded-[32px] sm:rounded-[38px] flex flex-col items-center justify-center shadow-2xl overflow-hidden"
+          className="relative z-10 w-40 h-40 sm:w-48 sm:h-48 rounded-[34px] sm:rounded-[40px] flex flex-col items-center justify-center shadow-2xl overflow-hidden p-2.5"
           style={{
-            background: 'rgba(18, 20, 28, 0.50)',
-            backdropFilter: 'blur(28px)',
-            WebkitBackdropFilter: 'blur(28px)',
-            border: '1px solid rgba(255, 255, 255, 0.38)',
+            background: 'linear-gradient(145deg, rgba(35, 38, 46, 0.88) 0%, rgba(18, 19, 23, 0.96) 100%)',
+            backdropFilter: 'blur(30px)',
+            WebkitBackdropFilter: 'blur(30px)',
+            border: '1.5px solid rgba(255, 255, 255, 0.28)',
             boxShadow:
-              '0 25px 60px rgba(0, 0, 0, 0.75), inset 0 1px 2px rgba(255, 255, 255, 0.55), inset 0 -1px 2px rgba(0, 0, 0, 0.6)',
+              '0 28px 65px rgba(0, 0, 0, 0.8), inset 0 1px 2px rgba(255, 255, 255, 0.5), inset 0 -2px 4px rgba(0, 0, 0, 0.7)',
           }}
         >
-          {/* Brain Icon with Crisp White & Reflection Ring */}
-          <div className="relative flex flex-col items-center justify-center">
-            <Brain className="w-18 h-18 sm:w-20 sm:h-20 text-white stroke-[1.8] drop-shadow-[0_4px_16px_rgba(255,255,255,0.4)] z-10" />
-
-            {/* Refined Glassmorphic Ring under the brain */}
-            <div
-              className="w-20 h-4.5 sm:w-24 sm:h-5 rounded-full border border-white/45 -mt-3 z-0"
-              style={{
-                background:
-                  'radial-gradient(ellipse at center, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.1) 60%, transparent 80%)',
-                boxShadow: '0 0 12px rgba(255, 255, 255, 0.45)',
-              }}
-            />
-          </div>
+          <Brain className="w-20 h-20 sm:w-24 sm:h-24 text-white stroke-[1.75] drop-shadow-[0_4px_16px_rgba(255,255,255,0.3)]" />
         </motion.div>
 
         {/* Title and Subtitle with Metallic Finish */}

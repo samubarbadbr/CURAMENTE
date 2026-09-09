@@ -2,6 +2,7 @@ import React from 'react';
 import { Plus, Sun, Moon, WifiOff, Brain, EyeOff, Eye, Home } from 'lucide-react';
 import { ViewType, ThemeMode } from '../types';
 import { PWAInstallButton } from './PWAInstallButton';
+import { BrandLogo } from './BrandLogo';
 
 interface HeaderProps {
   currentView: ViewType;
@@ -50,9 +51,7 @@ export const Header: React.FC<HeaderProps> = ({
             aria-label="Torna alla copertina iniziale"
             title="Torna alla copertina"
           >
-            <div className="w-10 h-10 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-solid)] flex items-center justify-center shadow-sm group-hover:scale-105 group-hover:shadow-md transition-all duration-150 shrink-0">
-              <Brain className="w-5.5 h-5.5 text-[var(--accent-primary)] stroke-[2.2]" />
-            </div>
+            <BrandLogo className="w-10 h-10 group-hover:scale-105 transition-all duration-150" />
             <div className="flex items-center space-x-2">
               <h1 className="text-lg sm:text-xl font-black tracking-tight text-[var(--text-primary)] leading-none">
                 Diariamente
@@ -67,9 +66,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         ) : (
           <div className="flex items-center space-x-3 py-1.5 select-none">
-            <div className="w-10 h-10 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-solid)] flex items-center justify-center shadow-sm shrink-0">
-              <Brain className="w-5.5 h-5.5 text-[var(--accent-primary)] stroke-[2.2]" />
-            </div>
+            <BrandLogo className="w-10 h-10" />
             <div className="flex items-center space-x-2">
               <h1 className="text-lg sm:text-xl font-black tracking-tight text-[var(--text-primary)] leading-none">
                 Diariamente

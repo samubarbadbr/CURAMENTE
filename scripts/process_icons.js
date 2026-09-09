@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const srcImg = path.join(process.cwd(), 'src/assets/images/pwa_brain_icon_1786609741238.jpg');
+const srcImg = path.join(process.cwd(), 'src/assets/images/diariamente_official_icon_1788968407553.jpg');
 const pubDir = path.join(process.cwd(), 'public');
 
 if (!fs.existsSync(pubDir)) {

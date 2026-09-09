@@ -39,6 +39,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({
   const [pinAttempt, setPinAttempt] = useState('');
   const [hasError, setHasError] = useState(false);
   const [isVerifyingBio, setIsVerifyingBio] = useState(false);
+  const [pressedKey, setPressedKey] = useState<string | null>(null);
 
   // Recovery PIN Modal States
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
@@ -106,7 +107,15 @@ export const LockScreen: React.FC<LockScreenProps> = ({
     }
   };
 
+  const triggerKeyVisual = (key: string) => {
+    setPressedKey(key);
+    setTimeout(() => {
+      setPressedKey((current) => (current === key ? null : current));
+    }, 150);
+  };
+
   const handleKeyPress = (num: string) => {
+    if (hasError) return;
     setHasError(false);
     if (pinAttempt.length < 4) {
       const next = pinAttempt + num;
@@ -127,9 +136,48 @@ export const LockScreen: React.FC<LockScreenProps> = ({
   };
 
   const handleDelete = () => {
+    if (hasError) return;
     setHasError(false);
     setPinAttempt((prev) => prev.slice(0, -1));
   };
+
+  // Keyboard support: capture number keys 0-9, Backspace, Delete/Escape
+  useEffect(() => {
+    if (showRecoveryModal) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept if an input or textarea has focus
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      // Digits 0-9 (standard keyboard or Numpad)
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        triggerKeyVisual(e.key);
+        handleKeyPress(e.key);
+      } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        triggerKeyVisual('backspace');
+        handleDelete();
+      } else if (e.key === 'Delete' || e.key === 'Escape') {
+        e.preventDefault();
+        setHasError(false);
+        setPinAttempt('');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showRecoveryModal, pinAttempt, correctPin, hasError, onUnlock]);
 
   const handleSendRecoveryEmail = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -254,30 +302,17 @@ export const LockScreen: React.FC<LockScreenProps> = ({
             initial={{ opacity: 0, y: 12, scale: 0.94 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-10 w-28 h-28 sm:w-32 sm:h-32 rounded-[28px] sm:rounded-[32px] flex flex-col items-center justify-center shadow-2xl overflow-hidden"
+            className="relative z-10 w-28 h-28 sm:w-32 sm:h-32 rounded-[28px] sm:rounded-[32px] flex flex-col items-center justify-center shadow-2xl overflow-hidden p-2"
             style={{
-              background: 'rgba(18, 20, 28, 0.55)',
+              background: 'linear-gradient(145deg, rgba(35, 38, 46, 0.88) 0%, rgba(18, 19, 23, 0.94) 100%)',
               backdropFilter: 'blur(24px)',
               WebkitBackdropFilter: 'blur(24px)',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
+              border: '1.5px solid rgba(255, 255, 255, 0.28)',
               boxShadow:
-                '0 20px 50px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.4), inset 0 -1px 1px rgba(0, 0, 0, 0.5)',
+                '0 20px 50px rgba(0, 0, 0, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.4), inset 0 -1px 2px rgba(0, 0, 0, 0.6)',
             }}
           >
-            {/* Brain Icon with thin, subtle glassmorphic ring reflection */}
-            <div className="relative flex flex-col items-center justify-center">
-              <Brain className="w-12 h-12 sm:w-14 sm:h-14 text-white stroke-[1.8] drop-shadow-[0_4px_12px_rgba(255,255,255,0.3)] z-10" />
-
-              {/* Refined Glassmorphic Ring under the brain */}
-              <div
-                className="w-16 h-4 sm:w-18 sm:h-4.5 rounded-full border border-white/40 -mt-2.5 z-0"
-                style={{
-                  background:
-                    'radial-gradient(ellipse at center, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.1) 60%, transparent 80%)',
-                  boxShadow: '0 0 8px rgba(255, 255, 255, 0.4)',
-                }}
-              />
-            </div>
+            <Brain className="w-14 h-14 sm:w-16 sm:h-16 text-white stroke-[1.75] drop-shadow-[0_2px_10px_rgba(255,255,255,0.3)]" />
           </motion.div>
         </div>
 
@@ -343,23 +378,33 @@ export const LockScreen: React.FC<LockScreenProps> = ({
 
         {/* Keypad with Frosted Glass Buttons */}
         <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-1 w-full max-w-[280px] sm:max-w-[300px] mx-auto">
-          {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
-            <motion.button
-              key={num}
-              type="button"
-              onClick={() => handleKeyPress(num)}
-              whileTap={{ scale: 0.9 }}
-              className="w-16 h-16 sm:w-18 sm:h-18 mx-auto rounded-full bg-[#12141C]/80 hover:bg-[#1A1D28]/95 border border-white/20 hover:border-white/50 text-xl sm:text-2xl font-bold text-white shadow-lg transition-all duration-150 flex items-center justify-center cursor-pointer select-none"
-              style={{
-                backdropFilter: 'blur(16px)',
-                WebkitBackdropFilter: 'blur(16px)',
-                boxShadow:
-                  '0 4px 15px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
-              }}
-            >
-              {num}
-            </motion.button>
-          ))}
+          {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => {
+            const isPressed = pressedKey === num;
+            return (
+              <motion.button
+                key={num}
+                type="button"
+                onClick={() => handleKeyPress(num)}
+                whileTap={{ scale: 0.9 }}
+                animate={{ scale: isPressed ? 0.9 : 1 }}
+                transition={{ duration: 0.1 }}
+                className={`w-16 h-16 sm:w-18 sm:h-18 mx-auto rounded-full border text-xl sm:text-2xl font-bold text-white shadow-lg transition-all duration-150 flex items-center justify-center cursor-pointer select-none ${
+                  isPressed
+                    ? 'bg-white/30 border-white shadow-[0_0_20px_rgba(255,255,255,0.4)]'
+                    : 'bg-[#12141C]/80 hover:bg-[#1A1D28]/95 border-white/20 hover:border-white/50'
+                }`}
+                style={{
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  boxShadow: isPressed
+                    ? '0 0 20px rgba(255, 255, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)'
+                    : '0 4px 15px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+                }}
+              >
+                {num}
+              </motion.button>
+            );
+          })}
 
           {/* Bottom Left: Face ID / Biometrics Button */}
           {biometricsEnabled ? (
@@ -389,31 +434,52 @@ export const LockScreen: React.FC<LockScreenProps> = ({
           )}
 
           {/* Key 0 */}
-          <motion.button
-            type="button"
-            onClick={() => handleKeyPress('0')}
-            whileTap={{ scale: 0.9 }}
-            className="w-16 h-16 sm:w-18 sm:h-18 mx-auto rounded-full bg-[#12141C]/80 hover:bg-[#1A1D28]/95 border border-white/20 hover:border-white/50 text-xl sm:text-2xl font-bold text-white shadow-lg transition-all duration-150 flex items-center justify-center cursor-pointer select-none"
-            style={{
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
-              boxShadow:
-                '0 4px 15px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
-            }}
-          >
-            0
-          </motion.button>
+          {(() => {
+            const isPressed = pressedKey === '0';
+            return (
+              <motion.button
+                type="button"
+                onClick={() => handleKeyPress('0')}
+                whileTap={{ scale: 0.9 }}
+                animate={{ scale: isPressed ? 0.9 : 1 }}
+                transition={{ duration: 0.1 }}
+                className={`w-16 h-16 sm:w-18 sm:h-18 mx-auto rounded-full border text-xl sm:text-2xl font-bold text-white shadow-lg transition-all duration-150 flex items-center justify-center cursor-pointer select-none ${
+                  isPressed
+                    ? 'bg-white/30 border-white shadow-[0_0_20px_rgba(255,255,255,0.4)]'
+                    : 'bg-[#12141C]/80 hover:bg-[#1A1D28]/95 border-white/20 hover:border-white/50'
+                }`}
+                style={{
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  boxShadow: isPressed
+                    ? '0 0 20px rgba(255, 255, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)'
+                    : '0 4px 15px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+                }}
+              >
+                0
+              </motion.button>
+            );
+          })()}
 
           {/* Key Delete / Backspace */}
-          <motion.button
-            type="button"
-            onClick={handleDelete}
-            whileTap={{ scale: 0.9 }}
-            className="w-16 h-16 sm:w-18 sm:h-18 mx-auto rounded-full bg-transparent text-zinc-400 hover:text-white transition-all duration-150 flex items-center justify-center cursor-pointer select-none"
-            aria-label="Cancella cifra"
-          >
-            <Delete className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2]" />
-          </motion.button>
+          {(() => {
+            const isDeletePressed = pressedKey === 'backspace';
+            return (
+              <motion.button
+                type="button"
+                onClick={handleDelete}
+                whileTap={{ scale: 0.9 }}
+                animate={{ scale: isDeletePressed ? 0.88 : 1 }}
+                transition={{ duration: 0.1 }}
+                className={`w-16 h-16 sm:w-18 sm:h-18 mx-auto rounded-full bg-transparent transition-all duration-150 flex items-center justify-center cursor-pointer select-none ${
+                  isDeletePressed ? 'text-white' : 'text-zinc-400 hover:text-white'
+                }`}
+                aria-label="Cancella cifra"
+              >
+                <Delete className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2]" />
+              </motion.button>
+            );
+          })()}
         </div>
 
         {/* Sotto il tastierino numerico: Pulsante "PIN Dimenticato?" */}

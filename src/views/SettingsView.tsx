@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import { sendPinRecoveryEmail } from '../lib/supabase';
 import { PWAInstallButton } from '../components/PWAInstallButton';
+import { BrandLogo } from '../components/BrandLogo';
 
 interface SettingsViewProps {
   pinEnabled: boolean;
@@ -1151,6 +1152,19 @@ NOTIFY pgrst, 'reload schema';`;
         <span>
           <strong className="font-black text-[var(--text-primary)]">100% Client-Side e Privato:</strong> I tuoi dati restano esclusivamente sul tuo dispositivo in memoria locale e sono trasferibili in sicurezza tramite file di backup `.json`.
         </span>
+      </div>
+
+      {/* BRAND IDENTITY & VERSION FOOTER */}
+      <div className="flex flex-col items-center justify-center pt-2 pb-6 text-center space-y-2 select-none">
+        <BrandLogo className="w-14 h-14" iconSize={32} />
+        <div>
+          <h3 className="text-xs font-black tracking-widest uppercase text-[var(--text-primary)]">
+            Diariamente
+          </h3>
+          <p className="text-[11px] font-medium text-[var(--text-muted)]">
+            Spazio Quotidiano di Riflessione &amp; Focus
+          </p>
+        </div>
       </div>
     </div>
   );
