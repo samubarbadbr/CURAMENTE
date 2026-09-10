@@ -27,8 +27,9 @@ export async function correctDiaryText(text: string): Promise<TextCorrectionResu
   }
 
   try {
-    const callApi = async () => {
-      return fetch('/api/correct-text', {
+    const callApi = async (attempt: number = 0) => {
+      const url = attempt === 0 ? '/api/correct-text' : `/api/correct-text?_t=${Date.now()}`;
+      return fetch(url, {
         method: 'POST',
         cache: 'no-store',
         headers: {
@@ -39,12 +40,15 @@ export async function correctDiaryText(text: string): Promise<TextCorrectionResu
       });
     };
 
-    let response = await callApi();
+    let response = await callApi(0);
 
-    // If transient error (405 / 502 / 503 / 504), wait briefly and retry once
-    if (response.status === 405 || response.status >= 502) {
-      await new Promise((r) => setTimeout(r, 500));
-      response = await callApi();
+    // If transient or proxy error (405 / 502 / 503 / 504), retry with cache-busting
+    if (!response.ok || response.status === 405 || response.status >= 500) {
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json') || response.status === 405 || response.status >= 500) {
+        await new Promise((r) => setTimeout(r, 400));
+        response = await callApi(1);
+      }
     }
 
     const contentType = response.headers.get('content-type') || '';
@@ -64,15 +68,6 @@ export async function correctDiaryText(text: string): Promise<TextCorrectionResu
         };
       }
 
-      if (response.status === 405) {
-        return {
-          success: false,
-          original: text,
-          corrected: text,
-          error: 'Il servizio AI è in fase di sincronizzazione. Ricarica l\'app e riprova.',
-        };
-      }
-
       if (rawText.includes('__cookie_check') || response.status === 302 || response.status === 401 || response.status === 403) {
         return {
           success: false,
@@ -86,7 +81,7 @@ export async function correctDiaryText(text: string): Promise<TextCorrectionResu
         success: false,
         original: text,
         corrected: text,
-        error: `Risposta imprevista dal server (HTTP ${response.status}). Riprova tra poco.`,
+        error: 'Servizio di correzione temporaneamente occupato. Riprova tra qualche istante.',
       };
     }
 

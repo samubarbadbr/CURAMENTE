@@ -22,6 +22,7 @@ import { DashboardExportModal } from './components/DashboardExportModal';
 import { generateTherapistCsv, exportSingleEntryPdf } from './services/therapistReportGenerator';
 import { ResetPinModal } from './components/ResetPinModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { audioSafety } from './services/audioSafety';
 import {
   saveRecoveryEmailToCloud,
   handleIncomingRecoveryUrl,
@@ -73,18 +74,67 @@ export default function App() {
   const [currentView, setCurrentView] = useState<ViewType>('timeline');
   const [direction, setDirection] = useState<number>(0);
 
-  const navigateToView = (nextView: ViewType) => {
-    if (nextView === currentView) return;
-    const currentPos = viewOrder[currentView] ?? 0;
-    const nextPos = viewOrder[nextView] ?? 0;
-    setDirection(nextPos > currentPos ? 1 : nextPos < currentPos ? -1 : 1);
-    setCurrentView(nextView);
-  };
-
   // Form & Detail states
   const [entryDraft, setEntryDraft] = useState<CbtEntry | null>(null);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
+
+  // Audio safety check for navigation across views
+  const handleSafeNavigate = (action: () => void | Promise<void>) => {
+    if (audioSafety.hasPendingChanges()) {
+      setConfirmModal({
+        isOpen: true,
+        title: audioSafety.isCurrentlyRecording()
+          ? 'Registrazione audio in corso'
+          : 'Registrazione audio non salvata',
+        message: audioSafety.isCurrentlyRecording()
+          ? 'Stai registrando una traccia audio. Vuoi salvare la registrazione prima di uscire, oppure uscire senza salvare?'
+          : 'Ci sono modifiche non salvate nella registrazione audio. Vuoi salvare prima di uscire, oppure uscire senza salvare?',
+        confirmLabel: 'Salva prima di uscire',
+        cancelLabel: 'Annulla / Esci senza salvare',
+        dismissLabel: 'Rimani qui',
+        isDanger: false,
+        onConfirm: async () => {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+          const res = await audioSafety.stopAndSaveAll();
+          if (entryDraft) {
+            const updated = {
+              ...entryDraft,
+              ...(res.audioNote ? { audioNote: res.audioNote, audioDuration: res.audioDuration } : {}),
+            };
+            try {
+              await DB.put('entries', updated);
+              await loadEntries(periodFilter);
+              showToast('Registrazione e diario salvati');
+            } catch (err) {
+              console.error('Error auto-saving entry on navigation:', err);
+            }
+          }
+          await action();
+        },
+        onCancel: async () => {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+          audioSafety.discardAndStopAll();
+          await action();
+        },
+        onDismiss: () => {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        },
+      });
+      return;
+    }
+    action();
+  };
+
+  const navigateToView = (nextView: ViewType) => {
+    if (nextView === currentView) return;
+    handleSafeNavigate(() => {
+      const currentPos = viewOrder[currentView] ?? 0;
+      const nextPos = viewOrder[nextView] ?? 0;
+      setDirection(nextPos > currentPos ? 1 : nextPos < currentPos ? -1 : 1);
+      setCurrentView(nextView);
+    });
+  };
 
   // Filters & Theme
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('30');
@@ -142,8 +192,13 @@ export default function App() {
     isOpen: boolean;
     title?: string;
     message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    dismissLabel?: string;
     isDanger?: boolean;
     onConfirm: () => void;
+    onCancel?: () => void;
+    onDismiss?: () => void;
   }>({
     isOpen: false,
     message: '',
@@ -636,18 +691,22 @@ export default function App() {
 
   // Open New Entry form
   const handleOpenNewEntry = () => {
-    setEditingEntryId(null);
-    setEntryDraft(createBlankEntry());
-    navigateToView('entry');
+    handleSafeNavigate(() => {
+      setEditingEntryId(null);
+      setEntryDraft(createBlankEntry());
+      navigateToView('entry');
+    });
   };
 
   // Open Edit Entry form
   const handleOpenEditEntry = (entryId: string) => {
-    const found = entries.find((e) => e.id === entryId);
-    if (!found) return;
-    setEditingEntryId(entryId);
-    setEntryDraft(JSON.parse(JSON.stringify(found)));
-    navigateToView('entry');
+    handleSafeNavigate(() => {
+      const found = entries.find((e) => e.id === entryId);
+      if (!found) return;
+      setEditingEntryId(entryId);
+      setEntryDraft(JSON.parse(JSON.stringify(found)));
+      navigateToView('entry');
+    });
   };
 
   // Save Entry (Create / Update)
@@ -1277,9 +1336,13 @@ export default function App() {
         isOpen={confirmModal.isOpen}
         title={confirmModal.title}
         message={confirmModal.message}
+        confirmLabel={confirmModal.confirmLabel}
+        cancelLabel={confirmModal.cancelLabel}
+        dismissLabel={confirmModal.dismissLabel}
         isDanger={confirmModal.isDanger}
         onConfirm={confirmModal.onConfirm}
-        onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onCancel={confirmModal.onCancel || (() => setConfirmModal((prev) => ({ ...prev, isOpen: false })))}
+        onDismiss={confirmModal.onDismiss || (() => setConfirmModal((prev) => ({ ...prev, isOpen: false })))}
       />
 
       <TherapistExportModal

@@ -74,20 +74,31 @@ ${text}
 """`;
 
     let corrected = text;
-    // Primary model: gemini-3.8-flash; fallback to gemini-flash-latest if high demand
-    try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-      });
-      corrected = response.text?.trim() || text;
-    } catch (primaryErr: any) {
-      console.warn('gemini-3.8-flash non disponibile, fallback su gemini-flash-latest...', primaryErr?.message);
-      const fallbackResponse = await ai.models.generateContent({
-        model: 'gemini-flash-latest',
-        contents: prompt,
-      });
-      corrected = fallbackResponse.text?.trim() || text;
+    // Primary model: gemini-3.1-flash-lite (fastest, ~700ms, highly responsive for mobile); fallbacks for redundancy
+    const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
+    let lastError: any = null;
+    let modelSuccess = false;
+
+    for (const modelName of candidateModels) {
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+        });
+        const generated = response.text?.trim();
+        if (generated) {
+          corrected = generated;
+          modelSuccess = true;
+          break;
+        }
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`Modello ${modelName} non disponibile:`, err?.message || err);
+      }
+    }
+
+    if (!modelSuccess && lastError) {
+      throw lastError;
     }
 
     return res.json({

@@ -5,6 +5,9 @@ import { TagPicker } from '../components/TagPicker';
 import { GradientSlider } from '../components/GradientSlider';
 import { TextImproveModal } from '../components/TextImproveModal';
 import { CustomDatePicker } from '../components/CustomDatePicker';
+import { AudioRecorder } from '../components/AudioRecorder';
+import { ConfirmModal } from '../components/ConfirmModal';
+import { audioSafety } from '../services/audioSafety';
 import {
   Save,
   X,
@@ -251,9 +254,114 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
     scrollToTop();
   }, [activeTab]);
 
+  // Audio safety state for tab switches, questions customization, and form cancellation
+  const [audioSafetyModal, setAudioSafetyModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    actionType: 'switch_tab' | 'open_custom_questions' | 'cancel_entry';
+    targetTab?: FormTab;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    actionType: 'switch_tab',
+  });
+
   const handleSwitchTab = (tab: FormTab) => {
+    if (tab === activeTab) return;
+    if (audioSafety.hasPendingChanges()) {
+      setAudioSafetyModal({
+        isOpen: true,
+        title: audioSafety.isCurrentlyRecording()
+          ? 'Registrazione audio in corso'
+          : 'Registrazione audio non salvata',
+        message: audioSafety.isCurrentlyRecording()
+          ? 'Stai registrando un audio vocale. Vuoi salvare la registrazione prima di cambiare sezione, oppure uscire senza salvare?'
+          : 'Hai registrato una traccia audio non ancora salvata nel diario. Vuoi salvarla prima di cambiare sezione, oppure uscire senza salvare?',
+        actionType: 'switch_tab',
+        targetTab: tab,
+      });
+      return;
+    }
     setActiveTab(tab);
     scrollToTop();
+  };
+
+  const handleCancelWithAudioSafety = () => {
+    if (audioSafety.hasPendingChanges()) {
+      setAudioSafetyModal({
+        isOpen: true,
+        title: audioSafety.isCurrentlyRecording()
+          ? 'Registrazione audio in corso'
+          : 'Registrazione audio non salvata',
+        message: audioSafety.isCurrentlyRecording()
+          ? 'Stai registrando un audio vocale. Vuoi salvare la registrazione prima di uscire, oppure uscire senza salvare?'
+          : 'Hai registrato una traccia audio non ancora salvata nel diario. Vuoi salvare la registrazione prima di uscire, oppure uscire senza salvare?',
+        actionType: 'cancel_entry',
+      });
+      return;
+    }
+    onCancel();
+  };
+
+  const handleOpenCustomQuestionsWithSafety = () => {
+    if (audioSafety.hasPendingChanges()) {
+      setAudioSafetyModal({
+        isOpen: true,
+        title: audioSafety.isCurrentlyRecording()
+          ? 'Registrazione audio in corso'
+          : 'Registrazione audio non salvata',
+        message: audioSafety.isCurrentlyRecording()
+          ? 'Stai registrando un audio vocale. Vuoi salvare la registrazione prima di personalizzare le domande, oppure uscire senza salvare?'
+          : 'Hai registrato una traccia audio non ancora salvata nel diario. Vuoi salvarla prima di personalizzare le domande, oppure uscire senza salvare?',
+        actionType: 'open_custom_questions',
+      });
+      return;
+    }
+    onOpenCustomQuestions?.();
+  };
+
+  const handleConfirmAudioSafety = async () => {
+    setAudioSafetyModal((prev) => ({ ...prev, isOpen: false }));
+    const res = await audioSafety.stopAndSaveAll();
+    const updatedDraft: CbtEntry = {
+      ...draft,
+      ...(res.audioNote ? { audioNote: res.audioNote, audioDuration: res.audioDuration } : {}),
+    };
+    if (res.audioNote) {
+      updateDraft('audioNote', res.audioNote);
+      updateDraft('audioDuration', res.audioDuration);
+    }
+
+    if (audioSafetyModal.actionType === 'switch_tab' && audioSafetyModal.targetTab) {
+      setActiveTab(audioSafetyModal.targetTab);
+      scrollToTop();
+    } else if (audioSafetyModal.actionType === 'open_custom_questions') {
+      await onSave(updatedDraft);
+      onOpenCustomQuestions?.();
+    } else if (audioSafetyModal.actionType === 'cancel_entry') {
+      await onSave(updatedDraft);
+      onCancel();
+    }
+  };
+
+  const handleCancelAudioSafety = () => {
+    setAudioSafetyModal((prev) => ({ ...prev, isOpen: false }));
+    audioSafety.discardAndStopAll();
+
+    if (audioSafetyModal.actionType === 'switch_tab' && audioSafetyModal.targetTab) {
+      setActiveTab(audioSafetyModal.targetTab);
+      scrollToTop();
+    } else if (audioSafetyModal.actionType === 'open_custom_questions') {
+      onOpenCustomQuestions?.();
+    } else if (audioSafetyModal.actionType === 'cancel_entry') {
+      onCancel();
+    }
+  };
+
+  const handleDismissAudioSafety = () => {
+    setAudioSafetyModal((prev) => ({ ...prev, isOpen: false }));
   };
 
   const handleCustomAnswerChange = (questionId: string, val: string | number | boolean) => {
@@ -309,7 +417,15 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    await onSave(draft);
+    let finalDraft = { ...draft };
+    if (audioSafety.isCurrentlyRecording()) {
+      const res = await audioSafety.stopAndSaveAll();
+      if (res.audioNote) {
+        finalDraft.audioNote = res.audioNote;
+        finalDraft.audioDuration = res.audioDuration;
+      }
+    }
+    await onSave(finalDraft);
     setIsSaving(false);
   };
 
@@ -350,7 +466,7 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
           </button>
           <button
             type="button"
-            onClick={onCancel}
+            onClick={handleCancelWithAudioSafety}
             className="p-2.5 rounded-full text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] active:scale-95 transition-all cursor-pointer"
             aria-label="Annulla"
           >
@@ -618,6 +734,25 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                   </button>
                 </div>
               )}
+
+              {/* Nota Vocale / Audio Recorder */}
+              <div className="pt-3 border-t border-[var(--border-solid)] space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-1.5 text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+                    <Mic className="w-3.5 h-3.5 text-rose-500" />
+                    <span>Nota Vocale / Audio</span>
+                  </div>
+                </div>
+                <AudioRecorder
+                  audioNote={draft.audioNote}
+                  audioDuration={draft.audioDuration}
+                  initialSavedAudio={initialDraft.audioNote}
+                  onChange={(audioBase64, duration) => {
+                    updateDraft('audioNote', audioBase64);
+                    updateDraft('audioDuration', duration);
+                  }}
+                />
+              </div>
             </div>
           </div>
 
@@ -708,7 +843,7 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               {onOpenCustomQuestions && (
                 <button
                   type="button"
-                  onClick={onOpenCustomQuestions}
+                  onClick={handleOpenCustomQuestionsWithSafety}
                   className="text-[11px] font-black text-indigo-400 hover:text-indigo-300 flex items-center space-x-1 transition-colors cursor-pointer"
                 >
                   <Settings2 className="w-3.5 h-3.5" />
@@ -725,7 +860,7 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                 {onOpenCustomQuestions && (
                   <button
                     type="button"
-                    onClick={onOpenCustomQuestions}
+                    onClick={handleOpenCustomQuestionsWithSafety}
                     className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-[11px] font-black bg-indigo-500/15 text-indigo-400 hover:bg-indigo-500/25 border border-indigo-500/30 transition-all cursor-pointer"
                   >
                     <Plus className="w-3 h-3 stroke-[3]" />
@@ -1109,6 +1244,20 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
         fieldTitle={improveModal.fieldTitle}
         onApply={handleApplyImprovement}
         onClose={() => setImproveModal((prev) => ({ ...prev, isOpen: false }))}
+      />
+
+      {/* Finestra di sicurezza per registrazione audio / modifiche non salvate */}
+      <ConfirmModal
+        isOpen={audioSafetyModal.isOpen}
+        title={audioSafetyModal.title}
+        message={audioSafetyModal.message}
+        confirmLabel="Salva prima di uscire"
+        cancelLabel="Annulla / Esci senza salvare"
+        dismissLabel="Rimani qui"
+        isDanger={false}
+        onConfirm={handleConfirmAudioSafety}
+        onCancel={handleCancelAudioSafety}
+        onDismiss={handleDismissAudioSafety}
       />
     </form>
   );

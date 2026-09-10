@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Mic,
   Square,
@@ -11,12 +11,17 @@ import {
   Sparkles,
   RefreshCw,
 } from 'lucide-react';
+import { audioSafety } from '../services/audioSafety';
+import { ConfirmModal } from './ConfirmModal';
 
 interface AudioRecorderProps {
   audioNote?: string; // base64 data URL
   audioDuration?: number; // duration in seconds
   onChange: (audioBase64: string | undefined, duration?: number) => void;
   disabled?: boolean;
+  initialSavedAudio?: string;
+  onRecordingChange?: (isRecording: boolean) => void;
+  onUnsavedChange?: (hasUnsaved: boolean) => void;
 }
 
 const MAX_RECORDING_SECONDS = 120; // 2 minutes maximum
@@ -79,16 +84,31 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
   audioDuration,
   onChange,
   disabled = false,
+  initialSavedAudio,
+  onRecordingChange,
+  onUnsavedChange,
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isNoDeviceFound, setIsNoDeviceFound] = useState(false);
+  const [hasUnsavedAudio, setHasUnsavedAudio] = useState(false);
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
 
   // Player state
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [playerDuration, setPlayerDuration] = useState(audioDuration || 0);
+
+  const idRef = useRef(`audio-rec-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
+  const initialSavedAudioRef = useRef<string | undefined>(initialSavedAudio ?? audioNote);
+  const isRecordingRef = useRef(false);
+  const hasUnsavedAudioRef = useRef(false);
+  const recordingSecondsRef = useRef(0);
+
+  isRecordingRef.current = isRecording;
+  hasUnsavedAudioRef.current = hasUnsavedAudio;
+  recordingSecondsRef.current = recordingSeconds;
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -110,22 +130,150 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
     }
   }, [audioDuration]);
 
+  // Track if audioNote is different from initial saved state
   useEffect(() => {
-    return () => {
+    if (audioNote && audioNote !== initialSavedAudioRef.current) {
+      setHasUnsavedAudio(true);
+      hasUnsavedAudioRef.current = true;
+      onUnsavedChange?.(true);
+      audioSafety.notify();
+    }
+  }, [audioNote, onUnsavedChange]);
+
+  // Notify recording state changes
+  useEffect(() => {
+    onRecordingChange?.(isRecording);
+    audioSafety.notify();
+  }, [isRecording, onRecordingChange]);
+
+  const stopAndSave = useCallback((): Promise<{ audioNote?: string; audioDuration?: number }> => {
+    return new Promise((resolve) => {
       if (timerIntervalRef.current) {
         window.clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+
+      if (!isRecordingRef.current || !mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') {
+        resolve({ audioNote, audioDuration: playerDuration || audioDuration });
+        return;
+      }
+
+      const recorder = mediaRecorderRef.current;
+      recorder.onstop = () => {
+        if (simCleanupRef.current) {
+          simCleanupRef.current();
+          simCleanupRef.current = null;
+        }
+        const mime = recorder.mimeType || 'audio/webm';
+        const blob = new Blob(audioChunksRef.current, { type: mime });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64Data = reader.result as string;
+          const finalDuration = recordingSecondsRef.current || 1;
+          setPlayerDuration(finalDuration);
+          setIsRecording(false);
+          isRecordingRef.current = false;
+          setHasUnsavedAudio(true);
+          hasUnsavedAudioRef.current = true;
+          onChange(base64Data, finalDuration);
+
+          if (mediaStreamRef.current) {
+            mediaStreamRef.current.getTracks().forEach((t) => {
+              try { t.stop(); } catch {}
+            });
+            mediaStreamRef.current = null;
+          }
+
+          audioSafety.notify();
+          resolve({ audioNote: base64Data, audioDuration: finalDuration });
+        };
+        reader.readAsDataURL(blob);
+      };
+
+      try {
+        recorder.stop();
+      } catch {
+        resolve({ audioNote, audioDuration });
+      }
+    });
+  }, [audioNote, audioDuration, playerDuration, onChange]);
+
+  const discardAndStop = useCallback(() => {
+    if (timerIntervalRef.current) {
+      window.clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.onstop = null;
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {}
+    }
+
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((t) => {
+        try { t.stop(); } catch {}
+      });
+      mediaStreamRef.current = null;
+    }
+
+    if (simCleanupRef.current) {
+      simCleanupRef.current();
+      simCleanupRef.current = null;
+    }
+
+    if (audioElementRef.current) {
+      audioElementRef.current.pause();
+    }
+
+    setIsRecording(false);
+    isRecordingRef.current = false;
+    setRecordingSeconds(0);
+    recordingSecondsRef.current = 0;
+    audioChunksRef.current = [];
+    setHasUnsavedAudio(false);
+    hasUnsavedAudioRef.current = false;
+
+    if (initialSavedAudioRef.current !== audioNote) {
+      onChange(initialSavedAudioRef.current, undefined);
+    }
+
+    audioSafety.notify();
+  }, [audioNote, onChange]);
+
+  // Register with global AudioSafetyService
+  useEffect(() => {
+    audioSafety.registerRecorder({
+      id: idRef.current,
+      isRecording: () => isRecordingRef.current,
+      hasUnsavedAudio: () => hasUnsavedAudioRef.current,
+      stopAndSave,
+      discardAndStop,
+    });
+
+    return () => {
+      // Guaranteed clean shutdown of microphone streams when unmounting
+      if (timerIntervalRef.current) {
+        window.clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
       }
       if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current.getTracks().forEach((t) => {
+          try { t.stop(); } catch {}
+        });
+        mediaStreamRef.current = null;
       }
       if (simCleanupRef.current) {
         simCleanupRef.current();
+        simCleanupRef.current = null;
       }
       if (audioElementRef.current) {
         audioElementRef.current.pause();
       }
+      audioSafety.unregisterRecorder(idRef.current);
     };
-  }, []);
+  }, [stopAndSave, discardAndStop]);
 
   useEffect(() => {
     if (isRecording && recordingSeconds >= MAX_RECORDING_SECONDS) {
@@ -365,13 +513,25 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
     audioChunksRef.current = [];
   };
 
-  const handleDeleteAudio = () => {
+  const requestDeleteAudio = () => {
+    setIsConfirmDeleteOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    setIsConfirmDeleteOpen(false);
     if (audioElementRef.current) {
       audioElementRef.current.pause();
     }
     setIsPlaying(false);
     setCurrentTime(0);
+    setHasUnsavedAudio(true);
+    hasUnsavedAudioRef.current = true;
     onChange(undefined, undefined);
+    audioSafety.notify();
+  };
+
+  const handleDeleteAudio = () => {
+    requestDeleteAudio();
   };
 
   const handleAudioFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -513,6 +673,11 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
               <span className="text-xs font-black text-[var(--text-primary)]">
                 Audio-Nota Vocale Registrata
               </span>
+              {hasUnsavedAudio && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-500 border border-amber-500/25 animate-pulse">
+                  Non ancora salvata
+                </span>
+              )}
             </div>
 
             {!disabled && (
@@ -647,6 +812,18 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
           </div>
         </div>
       )}
+
+      {/* Finestra di conferma eliminazione traccia audio */}
+      <ConfirmModal
+        isOpen={isConfirmDeleteOpen}
+        title="Elimina traccia audio"
+        message="Sei sicuro di voler eliminare questa registrazione vocale? L'operazione non potrà essere annullata."
+        confirmLabel="Elimina traccia"
+        cancelLabel="Annulla"
+        isDanger={true}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setIsConfirmDeleteOpen(false)}
+      />
     </div>
   );
 };
