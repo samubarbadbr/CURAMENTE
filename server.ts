@@ -19,12 +19,21 @@ app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
   }
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, X-Requested-With');
   if (req.method === 'OPTIONS') {
-    return res.sendStatus(204);
+    res.setHeader('Access-Control-Max-Age', '86400');
+    return res.status(204).end();
   }
   next();
+});
+
+// Explicit OPTIONS handler for /api/correct-text preflights
+app.options('/api/correct-text', (_req, res) => {
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  res.status(204).end();
 });
 
 // Health check for AI correction service
@@ -50,9 +59,7 @@ app.post('/api/correct-text', async (req, res) => {
     }
 
     const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.6-flash',
-      contents: `Sei un assistente per la scrittura di un diario personale.
+    const prompt = `Sei un assistente per la scrittura di un diario personale.
 Il tuo unico compito è correggere eventuali refusi di battitura, errori grammaticali, ortografici e di punteggiatura nel testo seguente, riordinando le frasi in modo fluido, pulito e naturale in lingua italiana.
 
 REGOLE TASSATIVE:
@@ -64,10 +71,25 @@ REGOLE TASSATIVE:
 Testo originale:
 """
 ${text}
-"""`,
-    });
+"""`;
 
-    const corrected = response.text?.trim() || text;
+    let corrected = text;
+    // Primary model: gemini-3.8-flash; fallback to gemini-flash-latest if high demand
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+      });
+      corrected = response.text?.trim() || text;
+    } catch (primaryErr: any) {
+      console.warn('gemini-3.8-flash non disponibile, fallback su gemini-flash-latest...', primaryErr?.message);
+      const fallbackResponse = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: prompt,
+      });
+      corrected = fallbackResponse.text?.trim() || text;
+    }
+
     return res.json({
       success: true,
       original: text,
@@ -86,6 +108,14 @@ ${text}
       error: errorText,
     });
   }
+});
+
+// Fallback for any other method on /api/correct-text
+app.all('/api/correct-text', (req, res) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.status(405).json({
+    error: `Metodo ${req.method} non supportato per questo endpoint. Utilizza una richiesta POST.`,
+  });
 });
 
 // Vite middleware setup

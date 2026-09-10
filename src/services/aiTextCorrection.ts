@@ -27,15 +27,25 @@ export async function correctDiaryText(text: string): Promise<TextCorrectionResu
   }
 
   try {
-    const response = await fetch('/api/correct-text', {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({ text: trimmed }),
-    });
+    const callApi = async () => {
+      return fetch('/api/correct-text', {
+        method: 'POST',
+        cache: 'no-store',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ text: trimmed }),
+      });
+    };
+
+    let response = await callApi();
+
+    // If transient error (405 / 502 / 503 / 504), wait briefly and retry once
+    if (response.status === 405 || response.status >= 502) {
+      await new Promise((r) => setTimeout(r, 500));
+      response = await callApi();
+    }
 
     const contentType = response.headers.get('content-type') || '';
 
@@ -51,6 +61,15 @@ export async function correctDiaryText(text: string): Promise<TextCorrectionResu
           original: text,
           corrected: text,
           error: 'Servizio di correzione AI momentaneamente non disponibile (404).',
+        };
+      }
+
+      if (response.status === 405) {
+        return {
+          success: false,
+          original: text,
+          corrected: text,
+          error: 'Il servizio AI è in fase di sincronizzazione. Ricarica l\'app e riprova.',
         };
       }
 
