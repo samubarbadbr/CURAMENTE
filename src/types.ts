@@ -1,7 +1,9 @@
+export type TagCategory = 'physical_symptom' | 'thought' | 'emotion' | string;
+
 export interface Tag {
   id: string;
   label: string;
-  category: 'emotion' | 'physical_symptom';
+  category: 'physical_symptom' | 'thought' | 'emotion' | string;
   isCustom: number; // 0 or 1
 }
 
@@ -40,6 +42,7 @@ export interface CbtEntry {
   thoughtBeliefLevel: number; // 0-100
   emotionTagIds: string[];
   physicalSymptomTagIds: string[];
+  thoughtTagIds?: string[];
   physicalSymptomsText: string;
   negativeThoughtsExtended: string;
   negativeThoughtsIntensity: number; // 0-100

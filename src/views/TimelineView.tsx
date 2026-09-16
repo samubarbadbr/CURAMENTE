@@ -166,6 +166,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       e.physicalSymptomTagIds?.forEach((id) => {
         counts[id] = (counts[id] || 0) + 1;
       });
+      e.thoughtTagIds?.forEach((id) => {
+        counts[id] = (counts[id] || 0) + 1;
+      });
     });
     return counts;
   }, [entries]);
@@ -225,6 +228,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       if (queryWords.length > 0) {
         const emotionLabels = getTagLabels(entry.emotionTagIds || []);
         const symptomLabels = getTagLabels(entry.physicalSymptomTagIds || []);
+        const thoughtLabels = getTagLabels(entry.thoughtTagIds || []);
         const customAnswersText = entry.customAnswers
           ? Object.values(entry.customAnswers).join(' ')
           : '';
@@ -246,6 +250,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           entry.evidenceAgainstThought || '',
           ...emotionLabels,
           ...symptomLabels,
+          ...thoughtLabels,
           customAnswersText,
         ]
           .join(' ')
@@ -469,11 +474,11 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           <button
             type="button"
             onClick={handleOpenNewNoteModal}
-            className="inline-flex items-center space-x-1.5 px-3 py-2 min-h-[42px] rounded-xl text-xs font-black bg-[var(--accent-primary)] text-white hover:opacity-90 active:scale-95 transition-all shadow-sm cursor-pointer shrink-0"
+            className="inline-flex items-center space-x-1.5 px-3 py-2 min-h-[42px] rounded-xl text-xs font-black bg-[var(--accent-btn)] text-[var(--accent-btn-text)] hover:opacity-90 active:scale-95 transition-all shadow-sm cursor-pointer shrink-0 border border-[var(--border-solid)]"
             title="Aggiungi un appunto libero o riflessione nel diario"
           >
-            <BookOpen className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span>+ Appunto Diario</span>
+            <BookOpen className="w-3.5 h-3.5 stroke-[2.5] text-[var(--accent-btn-text)]" />
+            <span className="text-[var(--accent-btn-text)]">+ Appunto Diario</span>
           </button>
 
           <div className="flex-1 sm:w-auto sm:flex-initial shrink-0">
@@ -558,11 +563,11 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           </div>
           <button
             type="button"
-            className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-black bg-[var(--accent-primary)] text-white shadow-xs group-hover:opacity-95 shrink-0"
+            className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-black bg-[var(--accent-btn)] text-[var(--accent-btn-text)] shadow-xs group-hover:opacity-95 shrink-0 border border-[var(--border-solid)]"
           >
-            <Plus className="w-3.5 h-3.5 stroke-[3]" />
-            <span className="hidden sm:inline">Scrivi Appunto</span>
-            <span className="sm:hidden">Scrivi</span>
+            <Plus className="w-3.5 h-3.5 stroke-[3] text-[var(--accent-btn-text)]" />
+            <span className="hidden sm:inline text-[var(--accent-btn-text)]">Scrivi Appunto</span>
+            <span className="sm:hidden text-[var(--accent-btn-text)]">Scrivi</span>
           </button>
         </div>
       )}
@@ -615,11 +620,13 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     onClick={() => setSelectedNoteCategory(cat)}
                     className={`px-2.5 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-[var(--accent-primary)] text-white border-[var(--accent-primary)] shadow-xs'
+                        ? 'bg-[var(--accent-btn)] text-[var(--accent-btn-text)] border-[var(--accent-btn)] shadow-xs font-black'
                         : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] border-[var(--border-solid)] hover:text-[var(--text-primary)]'
                     }`}
                   >
-                    {cat === 'all' ? 'Tutte le categorie' : cat}
+                    <span className={isSelected ? 'text-[var(--accent-btn-text)]' : ''}>
+                      {cat === 'all' ? 'Tutte le categorie' : cat}
+                    </span>
                   </button>
                 );
               })}
@@ -648,7 +655,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     onClick={() => setCombinationMode('any')}
                     className={`px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
                       combinationMode === 'any'
-                        ? 'bg-[var(--accent-primary)] text-[var(--accent-btn-text)] shadow-xs'
+                        ? 'bg-[var(--accent-btn)] text-[var(--accent-btn-text)] shadow-xs font-black'
                         : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                     }`}
                   >
@@ -659,7 +666,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     onClick={() => setCombinationMode('all')}
                     className={`px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
                       combinationMode === 'all'
-                        ? 'bg-[var(--accent-primary)] text-[var(--accent-btn-text)] shadow-xs'
+                        ? 'bg-[var(--accent-btn)] text-[var(--accent-btn-text)] shadow-xs font-black'
                         : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                     }`}
                   >
@@ -680,17 +687,17 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     onClick={() => toggleEmotionTag(tag.id)}
                     className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer border ${
                       isSelected
-                        ? 'bg-[var(--accent-primary)] text-[var(--accent-btn-text)] border-[var(--accent-primary)] shadow-xs scale-102'
+                        ? 'bg-[var(--accent-btn)] text-[var(--accent-btn-text)] border-[var(--accent-btn)] shadow-xs scale-102 font-black'
                         : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] border-[var(--border-solid)]'
                     }`}
                   >
-                    {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
-                    <span>{tag.label}</span>
+                    {isSelected && <Check className="w-3 h-3 stroke-[3] text-[var(--accent-btn-text)]" />}
+                    <span className={isSelected ? 'text-[var(--accent-btn-text)]' : ''}>{tag.label}</span>
                     {count > 0 && (
                       <span
                         className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
                           isSelected
-                            ? 'bg-black/20 text-current'
+                            ? 'bg-black/20 text-[var(--accent-btn-text)]'
                             : 'bg-[var(--border-solid)] text-[var(--text-muted)]'
                         }`}
                       >
@@ -766,10 +773,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               <button
                 type="button"
                 onClick={handleOpenNewNoteModal}
-                className="btn-primary inline-flex items-center space-x-2 px-6 py-3 min-h-[48px] rounded-full shadow-md active:scale-95 transition-all duration-150 cursor-pointer"
+                className="btn-primary inline-flex items-center space-x-2 px-6 py-3 min-h-[48px] rounded-full shadow-md active:scale-95 transition-all duration-150 cursor-pointer bg-[var(--accent-btn)] text-[var(--accent-btn-text)]"
               >
-                <Sparkles className="w-4 h-4 stroke-[2.5]" />
-                <span className="font-bold">Scrivi il tuo primo appunto</span>
+                <Sparkles className="w-4 h-4 stroke-[2.5] text-[var(--accent-btn-text)]" />
+                <span className="font-bold text-[var(--accent-btn-text)]">Scrivi il tuo primo appunto</span>
               </button>
             </div>
           ) : (
@@ -836,10 +843,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               <button
                 type="button"
                 onClick={onNewEntry}
-                className="btn-primary inline-flex items-center space-x-2 px-6 py-3 min-h-[48px] rounded-full shadow-md active:scale-95 transition-all duration-150 cursor-pointer"
+                className="btn-primary inline-flex items-center space-x-2 px-6 py-3 min-h-[48px] rounded-full shadow-md active:scale-95 transition-all duration-150 cursor-pointer bg-[var(--accent-btn)] text-[var(--accent-btn-text)]"
               >
-                <Sparkles className="w-4 h-4 stroke-[2.5]" />
-                <span className="font-bold">Registra Prima Scheda</span>
+                <Sparkles className="w-4 h-4 stroke-[2.5] text-[var(--accent-btn-text)]" />
+                <span className="font-bold text-[var(--accent-btn-text)]">Registra Prima Scheda</span>
               </button>
             </div>
           ) : filteredEntries.length === 0 ? (
@@ -1081,10 +1088,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 <button
                   type="button"
                   onClick={onNewEntry}
-                  className="btn-primary inline-flex items-center space-x-2 px-5 py-2.5 rounded-full shadow-md cursor-pointer"
+                  className="btn-primary inline-flex items-center space-x-2 px-5 py-2.5 rounded-full shadow-md cursor-pointer bg-[var(--accent-btn)] text-[var(--accent-btn-text)]"
                 >
-                  <Sparkles className="w-4 h-4 stroke-[2.5]" />
-                  <span className="font-bold">Nuova Scheda CBT</span>
+                  <Sparkles className="w-4 h-4 stroke-[2.5] text-[var(--accent-btn-text)]" />
+                  <span className="font-bold text-[var(--accent-btn-text)]">Nuova Scheda CBT</span>
                 </button>
                 <button
                   type="button"

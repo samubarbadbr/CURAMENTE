@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Tag, ThemeMode } from '../types';
+import { Tag, TagCategory, ThemeMode } from '../types';
 import {
   Lock,
   Palette,
@@ -41,6 +41,10 @@ import {
   AlertCircle,
   AlertTriangle,
   WifiOff,
+  Activity,
+  Brain,
+  Heart,
+  Plus,
 } from 'lucide-react';
 import { sendPinRecoveryEmail } from '../lib/supabase';
 import { PWAInstallButton } from '../components/PWAInstallButton';
@@ -72,6 +76,8 @@ interface SettingsViewProps {
   onImportJson: (file: File) => void;
   allTags: Tag[];
   onDeleteCustomTag: (tagId: string) => Promise<void>;
+  onAddCustomTag?: (category: TagCategory, label: string) => Promise<void>;
+  onUpdateTagCategory?: (tagId: string, newCategory: TagCategory) => Promise<void>;
   onDeleteAllData: () => void;
   onShowSplash?: () => void;
   onNavigateToCustomQuestions?: () => void;
@@ -103,6 +109,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onImportJson,
   allTags,
   onDeleteCustomTag,
+  onAddCustomTag,
+  onUpdateTagCategory,
   onDeleteAllData,
   onShowSplash,
   onNavigateToCustomQuestions,
@@ -135,6 +143,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   }, [recoveryEmail]);
 
+  const [newSymptomTag, setNewSymptomTag] = useState('');
+  const [newThoughtTag, setNewThoughtTag] = useState('');
+  const [newEmotionTag, setNewEmotionTag] = useState('');
+
   const customTags = React.useMemo(() => {
     const seen = new Set<string>();
     const list: Tag[] = [];
@@ -148,6 +160,59 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
     return list;
   }, [allTags]);
+
+  const symptomCustomTags = React.useMemo(() => {
+    return customTags.filter((t) => t.category === 'physical_symptom');
+  }, [customTags]);
+
+  const thoughtCustomTags = React.useMemo(() => {
+    return customTags.filter((t) => t.category === 'thought');
+  }, [customTags]);
+
+  const emotionCustomTags = React.useMemo(() => {
+    return customTags.filter((t) => t.category === 'emotion');
+  }, [customTags]);
+
+  const otherCustomTags = React.useMemo(() => {
+    return customTags.filter(
+      (t) => t.category !== 'physical_symptom' && t.category !== 'thought' && t.category !== 'emotion'
+    );
+  }, [customTags]);
+
+  const handleQuickAddTag = async (category: TagCategory, label: string, resetFn: () => void) => {
+    if (!label.trim() || !onAddCustomTag) return;
+    await onAddCustomTag(category, label.trim());
+    resetFn();
+  };
+
+  const renderTagChip = (tag: Tag) => (
+    <div
+      key={tag.id}
+      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-[var(--bg-subtle)] text-[var(--text-primary)] border border-[var(--border-solid)] shadow-xs"
+    >
+      <span>{tag.label}</span>
+      {onUpdateTagCategory && (
+        <select
+          value={tag.category}
+          onChange={(e) => onUpdateTagCategory(tag.id, e.target.value as TagCategory)}
+          className="text-[10px] font-bold bg-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] border-none outline-none cursor-pointer pr-1 py-0.5"
+          title="Cambia categoria per questo tag"
+        >
+          <option value="physical_symptom">Sintomo</option>
+          <option value="thought">Pensiero</option>
+          <option value="emotion">Emozione</option>
+        </select>
+      )}
+      <button
+        type="button"
+        onClick={() => onDeleteCustomTag(tag.id)}
+        className="text-[var(--text-primary)] hover:text-rose-500 p-0.5 rounded-full font-bold cursor-pointer transition-colors leading-none"
+        aria-label={`Elimina tag ${tag.label}`}
+      >
+        &times;
+      </button>
+    </div>
+  );
 
   const sqlScript = `-- 1. Crea o aggiorna la tabella 'user_sync_data' nel tuo progetto Supabase
 CREATE TABLE IF NOT EXISTS public.user_sync_data (
@@ -1098,38 +1163,159 @@ NOTIFY pgrst, 'reload schema';`;
         </div>
       )}
 
-      {/* CUSTOM TAG MANAGEMENT */}
+      {/* CUSTOM TAG MANAGEMENT DIVIDED BY CATEGORY */}
+      {/* 1. TAG PERSONALIZZATI SINTOMI */}
       <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
         <div className="flex items-center space-x-2">
-          <Tags className="w-4 h-4 text-[#5B67CA] stroke-[2.5]" />
+          <Activity className="w-4 h-4 text-emerald-500 stroke-[2.5]" />
           <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-            Tag Personalizzati ({customTags.length})
+            Tag Personalizzati Sintomi ({symptomCustomTags.length})
           </h3>
         </div>
 
-        {customTags.length === 0 ? (
-          <p className="text-xs font-bold text-[var(--text-secondary)] italic">Nessun tag personalizzato creato.</p>
+        {symptomCustomTags.length === 0 ? (
+          <p className="text-xs font-bold text-[var(--text-secondary)] italic">
+            Nessun tag personalizzato per i sintomi.
+          </p>
         ) : (
           <div className="flex flex-wrap gap-2 pt-1">
-            {customTags.map((tag) => (
-              <div
-                key={tag.id}
-                className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[var(--bg-subtle)] text-[var(--text-primary)] border border-[var(--border-solid)]"
-              >
-                <span>{tag.label}</span>
-                <button
-                  type="button"
-                  onClick={() => onDeleteCustomTag(tag.id)}
-                  className="text-[var(--text-primary)] hover:text-rose-500 p-0.5 rounded-full font-bold cursor-pointer"
-                  aria-label={`Elimina tag ${tag.label}`}
-                >
-                  &times;
-                </button>
-              </div>
-            ))}
+            {symptomCustomTags.map((tag) => renderTagChip(tag))}
           </div>
         )}
+
+        {onAddCustomTag && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleQuickAddTag('physical_symptom', newSymptomTag, () => setNewSymptomTag(''));
+            }}
+            className="flex gap-2 pt-2 border-t border-[var(--border-subtle)]"
+          >
+            <input
+              type="text"
+              value={newSymptomTag}
+              onChange={(e) => setNewSymptomTag(e.target.value)}
+              placeholder="Aggiungi sintomo personalizzato..."
+              className="flex-1 px-3 py-1.5 text-xs font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--ring-color)]"
+            />
+            <button
+              type="submit"
+              disabled={!newSymptomTag.trim()}
+              className="px-3 py-1.5 text-xs font-black rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] text-[var(--text-primary)] hover:bg-[var(--accent-btn)] hover:text-[var(--accent-btn-text)] disabled:opacity-40 transition-all flex items-center gap-1 cursor-pointer active:scale-95"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Aggiungi</span>
+            </button>
+          </form>
+        )}
       </div>
+
+      {/* 2. TAG PERSONALIZZATI PENSIERI */}
+      <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
+        <div className="flex items-center space-x-2">
+          <Brain className="w-4 h-4 text-purple-500 stroke-[2.5]" />
+          <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+            Tag Personalizzati Pensieri ({thoughtCustomTags.length})
+          </h3>
+        </div>
+
+        {thoughtCustomTags.length === 0 ? (
+          <p className="text-xs font-bold text-[var(--text-secondary)] italic">
+            Nessun tag personalizzato per i pensieri.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2 pt-1">
+            {thoughtCustomTags.map((tag) => renderTagChip(tag))}
+          </div>
+        )}
+
+        {onAddCustomTag && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleQuickAddTag('thought', newThoughtTag, () => setNewThoughtTag(''));
+            }}
+            className="flex gap-2 pt-2 border-t border-[var(--border-subtle)]"
+          >
+            <input
+              type="text"
+              value={newThoughtTag}
+              onChange={(e) => setNewThoughtTag(e.target.value)}
+              placeholder="Aggiungi pensiero personalizzato..."
+              className="flex-1 px-3 py-1.5 text-xs font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--ring-color)]"
+            />
+            <button
+              type="submit"
+              disabled={!newThoughtTag.trim()}
+              className="px-3 py-1.5 text-xs font-black rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] text-[var(--text-primary)] hover:bg-[var(--accent-btn)] hover:text-[var(--accent-btn-text)] disabled:opacity-40 transition-all flex items-center gap-1 cursor-pointer active:scale-95"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Aggiungi</span>
+            </button>
+          </form>
+        )}
+      </div>
+
+      {/* 3. TAG PERSONALIZZATI EMOZIONI */}
+      <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
+        <div className="flex items-center space-x-2">
+          <Heart className="w-4 h-4 text-rose-500 stroke-[2.5]" />
+          <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+            Tag Personalizzati Emozioni ({emotionCustomTags.length})
+          </h3>
+        </div>
+
+        {emotionCustomTags.length === 0 ? (
+          <p className="text-xs font-bold text-[var(--text-secondary)] italic">
+            Nessun tag personalizzato per le emozioni.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2 pt-1">
+            {emotionCustomTags.map((tag) => renderTagChip(tag))}
+          </div>
+        )}
+
+        {onAddCustomTag && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleQuickAddTag('emotion', newEmotionTag, () => setNewEmotionTag(''));
+            }}
+            className="flex gap-2 pt-2 border-t border-[var(--border-subtle)]"
+          >
+            <input
+              type="text"
+              value={newEmotionTag}
+              onChange={(e) => setNewEmotionTag(e.target.value)}
+              placeholder="Aggiungi emozione personalizzata..."
+              className="flex-1 px-3 py-1.5 text-xs font-bold rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--ring-color)]"
+            />
+            <button
+              type="submit"
+              disabled={!newEmotionTag.trim()}
+              className="px-3 py-1.5 text-xs font-black rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] text-[var(--text-primary)] hover:bg-[var(--accent-btn)] hover:text-[var(--accent-btn-text)] disabled:opacity-40 transition-all flex items-center gap-1 cursor-pointer active:scale-95"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Aggiungi</span>
+            </button>
+          </form>
+        )}
+      </div>
+
+      {/* 4. ALTRI TAG PERSONALIZZATI (SE PRESENTI) */}
+      {otherCustomTags.length > 0 && (
+        <div className="glass-panel rounded-[20px] p-5 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
+          <div className="flex items-center space-x-2">
+            <Tags className="w-4 h-4 text-indigo-500 stroke-[2.5]" />
+            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+              Altri Tag Personalizzati ({otherCustomTags.length})
+            </h3>
+          </div>
+          <div className="flex flex-wrap gap-2 pt-1">
+            {otherCustomTags.map((tag) => renderTagChip(tag))}
+          </div>
+        </div>
+      )}
 
       {/* DANGER ZONE */}
       <div className="glass-panel rounded-[20px] p-2 border border-rose-500/40 bg-[var(--bg-surface)] shadow-sm">

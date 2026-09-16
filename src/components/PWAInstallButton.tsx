@@ -98,10 +98,10 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
             <button
               type="button"
               onClick={handleClick}
-              className="btn-primary px-3.5 py-2 rounded-xl text-xs font-bold inline-flex items-center space-x-1.5 cursor-pointer shadow-sm active:scale-95 transition-all shrink-0"
+              className="btn-primary px-3.5 py-2 rounded-xl text-xs font-bold inline-flex items-center space-x-1.5 cursor-pointer shadow-sm active:scale-95 transition-all shrink-0 bg-[var(--accent-btn)] text-[var(--accent-btn-text)]"
             >
-              <Download className="w-4 h-4" />
-              <span>Installa</span>
+              <Download className="w-4 h-4 text-[var(--accent-btn-text)]" />
+              <span className="text-[var(--accent-btn-text)]">Installa</span>
             </button>
           </div>
           <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">

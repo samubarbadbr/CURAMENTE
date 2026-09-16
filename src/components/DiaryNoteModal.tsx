@@ -401,10 +401,10 @@ export const DiaryNoteModal: React.FC<DiaryNoteModalProps> = ({
           <button
             type="button"
             onClick={handleSubmit}
-            className="px-5 py-2.5 rounded-xl text-xs font-black bg-[var(--accent-primary)] text-white hover:opacity-90 active:scale-95 transition-all shadow-md flex items-center space-x-2 cursor-pointer"
+            className="px-5 py-2.5 rounded-xl text-xs font-black bg-[var(--accent-btn)] text-[var(--accent-btn-text)] hover:opacity-90 active:scale-95 transition-all shadow-md flex items-center space-x-2 cursor-pointer border border-[var(--border-solid)]"
           >
-            <Save className="w-4 h-4 stroke-[2.5]" />
-            <span>Salva nel Diario</span>
+            <Save className="w-4 h-4 stroke-[2.5] text-[var(--accent-btn-text)]" />
+            <span className="text-[var(--accent-btn-text)]">Salva nel Diario</span>
           </button>
         </div>
       </div>

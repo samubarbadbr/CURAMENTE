@@ -139,10 +139,10 @@ export const Header: React.FC<HeaderProps> = ({
             }
             interceptNavigation(() => onNewEntry(), e);
           }}
-          className="btn-primary inline-flex items-center space-x-1 px-3 sm:px-4 py-2 min-h-[42px] rounded-full shadow-md active:scale-95 transition-all duration-150 cursor-pointer shrink-0"
+          className="btn-primary inline-flex items-center space-x-1.5 px-3.5 sm:px-4 py-2 min-h-[42px] rounded-full shadow-md active:scale-95 transition-all duration-150 cursor-pointer shrink-0 bg-[var(--accent-btn)] text-[var(--accent-btn-text)]"
         >
-          <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span className="font-bold text-xs sm:text-sm">Nuova</span>
+          <Plus className="w-4 h-4 stroke-[2.5] text-[var(--accent-btn-text)]" />
+          <span className="font-bold text-xs sm:text-sm text-[var(--accent-btn-text)]">Nuova</span>
         </button>
       </div>
     </header>

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { CbtEntry, FormTab, Tag, CustomQuestion } from '../types';
+import { motion, AnimatePresence } from 'motion/react';
+import { CbtEntry, FormTab, Tag, TagCategory, CustomQuestion } from '../types';
 import { CustomQuestionsService } from '../services/customQuestions';
 import { TagPicker } from '../components/TagPicker';
 import { GradientSlider } from '../components/GradientSlider';
@@ -7,6 +8,7 @@ import { TextImproveModal } from '../components/TextImproveModal';
 import { CustomDatePicker } from '../components/CustomDatePicker';
 import { AudioRecorder } from '../components/AudioRecorder';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { CollapsibleCard, CollapsibleSubSection } from '../components/CollapsibleField';
 import { audioSafety } from '../services/audioSafety';
 import { useUnsavedAudio } from '../hooks/useUnsavedAudio';
 import { saveDraftToStorage, loadDraftFromStorage, clearDraftFromStorage, isDraftEmpty } from '../services/draftStorage';
@@ -25,6 +27,7 @@ import {
   Image as ImageIcon,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   Sparkles,
   Wand2,
   Heart,
@@ -46,7 +49,7 @@ interface EntryFormViewProps {
   isEditing: boolean;
   onSave: (entry: CbtEntry) => Promise<void>;
   onCancel: () => void;
-  onAddCustomTag: (category: 'emotion' | 'physical_symptom', label: string) => Promise<void>;
+  onAddCustomTag: (category: TagCategory, label: string) => Promise<void>;
   onOpenCustomQuestions?: () => void;
 }
 
@@ -132,6 +135,69 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   const [isPhotoObscured, setIsPhotoObscured] = useState(false);
+
+  // Smooth collapsible sections state for optional fields
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
+    return {
+      photo: Boolean(draft.photo),
+      audio: Boolean(draft.audioNote),
+      triggers: Boolean(draft.triggerFactors?.trim()),
+      thoughtTags: Boolean(draft.thoughtTagIds && draft.thoughtTagIds.length > 0),
+      customQuestions: Boolean(
+        (draft.customAnswers && Object.keys(draft.customAnswers).length > 0) ||
+        (customQuestions && customQuestions.length > 0)
+      ),
+      // Section B optional fields
+      physicalSymptoms: Boolean(draft.physicalSymptomsText?.trim() || (draft.physicalSymptomTagIds && draft.physicalSymptomTagIds.length > 0)),
+      negativeThoughtsExt: Boolean(draft.negativeThoughtsExtended?.trim() || (draft.negativeThoughtsIntensity && draft.negativeThoughtsIntensity > 0)),
+      bodyAttention: Boolean(draft.bodyFocusedAttentionLevel && draft.bodyFocusedAttentionLevel > 0),
+      symptomControl: Boolean(draft.symptomControlDescription?.trim() || (draft.symptomControlCount && draft.symptomControlCount > 0)),
+      reassuranceSeeking: Boolean(draft.reassuranceSeekingType?.trim() || (draft.reassuranceSeekingCount && draft.reassuranceSeekingCount > 0)),
+      avoidance: Boolean(draft.avoidanceType?.trim() || (draft.avoidanceCount && draft.avoidanceCount > 0)),
+      notes: Boolean(draft.notes?.trim()),
+    };
+  });
+
+  const toggleSection = (sectionKey: string) => {
+    setOpenSections((prev) => ({
+      ...prev,
+      [sectionKey]: !prev[sectionKey],
+    }));
+  };
+
+  const expandAllSections = () => {
+    setOpenSections({
+      photo: true,
+      audio: true,
+      triggers: true,
+      thoughtTags: true,
+      customQuestions: true,
+      physicalSymptoms: true,
+      negativeThoughtsExt: true,
+      bodyAttention: true,
+      symptomControl: true,
+      reassuranceSeeking: true,
+      avoidance: true,
+      notes: true,
+    });
+  };
+
+  const collapseEmptySections = () => {
+    setOpenSections({
+      photo: Boolean(draft.photo),
+      audio: Boolean(draft.audioNote),
+      triggers: Boolean(draft.triggerFactors?.trim()),
+      thoughtTags: Boolean(draft.thoughtTagIds && draft.thoughtTagIds.length > 0),
+      customQuestions: Boolean(draft.customAnswers && Object.keys(draft.customAnswers).length > 0),
+      physicalSymptoms: Boolean(draft.physicalSymptomsText?.trim() || (draft.physicalSymptomTagIds && draft.physicalSymptomTagIds.length > 0)),
+      negativeThoughtsExt: Boolean(draft.negativeThoughtsExtended?.trim() || (draft.negativeThoughtsIntensity && draft.negativeThoughtsIntensity > 0)),
+      bodyAttention: Boolean(draft.bodyFocusedAttentionLevel && draft.bodyFocusedAttentionLevel > 0),
+      symptomControl: Boolean(draft.symptomControlDescription?.trim() || (draft.symptomControlCount && draft.symptomControlCount > 0)),
+      reassuranceSeeking: Boolean(draft.reassuranceSeekingType?.trim() || (draft.reassuranceSeekingCount && draft.reassuranceSeekingCount > 0)),
+      avoidance: Boolean(draft.avoidanceType?.trim() || (draft.avoidanceCount && draft.avoidanceCount > 0)),
+      notes: Boolean(draft.notes?.trim()),
+    });
+  };
 
   // Custom questions reactive state
   const [customQuestions, setCustomQuestions] = useState<CustomQuestion[]>(() =>
@@ -506,6 +572,7 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
 
     try {
       setIsProcessingPhoto(true);
+      setOpenSections((prev) => ({ ...prev, photo: true }));
       const base64Data = await processImageFile(file);
       updateDraft('photo', base64Data);
     } catch (err) {
@@ -526,9 +593,14 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
     }
   };
 
-  const handleToggleTag = (category: 'emotion' | 'physical_symptom', tagId: string) => {
-    const listKey = category === 'emotion' ? 'emotionTagIds' : 'physicalSymptomTagIds';
-    const currentList = draft[listKey] || [];
+  const handleToggleTag = (category: 'emotion' | 'physical_symptom' | 'thought' | string, tagId: string) => {
+    const listKey =
+      category === 'emotion'
+        ? 'emotionTagIds'
+        : category === 'thought'
+        ? 'thoughtTagIds'
+        : 'physicalSymptomTagIds';
+    const currentList = (draft[listKey] as string[]) || [];
     const updated = currentList.includes(tagId)
       ? currentList.filter((id) => id !== tagId)
       : [...currentList, tagId];
@@ -609,10 +681,10 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
           <button
             type="submit"
             disabled={isSaving}
-            className="btn-primary inline-flex items-center space-x-1.5 px-4 py-2 rounded-full text-xs font-semibold shadow-md active:scale-95 transition-all duration-150 disabled:opacity-50 cursor-pointer"
+            className="btn-primary inline-flex items-center space-x-1.5 px-4 py-2 rounded-full text-xs font-semibold shadow-md active:scale-95 transition-all duration-150 disabled:opacity-50 cursor-pointer bg-[var(--accent-btn)] text-[var(--accent-btn-text)]"
           >
-            <Save className="w-4 h-4 stroke-[2.5]" />
-            <span className="font-semibold">Salva</span>
+            <Save className="w-4 h-4 stroke-[2.5] text-[var(--accent-btn-text)]" />
+            <span className="font-semibold text-[var(--accent-btn-text)]">Salva</span>
           </button>
         </div>
       </div>
@@ -643,6 +715,31 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
           <Activity className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
           <span>Sezione B: Approfondito</span>
         </button>
+      </div>
+
+      {/* Optional Fields Quick Toggle Toolbar */}
+      <div className="flex items-center justify-between px-3 py-2 rounded-2xl bg-[var(--bg-subtle)]/80 border border-[var(--border-solid)] text-xs">
+        <div className="flex items-center space-x-1.5 font-bold text-[var(--text-secondary)]">
+          <Sliders className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
+          <span>Campi opzionali:</span>
+        </div>
+        <div className="flex items-center space-x-2 text-[11px] font-black">
+          <button
+            type="button"
+            onClick={expandAllSections}
+            className="text-indigo-500 dark:text-indigo-400 hover:underline cursor-pointer transition-colors"
+          >
+            Espandi tutti
+          </button>
+          <span className="text-[var(--text-muted)] text-[10px]">·</span>
+          <button
+            type="button"
+            onClick={collapseEmptySections}
+            className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
+          >
+            Comprimi vuoti
+          </button>
+        </div>
       </div>
 
       {/* SEZIONE A: Analisi Rapida */}
@@ -766,7 +863,22 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
             />
 
             {/* SEZIONE FOTO STILIZZATA */}
-            <div className="pt-2 border-t border-[var(--border-subtle)] space-y-3">
+            <CollapsibleSubSection
+              id="section-photo-optional"
+              title="Foto della Situazione"
+              icon={<ImageIcon className="w-3.5 h-3.5 text-[var(--accent-primary)]" />}
+              isOptional={true}
+              isOpen={Boolean(openSections.photo)}
+              onToggle={() => toggleSection('photo')}
+              statusBadge={
+                draft.photo ? (
+                  <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                    <Check className="w-2.5 h-2.5" />
+                    <span>1 foto allegata</span>
+                  </span>
+                ) : null
+              }
+            >
               {/* Native hidden file input */}
               <input
                 ref={fileInputRef}
@@ -778,10 +890,11 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               />
 
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center space-x-1.5 text-[11px] font-bold text-[var(--text-primary)]">
-                  <ImageIcon className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
-                  <span>Foto della Situazione (Opzionale)</span>
-                </div>
+                <span className="text-[11px] font-medium text-[var(--text-secondary)]">
+                  {draft.photo
+                    ? 'Puoi sostituire la foto allegata o visualizzarla sotto.'
+                    : 'Allega un\'immagine o scatta una foto del contesto o delle note scritte.'}
+                </span>
 
                 {/* Stylish Action Buttons */}
                 <div className="flex items-center space-x-2">
@@ -819,81 +932,134 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                 </div>
               </div>
 
-              {/* Photo Preview Container */}
-              {isProcessingPhoto && (
-                <div className="p-4 rounded-xl border border-dashed border-[var(--accent-primary)] bg-[var(--bg-subtle)] text-center text-xs font-bold text-[var(--accent-primary)] animate-pulse">
-                  Elaborazione e ottimizzazione foto in corso...
-                </div>
-              )}
+              {/* Photo Preview Container with smooth Framer Motion */}
+              <AnimatePresence>
+                {isProcessingPhoto && (
+                  <motion.div
+                    key="photo-loading"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="p-4 rounded-xl border border-dashed border-[var(--accent-primary)] bg-[var(--bg-subtle)] text-center text-xs font-bold text-[var(--accent-primary)] animate-pulse">
+                      Elaborazione e ottimizzazione foto in corso...
+                    </div>
+                  </motion.div>
+                )}
 
-              {draft.photo && !isProcessingPhoto && (
-                <div className="relative rounded-2xl overflow-hidden border border-[var(--border-solid)] bg-black/5 dark:bg-black/30 flex items-center justify-center min-h-[140px] max-h-[320px]">
-                  <img
-                    src={draft.photo}
-                    alt="Foto situazione allegata"
-                    className={`w-full max-h-[320px] object-contain rounded-2xl transition-all duration-200 ${
-                      isPhotoObscured ? 'filter blur-xl opacity-20 scale-105 select-none pointer-events-none' : 'filter-none opacity-100'
-                    }`}
-                  />
+                {draft.photo && !isProcessingPhoto && (
+                  <motion.div
+                    key="photo-preview-box"
+                    initial={{ opacity: 0, scale: 0.96, height: 0 }}
+                    animate={{
+                      opacity: 1,
+                      scale: 1,
+                      height: 'auto',
+                      transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] },
+                    }}
+                    exit={{
+                      opacity: 0,
+                      scale: 0.96,
+                      height: 0,
+                      transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] },
+                    }}
+                    className="overflow-hidden"
+                  >
+                    <div className="relative rounded-2xl overflow-hidden border border-[var(--border-solid)] bg-black/5 dark:bg-black/30 flex items-center justify-center min-h-[140px] max-h-[320px]">
+                      <img
+                        src={draft.photo}
+                        alt="Foto situazione allegata"
+                        className={`w-full max-h-[320px] object-contain rounded-2xl transition-all duration-200 ${
+                          isPhotoObscured ? 'filter blur-xl opacity-20 scale-105 select-none pointer-events-none' : 'filter-none opacity-100'
+                        }`}
+                      />
 
-                  {/* Privacy shield overlay */}
-                  {isPhotoObscured && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center p-4 bg-black/40 backdrop-blur-sm text-white">
-                      <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center mb-2 backdrop-blur-md">
-                        <EyeOff className="w-5 h-5 text-white" />
-                      </div>
-                      <p className="text-xs font-bold text-white text-center drop-shadow-sm">
-                        Foto oscurata per proteggere la tua privacy
-                      </p>
+                      {/* Privacy shield overlay */}
+                      {isPhotoObscured && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center p-4 bg-black/40 backdrop-blur-sm text-white">
+                          <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center mb-2 backdrop-blur-md">
+                            <EyeOff className="w-5 h-5 text-white" />
+                          </div>
+                          <p className="text-xs font-bold text-white text-center drop-shadow-sm">
+                            Foto oscurata per proteggere la tua privacy
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setIsPhotoObscured(false)}
+                            className="mt-2.5 px-3 py-1 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold backdrop-blur transition-all active:scale-95 cursor-pointer"
+                          >
+                            Tocca l'icona o qui per mostrare
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Top-Right Quick Remove Button */}
                       <button
                         type="button"
-                        onClick={() => setIsPhotoObscured(false)}
-                        className="mt-2.5 px-3 py-1 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold backdrop-blur transition-all active:scale-95 cursor-pointer"
+                        onClick={handleRemovePhoto}
+                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 hover:bg-rose-600 text-white shadow-md transition-all active:scale-95 cursor-pointer z-10"
+                        title="Elimina foto"
+                        aria-label="Rimuovi foto"
                       >
-                        Tocca l'icona o qui per mostrare
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                  )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </CollapsibleSubSection>
 
-                  {/* Top-Right Quick Remove Button */}
-                  <button
-                    type="button"
-                    onClick={handleRemovePhoto}
-                    className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 hover:bg-rose-600 text-white shadow-md transition-all active:scale-95 cursor-pointer z-10"
-                    title="Elimina foto"
-                    aria-label="Rimuovi foto"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-
-              {/* Nota Vocale / Audio Recorder */}
-              <div className="pt-3 border-t border-[var(--border-solid)] space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-1.5 text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-                    <Mic className="w-3.5 h-3.5 text-rose-500" />
-                    <span>Nota Vocale / Audio</span>
-                  </div>
-                </div>
-                <AudioRecorder
-                  audioNote={draft.audioNote}
-                  audioDuration={draft.audioDuration}
-                  initialSavedAudio={initialDraft.audioNote}
-                  onChange={(audioBase64, duration) => {
-                    updateDraft('audioNote', audioBase64);
-                    updateDraft('audioDuration', duration);
-                  }}
-                />
-              </div>
-            </div>
+            {/* Nota Vocale / Audio Recorder */}
+            <CollapsibleSubSection
+              id="section-audio-optional"
+              title="Nota Vocale / Audio"
+              icon={<Mic className="w-3.5 h-3.5 text-rose-500" />}
+              isOptional={true}
+              isOpen={Boolean(openSections.audio)}
+              onToggle={() => toggleSection('audio')}
+              statusBadge={
+                draft.audioNote ? (
+                  <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                    <span>Audio registrato</span>
+                  </span>
+                ) : null
+              }
+            >
+              <AudioRecorder
+                audioNote={draft.audioNote}
+                audioDuration={draft.audioDuration}
+                initialSavedAudio={initialDraft.audioNote}
+                onChange={(audioBase64, duration) => {
+                  updateDraft('audioNote', audioBase64);
+                  updateDraft('audioDuration', duration);
+                  if (audioBase64) {
+                    setOpenSections((prev) => ({ ...prev, audio: true }));
+                  }
+                }}
+              />
+            </CollapsibleSubSection>
           </div>
 
           {/* Trigger */}
-          <div className="glass-panel rounded-[20px] p-4 space-y-2 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
-            <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-              Fattori Scatenanti / Trigger
-            </label>
+          <CollapsibleCard
+            id="section-triggers-optional"
+            title="Fattori Scatenanti / Trigger"
+            icon={<Layers className="w-4 h-4 text-amber-500" />}
+            isOptional={true}
+            isOpen={Boolean(openSections.triggers)}
+            onToggle={() => toggleSection('triggers')}
+            statusBadge={
+              draft.triggerFactors?.trim() ? (
+                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                  <Check className="w-2.5 h-2.5" />
+                  <span>Compilato</span>
+                </span>
+              ) : null
+            }
+          >
             <textarea
               rows={3}
               value={draft.triggerFactors}
@@ -901,7 +1067,7 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               placeholder="Cosa ha innescato la reazione d'ansia o il disagio?"
               className="w-full min-h-[85px] px-3.5 py-3 text-sm font-medium rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-y break-words whitespace-pre-wrap placeholder:text-[var(--text-muted)] leading-relaxed"
             />
-          </div>
+          </CollapsibleCard>
 
           {/* Tag Emozioni */}
           <div className="glass-panel rounded-[20px] p-4 space-y-2.5 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
@@ -952,39 +1118,66 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               value={draft.thoughtBeliefLevel}
               onChange={(val) => updateDraft('thoughtBeliefLevel', val)}
             />
+
+            {/* Tag Pensieri & Schemi Optional Sub-Section */}
+            <CollapsibleSubSection
+              id="section-thought-tags-optional"
+              title="Tag Pensieri & Schemi Cognitivi"
+              icon={<Sliders className="w-3.5 h-3.5 text-indigo-400" />}
+              isOptional={true}
+              isOpen={Boolean(openSections.thoughtTags)}
+              onToggle={() => toggleSection('thoughtTags')}
+              statusBadge={
+                draft.thoughtTagIds && draft.thoughtTagIds.length > 0 ? (
+                  <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+                    <Check className="w-2.5 h-2.5" />
+                    <span>{draft.thoughtTagIds.length} selezionati</span>
+                  </span>
+                ) : null
+              }
+            >
+              <TagPicker
+                category="thought"
+                allTags={allTags}
+                selectedTagIds={draft.thoughtTagIds || []}
+                onToggleTag={(id) => handleToggleTag('thought', id)}
+                onAddCustomTag={onAddCustomTag}
+                placeholder="Aggiungi pensiero o schema personalizzato..."
+              />
+            </CollapsibleSubSection>
           </div>
 
           {/* Domande e Riflessioni Custom */}
-          <div className="glass-panel rounded-[20px] p-5 space-y-4 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-sm">
-            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2.5">
-              <div className="flex items-center space-x-2">
-                <div className="p-1.5 rounded-lg bg-indigo-500/15 text-indigo-400">
-                  <Sparkles className="w-4 h-4 stroke-[2.5]" />
-                </div>
-                <div>
-                  <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-                    Riflessioni &amp; Domande Guidate
-                  </h3>
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-                    {customQuestions.length > 0
-                      ? `Domande attive per oggi (${customQuestions.length})`
-                      : '0 domande attive'}
-                  </p>
-                </div>
-              </div>
-
-              {onOpenCustomQuestions && (
+          <CollapsibleCard
+            id="section-custom-questions-optional"
+            title="Riflessioni & Domande Guidate"
+            icon={<Sparkles className="w-4 h-4 text-indigo-400" />}
+            isOptional={true}
+            isOpen={Boolean(openSections.customQuestions)}
+            onToggle={() => toggleSection('customQuestions')}
+            statusBadge={
+              <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                {customQuestions.length > 0
+                  ? `(${customQuestions.length} attive)`
+                  : '(0 attive)'}
+              </span>
+            }
+            extraAction={
+              onOpenCustomQuestions ? (
                 <button
                   type="button"
-                  onClick={(e) => handleOpenCustomQuestionsWithSafety(e)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenCustomQuestionsWithSafety(e);
+                  }}
                   className="text-[11px] font-black text-indigo-400 hover:text-indigo-300 flex items-center space-x-1 transition-colors cursor-pointer"
                 >
                   <Settings2 className="w-3.5 h-3.5" />
                   <span>Personalizza</span>
                 </button>
-              )}
-            </div>
-
+              ) : null
+            }
+          >
             {customQuestions.length === 0 ? (
               <div className="py-4 px-3 text-center space-y-2.5 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-solid)]/70">
                 <p className="text-xs font-bold text-[var(--text-secondary)]">
@@ -1113,7 +1306,7 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                 })}
               </div>
             )}
-          </div>
+          </CollapsibleCard>
 
           {/* Navigation & Action to Section B */}
           <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
@@ -1128,10 +1321,10 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
             <button
               type="submit"
               disabled={isSaving}
-              className="btn-primary flex-1 py-3.5 min-h-[48px] rounded-full text-sm font-bold shadow-md active:scale-98 transition-all duration-150 flex items-center justify-center space-x-2 cursor-pointer"
+              className="btn-primary flex-1 py-3.5 min-h-[48px] rounded-full text-sm font-bold shadow-md active:scale-98 transition-all duration-150 flex items-center justify-center space-x-2 cursor-pointer bg-[var(--accent-btn)] text-[var(--accent-btn-text)]"
             >
-              <Save className="w-4 h-4 stroke-[2.5]" />
-              <span className="font-bold">Salva Registrazione</span>
+              <Save className="w-4 h-4 stroke-[2.5] text-[var(--accent-btn-text)]" />
+              <span className="font-bold text-[var(--accent-btn-text)]">Salva Registrazione</span>
             </button>
           </div>
         </div>
@@ -1139,22 +1332,38 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
       {/* SEZIONE B: Approfondito */}
       <div className={activeTab === 'section_b' ? 'space-y-4 animate-fade-in' : 'hidden'}>
         {/* Sintomi fisici */}
-          <div className="glass-panel rounded-[20px] p-4 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-                Sintomi Fisici &amp; Sensazioni
-              </label>
-              {draft.physicalSymptomsText?.trim() && (
-                <button
-                  type="button"
-                  onClick={() => handleOpenImproveModal('physicalSymptomsText', 'Sintomi Fisici', draft.physicalSymptomsText)}
-                  className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
-                >
-                  <Wand2 className="w-3.5 h-3.5" />
-                  <span>Correggi ✨</span>
-                </button>
-              )}
-            </div>
+        <CollapsibleCard
+          id="section-physical-symptoms-optional"
+          title="Sintomi Fisici & Sensazioni"
+          icon={<Activity className="w-4 h-4 text-rose-500" />}
+          isOptional={true}
+          isOpen={Boolean(openSections.physicalSymptoms)}
+          onToggle={() => toggleSection('physicalSymptoms')}
+          statusBadge={
+            (draft.physicalSymptomsText?.trim() || (draft.physicalSymptomTagIds && draft.physicalSymptomTagIds.length > 0)) ? (
+              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                <Check className="w-2.5 h-2.5" />
+                <span>Compilato</span>
+              </span>
+            ) : null
+          }
+          extraAction={
+            draft.physicalSymptomsText?.trim() ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenImproveModal('physicalSymptomsText', 'Sintomi Fisici', draft.physicalSymptomsText);
+                }}
+                className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
+              >
+                <Wand2 className="w-3.5 h-3.5" />
+                <span>Correggi ✨</span>
+              </button>
+            ) : null
+          }
+        >
+          <div className="space-y-3">
             <TagPicker
               category="physical_symptom"
               allTags={allTags}
@@ -1171,68 +1380,113 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               className="w-full min-h-[85px] px-3.5 py-3 text-sm font-medium rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-y break-words whitespace-pre-wrap placeholder:text-[var(--text-muted)] leading-relaxed"
             />
           </div>
+        </CollapsibleCard>
 
-          {/* Pensieri Negativi Estesi & Intensità */}
-          <div className="glass-panel rounded-[20px] p-4 space-y-4 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-                  Pensieri Negativi (Approfondimento)
-                </label>
-                {draft.negativeThoughtsExtended?.trim() && (
-                  <button
-                    type="button"
-                    onClick={() => handleOpenImproveModal('negativeThoughtsExtended', 'Pensieri Negativi (Approfondimento)', draft.negativeThoughtsExtended)}
-                    className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
-                  >
-                    <Wand2 className="w-3.5 h-3.5" />
-                    <span>Correggi ✨</span>
-                  </button>
-                )}
-              </div>
-              <textarea
-                rows={3}
-                value={draft.negativeThoughtsExtended}
-                onChange={(e) => updateDraft('negativeThoughtsExtended', e.target.value)}
-                placeholder="Approfondisci i pensieri negativi o catastrofici ricorrenti..."
-                className="w-full min-h-[90px] px-3.5 py-3 text-sm font-medium rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-y break-words whitespace-pre-wrap placeholder:text-[var(--text-muted)] leading-relaxed"
-              />
-            </div>
-
+        {/* Pensieri Negativi Estesi & Intensità */}
+        <CollapsibleCard
+          id="section-negative-thoughts-ext-optional"
+          title="Pensieri Negativi (Approfondimento)"
+          icon={<Layers className="w-4 h-4 text-indigo-400" />}
+          isOptional={true}
+          isOpen={Boolean(openSections.negativeThoughtsExt)}
+          onToggle={() => toggleSection('negativeThoughtsExt')}
+          statusBadge={
+            (draft.negativeThoughtsExtended?.trim() || (draft.negativeThoughtsIntensity && draft.negativeThoughtsIntensity > 0)) ? (
+              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+                <Check className="w-2.5 h-2.5" />
+                <span>Compilato</span>
+              </span>
+            ) : null
+          }
+          extraAction={
+            draft.negativeThoughtsExtended?.trim() ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenImproveModal('negativeThoughtsExtended', 'Pensieri Negativi (Approfondimento)', draft.negativeThoughtsExtended);
+                }}
+                className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
+              >
+                <Wand2 className="w-3.5 h-3.5" />
+                <span>Correggi ✨</span>
+              </button>
+            ) : null
+          }
+        >
+          <div className="space-y-4">
+            <textarea
+              rows={3}
+              value={draft.negativeThoughtsExtended}
+              onChange={(e) => updateDraft('negativeThoughtsExtended', e.target.value)}
+              placeholder="Approfondisci i pensieri negativi o catastrofici ricorrenti..."
+              className="w-full min-h-[90px] px-3.5 py-3 text-sm font-medium rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-y break-words whitespace-pre-wrap placeholder:text-[var(--text-muted)] leading-relaxed"
+            />
             <GradientSlider
               label="Intensità / Frequenza dei pensieri"
               value={draft.negativeThoughtsIntensity}
               onChange={(val) => updateDraft('negativeThoughtsIntensity', val)}
             />
           </div>
+        </CollapsibleCard>
 
-          {/* Attenzione Corporea */}
-          <div className="glass-panel rounded-[20px] p-4 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
-            <GradientSlider
-              label="Attenzione focalizzata sul corpo"
-              sublabel="Quanto eri concentrato/a nell'ascolto dei sintomi fisici?"
-              value={draft.bodyFocusedAttentionLevel}
-              onChange={(val) => updateDraft('bodyFocusedAttentionLevel', val)}
-            />
-          </div>
+        {/* Attenzione Corporea */}
+        <CollapsibleCard
+          id="section-body-attention-optional"
+          title="Attenzione Focalizzata sul Corpo"
+          icon={<Activity className="w-4 h-4 text-emerald-500" />}
+          isOptional={true}
+          isOpen={Boolean(openSections.bodyAttention)}
+          onToggle={() => toggleSection('bodyAttention')}
+          statusBadge={
+            draft.bodyFocusedAttentionLevel && draft.bodyFocusedAttentionLevel > 0 ? (
+              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                <span>Livello: {draft.bodyFocusedAttentionLevel}%</span>
+              </span>
+            ) : null
+          }
+        >
+          <GradientSlider
+            label="Attenzione focalizzata sul corpo"
+            sublabel="Quanto eri concentrato/a nell'ascolto dei sintomi fisici?"
+            value={draft.bodyFocusedAttentionLevel}
+            onChange={(val) => updateDraft('bodyFocusedAttentionLevel', val)}
+          />
+        </CollapsibleCard>
 
-          {/* Controllo Sintomi */}
-          <div className="glass-panel rounded-[20px] p-4 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-                Controllo dei Sintomi
-              </label>
-              {draft.symptomControlDescription?.trim() && (
-                <button
-                  type="button"
-                  onClick={() => handleOpenImproveModal('symptomControlDescription', 'Controllo Sintomi', draft.symptomControlDescription)}
-                  className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
-                >
-                  <Wand2 className="w-3.5 h-3.5" />
-                  <span>Correggi ✨</span>
-                </button>
-              )}
-            </div>
+        {/* Controllo Sintomi */}
+        <CollapsibleCard
+          id="section-symptom-control-optional"
+          title="Controllo dei Sintomi"
+          icon={<Sliders className="w-4 h-4 text-amber-500" />}
+          isOptional={true}
+          isOpen={Boolean(openSections.symptomControl)}
+          onToggle={() => toggleSection('symptomControl')}
+          statusBadge={
+            (draft.symptomControlDescription?.trim() || (draft.symptomControlCount && draft.symptomControlCount > 0)) ? (
+              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                <Check className="w-2.5 h-2.5" />
+                <span>Compilato</span>
+              </span>
+            ) : null
+          }
+          extraAction={
+            draft.symptomControlDescription?.trim() ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenImproveModal('symptomControlDescription', 'Controllo Sintomi', draft.symptomControlDescription);
+                }}
+                className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
+              >
+                <Wand2 className="w-3.5 h-3.5" />
+                <span>Correggi ✨</span>
+              </button>
+            ) : null
+          }
+        >
+          <div className="space-y-3">
             <textarea
               rows={3}
               value={draft.symptomControlDescription}
@@ -1246,24 +1500,41 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               onChange={(val) => updateDraft('symptomControlCount', val)}
             />
           </div>
+        </CollapsibleCard>
 
-          {/* Ricerca Rassicurazioni */}
-          <div className="glass-panel rounded-[20px] p-4 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-                Ricerca di Rassicurazioni
-              </label>
-              {draft.reassuranceSeekingType?.trim() && (
-                <button
-                  type="button"
-                  onClick={() => handleOpenImproveModal('reassuranceSeekingType', 'Ricerca Rassicurazioni', draft.reassuranceSeekingType)}
-                  className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
-                >
-                  <Wand2 className="w-3.5 h-3.5" />
-                  <span>Correggi ✨</span>
-                </button>
-              )}
-            </div>
+        {/* Ricerca Rassicurazioni */}
+        <CollapsibleCard
+          id="section-reassurance-seeking-optional"
+          title="Ricerca di Rassicurazioni"
+          icon={<Smile className="w-4 h-4 text-cyan-500" />}
+          isOptional={true}
+          isOpen={Boolean(openSections.reassuranceSeeking)}
+          onToggle={() => toggleSection('reassuranceSeeking')}
+          statusBadge={
+            (draft.reassuranceSeekingType?.trim() || (draft.reassuranceSeekingCount && draft.reassuranceSeekingCount > 0)) ? (
+              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30">
+                <Check className="w-2.5 h-2.5" />
+                <span>Compilato</span>
+              </span>
+            ) : null
+          }
+          extraAction={
+            draft.reassuranceSeekingType?.trim() ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenImproveModal('reassuranceSeekingType', 'Ricerca Rassicurazioni', draft.reassuranceSeekingType);
+                }}
+                className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
+              >
+                <Wand2 className="w-3.5 h-3.5" />
+                <span>Correggi ✨</span>
+              </button>
+            ) : null
+          }
+        >
+          <div className="space-y-3">
             <textarea
               rows={3}
               value={draft.reassuranceSeekingType}
@@ -1277,24 +1548,41 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               onChange={(val) => updateDraft('reassuranceSeekingCount', val)}
             />
           </div>
+        </CollapsibleCard>
 
-          {/* Evitamenti */}
-          <div className="glass-panel rounded-[20px] p-4 space-y-3 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-                Evitamenti
-              </label>
-              {draft.avoidanceType?.trim() && (
-                <button
-                  type="button"
-                  onClick={() => handleOpenImproveModal('avoidanceType', 'Evitamenti', draft.avoidanceType)}
-                  className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
-                >
-                  <Wand2 className="w-3.5 h-3.5" />
-                  <span>Correggi ✨</span>
-                </button>
-              )}
-            </div>
+        {/* Evitamenti */}
+        <CollapsibleCard
+          id="section-avoidance-optional"
+          title="Evitamenti"
+          icon={<Minus className="w-4 h-4 text-violet-500" />}
+          isOptional={true}
+          isOpen={Boolean(openSections.avoidance)}
+          onToggle={() => toggleSection('avoidance')}
+          statusBadge={
+            (draft.avoidanceType?.trim() || (draft.avoidanceCount && draft.avoidanceCount > 0)) ? (
+              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-violet-500/15 text-violet-600 dark:text-violet-400 border border-violet-500/30">
+                <Check className="w-2.5 h-2.5" />
+                <span>Compilato</span>
+              </span>
+            ) : null
+          }
+          extraAction={
+            draft.avoidanceType?.trim() ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenImproveModal('avoidanceType', 'Evitamenti', draft.avoidanceType);
+                }}
+                className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
+              >
+                <Wand2 className="w-3.5 h-3.5" />
+                <span>Correggi ✨</span>
+              </button>
+            ) : null
+          }
+        >
+          <div className="space-y-3">
             <textarea
               rows={3}
               value={draft.avoidanceType}
@@ -1308,43 +1596,59 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               onChange={(val) => updateDraft('avoidanceCount', val)}
             />
           </div>
+        </CollapsibleCard>
 
-          {/* Ansia Complessiva */}
-          <div className="glass-panel rounded-[20px] p-5 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
-            <GradientSlider
-              label="Ansia complessiva percepita"
-              sublabel="Valuta il livello globale di ansia in questa situazione (0-100)"
-              size="lg"
-              value={draft.overallAnxietyLevel}
-              onChange={(val) => updateDraft('overallAnxietyLevel', val)}
-            />
-          </div>
+        {/* Ansia Complessiva */}
+        <div className="glass-panel rounded-[20px] p-5 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
+          <GradientSlider
+            label="Ansia complessiva percepita"
+            sublabel="Valuta il livello globale di ansia in questa situazione (0-100)"
+            size="lg"
+            value={draft.overallAnxietyLevel}
+            onChange={(val) => updateDraft('overallAnxietyLevel', val)}
+          />
+        </div>
 
-          {/* Note */}
-          <div className="glass-panel rounded-[20px] p-4 space-y-2 border border-[var(--border-solid)] bg-[var(--bg-surface)]">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-                Note Aggiuntive
-              </label>
-              {draft.notes?.trim() && (
-                <button
-                  type="button"
-                  onClick={() => handleOpenImproveModal('notes', 'Note Aggiuntive', draft.notes)}
-                  className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
-                >
-                  <Wand2 className="w-3.5 h-3.5" />
-                  <span>Correggi ✨</span>
-                </button>
-              )}
-            </div>
-            <textarea
-              rows={3}
-              value={draft.notes}
-              onChange={(e) => updateDraft('notes', e.target.value)}
-              placeholder="Altre riflessioni, note o osservazioni utili per te o la psicologa..."
-              className="w-full min-h-[90px] px-3.5 py-3 text-sm font-medium rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-y break-words whitespace-pre-wrap placeholder:text-[var(--text-muted)] leading-relaxed"
-            />
-          </div>
+        {/* Note */}
+        <CollapsibleCard
+          id="section-notes-optional"
+          title="Note Aggiuntive"
+          icon={<AlignLeft className="w-4 h-4 text-zinc-400" />}
+          isOptional={true}
+          isOpen={Boolean(openSections.notes)}
+          onToggle={() => toggleSection('notes')}
+          statusBadge={
+            draft.notes?.trim() ? (
+              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-zinc-500/15 text-zinc-400 border border-zinc-500/30">
+                <Check className="w-2.5 h-2.5" />
+                <span>Compilato</span>
+              </span>
+            ) : null
+          }
+          extraAction={
+            draft.notes?.trim() ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenImproveModal('notes', 'Note Aggiuntive', draft.notes);
+                }}
+                className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
+              >
+                <Wand2 className="w-3.5 h-3.5" />
+                <span>Correggi ✨</span>
+              </button>
+            ) : null
+          }
+        >
+          <textarea
+            rows={3}
+            value={draft.notes}
+            onChange={(e) => updateDraft('notes', e.target.value)}
+            placeholder="Altre riflessioni, note o osservazioni utili per te o la psicologa..."
+            className="w-full min-h-[90px] px-3.5 py-3 text-sm font-medium rounded-xl border border-[var(--border-solid)] bg-[var(--input-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--ring-color)] outline-none resize-y break-words whitespace-pre-wrap placeholder:text-[var(--text-muted)] leading-relaxed"
+          />
+        </CollapsibleCard>
 
           {/* Navigation & Save Actions */}
           <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
@@ -1359,10 +1663,10 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
             <button
               type="submit"
               disabled={isSaving}
-              className="btn-primary flex-1 py-3.5 min-h-[48px] rounded-full text-sm font-bold shadow-md active:scale-98 transition-all duration-150 flex items-center justify-center space-x-2 cursor-pointer"
+              className="btn-primary flex-1 py-3.5 min-h-[48px] rounded-full text-sm font-bold shadow-md active:scale-98 transition-all duration-150 flex items-center justify-center space-x-2 cursor-pointer bg-[var(--accent-btn)] text-[var(--accent-btn-text)]"
             >
-              <Save className="w-4 h-4 stroke-[2.5]" />
-              <span className="font-bold">Salva Registrazione</span>
+              <Save className="w-4 h-4 stroke-[2.5] text-[var(--accent-btn-text)]" />
+              <span className="font-bold text-[var(--accent-btn-text)]">Salva Registrazione</span>
             </button>
           </div>
         </div>

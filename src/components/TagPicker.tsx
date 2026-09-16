@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { Tag } from '../types';
+import { Tag, TagCategory } from '../types';
 import { Plus, Check } from 'lucide-react';
 
 interface TagPickerProps {
-  category: 'emotion' | 'physical_symptom';
+  category: TagCategory;
   allTags: Tag[];
   selectedTagIds: string[];
   onToggleTag: (tagId: string) => void;
-  onAddCustomTag: (category: 'emotion' | 'physical_symptom', label: string) => Promise<void>;
+  onAddCustomTag: (category: TagCategory, label: string) => Promise<void>;
   placeholder?: string;
 }
 

@@ -1,6 +1,13 @@
 import { CbtEntry, CustomQuestion, Tag } from '../types';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import {
+  isMobileDevice,
+  canSharePdfFiles,
+  downloadPdfBlob,
+  sharePdfBlob,
+  SharePdfResult,
+} from './pdfSharingUtils';
 
 export interface TherapistReportFilterOptions {
   patientName: string;
@@ -800,11 +807,12 @@ export async function exportTherapistPdf(
   allTags: Tag[],
   customQuestions: CustomQuestion[],
   options: TherapistReportFilterOptions,
-  onToast?: (msg: string) => void
-): Promise<void> {
+  onToast?: (msg: string) => void,
+  exportMode: 'download' | 'share' | 'auto' = 'download'
+): Promise<SharePdfResult | 'downloaded' | 'failed'> {
   if (entries.length === 0) {
     onToast?.('Nessuna registrazione da esportare');
-    return;
+    return 'failed';
   }
 
   onToast?.('Generazione PDF in corso...');
@@ -1002,7 +1010,8 @@ export async function exportTherapistPdf(
           slice.sliceHeightPx
         );
 
-        const imgData = pageCanvas.toDataURL('image/jpeg', 0.96);
+        // Compressione bilanciata al 0.88: genera un file PDF leggero e nitidissimo, ideale per WhatsApp
+        const imgData = pageCanvas.toDataURL('image/jpeg', 0.88);
         pdf.addImage(imgData, 'JPEG', marginSideMm, topMm, contentWidthMm, sliceHeightMm, undefined, 'FAST');
       }
 
@@ -1033,24 +1042,36 @@ export async function exportTherapistPdf(
       pdf.text(`Pagina ${pageIndex + 1} di ${totalPages}`, a4WidthMm - marginSideMm, 291.5, { align: 'right' });
     }
 
-    const pdfBlob = pdf.output('blob');
+    // Creazione del Blob binario con tipo MIME esplicito
+    const arrayBuffer = pdf.output('arraybuffer');
+    const pdfBlob = new Blob([arrayBuffer], { type: 'application/pdf' });
 
-    // Download diretto del file .pdf nel browser
-    try {
-      pdf.save(filename);
+    const shouldShare =
+      exportMode === 'share' ||
+      (exportMode === 'auto' && isMobileDevice() && canSharePdfFiles());
+
+    if (shouldShare) {
+      onToast?.('Apertura condivisione...');
+      const shareResult = await sharePdfBlob(
+        pdfBlob,
+        filename,
+        'Report Clinico CBT — DiariaMente',
+        options.patientName
+          ? `Report clinico CBT per il paziente ${options.patientName} (periodo: ${dateRangeDisplay}).`
+          : `Report clinico CBT DiariaMente (periodo: ${dateRangeDisplay}).`
+      );
+
+      if (shareResult === 'shared') {
+        onToast?.('Condivisione completata con successo!');
+      } else if (shareResult === 'fallback_downloaded') {
+        onToast?.('PDF scaricato con successo!');
+      }
+      return shareResult;
+    } else {
+      // Download diretto e affidabile (URL mantenuto valido per 60 secondi)
+      downloadPdfBlob(pdfBlob, filename);
       onToast?.('PDF scaricato con successo!');
-    } catch (saveErr) {
-      const blobUrl = URL.createObjectURL(pdfBlob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        link.remove();
-        URL.revokeObjectURL(blobUrl);
-      }, 4000);
-      onToast?.('PDF scaricato con successo!');
+      return 'downloaded';
     }
   } catch (err) {
     console.error('Errore durante la generazione del PDF con jsPDF/html2canvas:', err);
@@ -1065,8 +1086,9 @@ export async function exportTherapistPdf(
     setTimeout(() => {
       a.remove();
       URL.revokeObjectURL(blobUrl);
-    }, 4000);
+    }, 60000);
     onToast?.('Scaricato report alternativo HTML (apribile e stampabile in PDF)');
+    return 'failed';
   } finally {
     try {
       container.remove();
@@ -1098,14 +1120,17 @@ export function openPrintWindow(html: string): void {
 }
 
 /**
- * Export a dedicated clinical report for a single journal entry directly to PDF
+ * Export a dedicated clinical report for a single journal entry directly to PDF.
+ * Su mobile, la modalità 'auto' avvia automaticamente la condivisione nativa (es. WhatsApp),
+ * mentre su desktop o se non supportato effettua il download sicuro.
  */
 export async function exportSingleEntryPdf(
   entry: CbtEntry,
   allTags: Tag[],
   customQuestions: CustomQuestion[],
-  onToast?: (msg: string) => void
-): Promise<void> {
+  onToast?: (msg: string) => void,
+  exportMode: 'download' | 'share' | 'auto' = 'auto'
+): Promise<SharePdfResult | 'downloaded' | 'failed'> {
   const patientName = (typeof localStorage !== 'undefined' && localStorage.getItem('diariamente_patient_name')) || '';
   const dateIso = entry.eventDatetime.slice(0, 10);
 
@@ -1117,5 +1142,5 @@ export async function exportSingleEntryPdf(
     sortOrder: 'asc',
   };
 
-  await exportTherapistPdf([entry], allTags, customQuestions, options, onToast);
+  return await exportTherapistPdf([entry], allTags, customQuestions, options, onToast, exportMode);
 }

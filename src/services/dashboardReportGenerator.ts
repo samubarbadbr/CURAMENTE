@@ -1,6 +1,13 @@
 import { CbtEntry, PeriodFilter, Tag } from '../types';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import {
+  isMobileDevice,
+  canSharePdfFiles,
+  downloadPdfBlob,
+  sharePdfBlob,
+  SharePdfResult,
+} from './pdfSharingUtils';
 
 export interface DashboardReportOptions {
   patientName: string;
@@ -144,8 +151,9 @@ export function generateDashboardCsv(
 export async function exportDashboardPdf(
   entries: CbtEntry[],
   options: DashboardReportOptions,
-  onToast?: (msg: string) => void
-): Promise<void> {
+  onToast?: (msg: string) => void,
+  exportMode: 'download' | 'share' | 'auto' = 'download'
+): Promise<SharePdfResult | 'downloaded' | 'failed'> {
   const stats = computeDashboardStats(entries);
 
   // Period label text
@@ -438,7 +446,7 @@ export async function exportDashboardPdf(
           sliceHeightPx
         );
 
-        const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.95);
+        const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.88);
         pdf.addImage(pageImgData, 'JPEG', 0, 8, pdfWidth, sliceHeightMm);
       }
 
@@ -465,24 +473,34 @@ export async function exportDashboardPdf(
     }
 
     const filename = `diariamente-dashboard-seduta-${new Date().toISOString().slice(0, 10)}.pdf`;
+    const arrayBuffer = pdf.output('arraybuffer');
+    const pdfBlob = new Blob([arrayBuffer], { type: 'application/pdf' });
 
-    // Direct download without console.warn or failed Web Share
-    try {
-      pdf.save(filename);
+    const shouldShare =
+      exportMode === 'share' ||
+      (exportMode === 'auto' && isMobileDevice() && canSharePdfFiles());
+
+    if (shouldShare) {
+      onToast?.('Apertura condivisione...');
+      const shareResult = await sharePdfBlob(
+        pdfBlob,
+        filename,
+        'Report Dashboard Seduta — DiariaMente',
+        options.patientName
+          ? `Report dashboard progressi CBT per il paziente ${options.patientName} (${periodText}).`
+          : `Report dashboard progressi CBT DiariaMente (${periodText}).`
+      );
+
+      if (shareResult === 'shared') {
+        onToast?.('Condivisione completata con successo!');
+      } else if (shareResult === 'fallback_downloaded') {
+        onToast?.('Report Dashboard scaricato con successo!');
+      }
+      return shareResult;
+    } else {
+      downloadPdfBlob(pdfBlob, filename);
       onToast?.('Report Dashboard scaricato con successo!');
-    } catch (saveErr) {
-      const blob = pdf.output('blob');
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        link.remove();
-        URL.revokeObjectURL(blobUrl);
-      }, 3000);
-      onToast?.('Report Dashboard scaricato con successo!');
+      return 'downloaded';
     }
   } finally {
     document.body.removeChild(hiddenContainer);

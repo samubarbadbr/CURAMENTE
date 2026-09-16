@@ -18,7 +18,9 @@ import {
   Loader2,
   Download,
   ListChecks,
+  Share2,
 } from 'lucide-react';
+import { canSharePdfFiles, isMobileDevice } from '../services/pdfSharingUtils';
 
 interface TherapistExportModalProps {
   isOpen: boolean;
@@ -65,6 +67,7 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
   const [customEndDate, setCustomEndDate] = useState(todayStr);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isSharingPdf, setIsSharingPdf] = useState(false);
 
   // Handle patient name change with persistent storage
   const handlePatientNameChange = (val: string) => {
@@ -137,7 +140,7 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
 
   if (!isOpen) return null;
 
-  // 1. Direct PDF Export (Download immediato del file PDF con schema clinico)
+  // 1. Direct PDF Export (Download immediato del file PDF nel dispositivo)
   const handleExportPdf = async () => {
     if (filteredEntries.length === 0) {
       onShowToast('Nessuna registrazione trovata per il periodo selezionato');
@@ -145,7 +148,7 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
     }
     setIsExportingPdf(true);
     try {
-      await exportTherapistPdf(filteredEntries, allTags, customQuestions, filterOptions, onShowToast);
+      await exportTherapistPdf(filteredEntries, allTags, customQuestions, filterOptions, onShowToast, 'download');
     } catch (err) {
       console.error('Error during PDF export:', err);
       onShowToast('Errore durante la generazione del PDF');
@@ -154,7 +157,24 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
     }
   };
 
-  // 2. Direct CSV Export (Formattato con le medesime sezioni e colonne)
+  // 2. Direct PDF Sharing (Ideale per WhatsApp, Telegram, Email su smartphone)
+  const handleSharePdf = async () => {
+    if (filteredEntries.length === 0) {
+      onShowToast('Nessuna registrazione trovata per il periodo selezionato');
+      return;
+    }
+    setIsSharingPdf(true);
+    try {
+      await exportTherapistPdf(filteredEntries, allTags, customQuestions, filterOptions, onShowToast, 'share');
+    } catch (err) {
+      console.error('Error during PDF share:', err);
+      onShowToast('Errore durante la condivisione del PDF');
+    } finally {
+      setIsSharingPdf(false);
+    }
+  };
+
+  // 3. Direct CSV Export (Formattato con le medesime sezioni e colonne)
   const handleExportCsvData = async () => {
     if (filteredEntries.length === 0) {
       onShowToast('Nessuna registrazione da esportare');
@@ -164,9 +184,8 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
     const csv = generateTherapistCsv(filteredEntries, allTags, customQuestions, filterOptions);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const filename = `diariamente-report-clinico-${new Date().toISOString().slice(0, 10)}.csv`;
-    const csvFile = new File([blob], filename, { type: 'text/csv;charset=utf-8;' });
 
-    // Direct download
+    // Direct download con timeout esteso a 60s per evitare chiusure precoci
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -174,9 +193,11 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
     document.body.appendChild(link);
     link.click();
     setTimeout(() => {
-      link.remove();
-      URL.revokeObjectURL(url);
-    }, 3000);
+      try {
+        link.remove();
+        URL.revokeObjectURL(url);
+      } catch (_) {}
+    }, 60000);
     onShowToast('File CSV/Excel scaricato con successo');
   };
 
@@ -400,40 +421,78 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
             </div>
           </div>
 
+          {/* GUIDA INVIO WHATSAPP SU SMARTPHONE */}
+          <div className="p-3.5 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 text-xs space-y-1.5">
+            <div className="flex items-center space-x-2 text-indigo-700 dark:text-indigo-300 font-black">
+              <Share2 className="w-4 h-4 text-[#5B67CA] shrink-0" />
+              <span>Invio del PDF su WhatsApp (da smartphone)</span>
+            </div>
+            <div className="text-[11.5px] text-[var(--text-secondary)] leading-relaxed space-y-1">
+              <p>
+                • <strong className="text-[var(--text-primary)]">Consigliato:</strong> Tocca <strong>&quot;Condividi PDF&quot;</strong> qui sotto per selezionare subito la chat WhatsApp della terapeuta.
+              </p>
+              <p>
+                • <strong className="text-[var(--text-primary)]">Se invece usi &quot;Scarica PDF&quot;:</strong> Per inviarlo da WhatsApp apri la chat, tocca l&apos;icona <strong>📎 (Graffetta) &gt; Documento</strong> e seleziona il PDF dai file scaricati (evita il tasto &quot;Condividi&quot; dalla notifica di download del browser, che su Android può causare l&apos;errore &quot;impossibile inviare il documento&quot;).
+              </p>
+            </div>
+          </div>
+
         </div>
 
-        {/* MODAL ACTIONS FOOTER: Avvio diretto download PDF e download CSV */}
-        <div className="p-4 border-t border-[var(--border-solid)] bg-[var(--bg-subtle)]/70 flex flex-col-reverse sm:flex-row items-center justify-end gap-3 shrink-0">
+        {/* MODAL ACTIONS FOOTER: Avvio diretto download PDF, condivisione e download CSV */}
+        <div className="p-4 border-t border-[var(--border-solid)] bg-[var(--bg-subtle)]/70 flex flex-col sm:flex-row items-center justify-between gap-2.5 shrink-0">
           <button
             type="button"
             onClick={handleExportCsvData}
             disabled={filteredEntries.length === 0}
-            className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)] hover:bg-[var(--bg-subtle)] text-xs font-black text-[var(--text-primary)] transition-all active:scale-95 disabled:opacity-40 cursor-pointer shadow-xs"
+            className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-3.5 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)] hover:bg-[var(--bg-subtle)] text-xs font-black text-[var(--text-primary)] transition-all active:scale-95 disabled:opacity-40 cursor-pointer shadow-xs"
             title="Avvia direttamente il download del file .csv con la struttura clinica"
           >
             <Table className="w-4 h-4 text-emerald-500 stroke-[2.2]" />
             <span>Scarica CSV</span>
           </button>
 
-          <button
-            type="button"
-            onClick={handleExportPdf}
-            disabled={filteredEntries.length === 0 || isExportingPdf}
-            className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl bg-[#5B67CA] hover:bg-[#4A55B8] text-white text-xs font-black shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-            title="Genera e avvia immediatamente il download del file PDF"
-          >
-            {isExportingPdf ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin stroke-[2.5]" />
-                <span>Generazione PDF...</span>
-              </>
-            ) : (
-              <>
-                <Download className="w-4 h-4 stroke-[2.5]" />
-                <span>Scarica PDF</span>
-              </>
-            )}
-          </button>
+          <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              disabled={filteredEntries.length === 0 || isExportingPdf || isSharingPdf}
+              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)] hover:bg-[var(--bg-subtle)] text-xs font-black text-[var(--text-primary)] transition-all active:scale-95 disabled:opacity-50 cursor-pointer shadow-xs"
+              title="Scarica il file PDF direttamente nella cartella Download del dispositivo"
+            >
+              {isExportingPdf ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin stroke-[2.5]" />
+                  <span>Download in corso...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 stroke-[2.5] text-[#5B67CA]" />
+                  <span>Scarica PDF</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSharePdf}
+              disabled={filteredEntries.length === 0 || isExportingPdf || isSharingPdf}
+              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl bg-[#5B67CA] hover:bg-[#4A55B8] text-white text-xs font-black shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+              title="Condividi direttamente il PDF con WhatsApp, Email o altre app"
+            >
+              {isSharingPdf ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin stroke-[2.5]" />
+                  <span>Condivisione...</span>
+                </>
+              ) : (
+                <>
+                  <Share2 className="w-4 h-4 stroke-[2.5]" />
+                  <span>Condividi PDF (WhatsApp)</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

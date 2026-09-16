@@ -207,10 +207,10 @@ export const TextImproveModal: React.FC<TextImproveModalProps> = ({
                 onClose();
               }
             }}
-            className="btn-primary px-5 py-2.5 rounded-xl text-xs font-black shadow-md inline-flex items-center space-x-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+            className="btn-primary px-5 py-2.5 rounded-xl text-xs font-black shadow-md inline-flex items-center space-x-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 bg-[var(--accent-btn)] text-[var(--accent-btn-text)]"
           >
-            <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span>Applica Correzione</span>
+            <Check className="w-3.5 h-3.5 stroke-[2.5] text-[var(--accent-btn-text)]" />
+            <span className="text-[var(--accent-btn-text)]">Applica Correzione</span>
           </button>
         </div>
       </div>

@@ -21,6 +21,13 @@ export const DEFAULT_TAGS: Tag[] = [
   { id: 'tag-symptom-sudorazione', label: 'Sudorazione', category: 'physical_symptom', isCustom: 0 },
   { id: 'tag-symptom-vertigini', label: 'Vertigini', category: 'physical_symptom', isCustom: 0 },
   { id: 'tag-symptom-respiro-corto', label: 'Respiro corto', category: 'physical_symptom', isCustom: 0 },
+  // Pensieri e Schemi Cognitivi
+  { id: 'tag-thought-catastrofizzazione', label: 'Catastrofizzazione', category: 'thought', isCustom: 0 },
+  { id: 'tag-thought-tutto-o-niente', label: 'Tutto o niente', category: 'thought', isCustom: 0 },
+  { id: 'tag-thought-non-ce-la-faro', label: 'Non ce la farò', category: 'thought', isCustom: 0 },
+  { id: 'tag-thought-giudizio-altrui', label: 'Paura del giudizio', category: 'thought', isCustom: 0 },
+  { id: 'tag-thought-doverizzazione', label: 'Doverizzazione', category: 'thought', isCustom: 0 },
+  { id: 'tag-thought-ipergeneralizzazione', label: 'Ipergeneralizzazione', category: 'thought', isCustom: 0 },
 ];
 
 export function generateUid(): string {

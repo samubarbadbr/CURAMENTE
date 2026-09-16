@@ -19,6 +19,7 @@ import {
   HeartHandshake,
   Ban,
   User,
+  Share2,
 } from 'lucide-react';
 
 interface DashboardExportModalProps {
@@ -53,6 +54,7 @@ export const DashboardExportModal: React.FC<DashboardExportModalProps> = ({
   const [customStartDate, setCustomStartDate] = useState(initialStartStr);
   const [customEndDate, setCustomEndDate] = useState(todayStr);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isSharingPdf, setIsSharingPdf] = useState(false);
 
   const handlePatientNameChange = (val: string) => {
     setPatientName(val);
@@ -102,13 +104,37 @@ export const DashboardExportModal: React.FC<DashboardExportModalProps> = ({
         startDate: selectedPeriod === 'custom' ? customStartDate : undefined,
         endDate: selectedPeriod === 'custom' ? customEndDate : undefined,
       };
-      await exportDashboardPdf(filteredEntries, options, onShowToast);
+      await exportDashboardPdf(filteredEntries, options, onShowToast, 'download');
       onClose();
     } catch (err) {
       console.error('Error during Dashboard PDF export:', err);
       onShowToast('Errore durante la generazione del PDF');
     } finally {
       setIsExportingPdf(false);
+    }
+  };
+
+  const handleSharePdf = async () => {
+    if (filteredEntries.length === 0) {
+      onShowToast('Nessuna voce registrata da esportare per il periodo selezionato');
+      return;
+    }
+
+    setIsSharingPdf(true);
+    try {
+      const options: DashboardReportOptions = {
+        patientName: patientName.trim(),
+        period: selectedPeriod,
+        startDate: selectedPeriod === 'custom' ? customStartDate : undefined,
+        endDate: selectedPeriod === 'custom' ? customEndDate : undefined,
+      };
+      await exportDashboardPdf(filteredEntries, options, onShowToast, 'share');
+      onClose();
+    } catch (err) {
+      console.error('Error during Dashboard PDF sharing:', err);
+      onShowToast('Errore durante la condivisione del PDF');
+    } finally {
+      setIsSharingPdf(false);
     }
   };
 
@@ -134,9 +160,11 @@ export const DashboardExportModal: React.FC<DashboardExportModalProps> = ({
     document.body.appendChild(link);
     link.click();
     setTimeout(() => {
-      link.remove();
-      URL.revokeObjectURL(url);
-    }, 3000);
+      try {
+        link.remove();
+        URL.revokeObjectURL(url);
+      } catch (_) {}
+    }, 60000);
     onShowToast('File CSV/Excel scaricato con successo');
     onClose();
   };
@@ -284,45 +312,82 @@ export const DashboardExportModal: React.FC<DashboardExportModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Guida Condivisione WhatsApp */}
+          <div className="p-3 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 text-xs space-y-1">
+            <div className="flex items-center space-x-2 text-indigo-700 dark:text-indigo-300 font-bold">
+              <Share2 className="w-3.5 h-3.5 text-[#5B67CA] shrink-0" />
+              <span>Condivisione su WhatsApp o altre app</span>
+            </div>
+            <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+              Usa <strong>&quot;Condividi PDF&quot;</strong> per inviare direttamente il file senza rischiare errori di invio da notifiche browser su cellulare.
+            </p>
+          </div>
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-[var(--border-subtle)] flex items-center justify-end space-x-2.5 bg-[var(--bg-subtle)]/40">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 rounded-full border border-[var(--border-solid)] text-xs font-bold text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
-          >
-            Annulla
-          </button>
+        <div className="p-4 border-t border-[var(--border-subtle)] flex flex-col sm:flex-row items-center justify-between gap-2.5 bg-[var(--bg-subtle)]/40">
+          <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-3.5 py-2 rounded-xl border border-[var(--border-solid)] text-xs font-bold text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
+            >
+              Annulla
+            </button>
 
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            className="px-4 py-2 rounded-full border border-[var(--border-solid)] bg-[var(--bg-surface)] text-xs font-bold text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] shadow-xs flex items-center space-x-1.5 cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Excel / CSV</span>
-          </button>
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              disabled={filteredEntries.length === 0}
+              className="px-3.5 py-2 rounded-xl border border-[var(--border-solid)] bg-[var(--bg-surface)] text-xs font-bold text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] shadow-xs flex items-center space-x-1.5 cursor-pointer disabled:opacity-40"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>CSV</span>
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={handleExportPdf}
-            disabled={isExportingPdf || filteredEntries.length === 0}
-            className="btn-primary px-5 py-2 rounded-full text-xs font-black shadow-md flex items-center space-x-2 cursor-pointer disabled:opacity-50"
-          >
-            {isExportingPdf ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin stroke-[2.5]" />
-                <span>Generazione PDF...</span>
-              </>
-            ) : (
-              <>
-                <Download className="w-4 h-4 stroke-[2.5]" />
-                <span>Scarica PDF Dashboard</span>
-              </>
-            )}
-          </button>
+          <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              disabled={isExportingPdf || isSharingPdf || filteredEntries.length === 0}
+              className="w-full sm:w-auto px-4 py-2 rounded-xl border border-[var(--border-solid)] bg-[var(--bg-surface)] hover:bg-[var(--bg-subtle)] text-xs font-black text-[var(--text-primary)] shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
+              title="Scarica il file PDF direttamente"
+            >
+              {isExportingPdf ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin stroke-[2.5]" />
+                  <span>Download...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-3.5 h-3.5 text-[#5B67CA]" />
+                  <span>Scarica PDF</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSharePdf}
+              disabled={isExportingPdf || isSharingPdf || filteredEntries.length === 0}
+              className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-black shadow-md flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50 bg-[#5B67CA] hover:bg-[#4A55B8] text-white"
+              title="Condividi direttamente con WhatsApp"
+            >
+              {isSharingPdf ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin stroke-[2.5]" />
+                  <span>Condivisione...</span>
+                </>
+              ) : (
+                <>
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Condividi PDF</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -243,6 +243,16 @@ html[data-theme='amethyst'] {
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.btn-primary *,
+button.btn-primary *,
+.btn-primary span,
+button.btn-primary span,
+.btn-primary svg,
+button.btn-primary svg {
+  color: var(--accent-btn-text) !important;
+  stroke: var(--accent-btn-text) !important;
+}
+
 .btn-primary:hover, button.btn-primary:hover {
   background-color: var(--accent-btn-hover) !important;
   transform: translateY(-1px);
@@ -265,8 +275,10 @@ html[data-theme='amethyst'] {
   color: var(--text-muted) !important;
 }
 
-.nav-item-active {
+.nav-item-active,
+.nav-item-active * {
   color: var(--nav-active-text) !important;
+  stroke: var(--nav-active-text) !important;
   font-weight: 700;
 }
 

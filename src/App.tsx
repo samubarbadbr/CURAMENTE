@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { CbtEntry, Tag, ViewType, PeriodFilter, ThemeMode, CustomQuestion, DiaryNote } from './types';
+import { CbtEntry, Tag, TagCategory, ViewType, PeriodFilter, ThemeMode, CustomQuestion, DiaryNote } from './types';
 import { DB, seedDefaultTagsIfNeeded, cleanupAndDeduplicateTags, createBlankEntry, openDatabase } from './services/db';
 import { SyncService } from './services/sync';
 import { checkBiometricsAvailability, registerBiometricCredential } from './lib/biometrics';
@@ -814,7 +814,7 @@ export default function App() {
   };
 
   // Add custom tag
-  const handleAddCustomTag = async (category: 'emotion' | 'physical_symptom', label: string) => {
+  const handleAddCustomTag = async (category: TagCategory, label: string) => {
     const cleanLabel = label.trim();
     if (!cleanLabel) return;
 
@@ -843,6 +843,24 @@ export default function App() {
     }
   };
 
+  // Update tag category
+  const handleUpdateTagCategory = async (tagId: string, newCategory: TagCategory) => {
+    const tag = allTags.find((t) => t.id === tagId);
+    if (!tag) return;
+    const updatedTag: Tag = {
+      ...tag,
+      category: newCategory,
+    };
+    await DB.put('tags', updatedTag);
+    const updatedTags = await cleanupAndDeduplicateTags();
+    setAllTags(updatedTags);
+    showToast(`Categoria del tag "${tag.label}" aggiornata`);
+
+    if (syncPin) {
+      handleSyncPush(syncPin);
+    }
+  };
+
   // Delete custom tag
   const handleDeleteCustomTag = async (tagId: string) => {
     await DB.delete('tags', tagId);
@@ -860,6 +878,10 @@ export default function App() {
       }
       if (entry.physicalSymptomTagIds && entry.physicalSymptomTagIds.includes(tagId)) {
         entry.physicalSymptomTagIds = entry.physicalSymptomTagIds.filter((id) => id !== tagId);
+        modified = true;
+      }
+      if (entry.thoughtTagIds && entry.thoughtTagIds.includes(tagId)) {
+        entry.thoughtTagIds = entry.thoughtTagIds.filter((id) => id !== tagId);
         modified = true;
       }
       if (modified) {
@@ -1387,6 +1409,8 @@ export default function App() {
                   onImportJson={handleImportJson}
                   allTags={allTags}
                   onDeleteCustomTag={handleDeleteCustomTag}
+                  onAddCustomTag={handleAddCustomTag}
+                  onUpdateTagCategory={handleUpdateTagCategory}
                   onDeleteAllData={handleDeleteAllData}
                   onShowSplash={() => setShowSplash(true)}
                   onNavigateToCustomQuestions={() => navigateToView('custom_questions')}

@@ -53,6 +53,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
 
   const emotionLabels = getTagLabels(entry.emotionTagIds);
   const physicalLabels = getTagLabels(entry.physicalSymptomTagIds);
+  const thoughtLabels = getTagLabels(entry.thoughtTagIds || []);
   const formattedDate = new Date(entry.eventDatetime).toLocaleString('it-IT', {
     dateStyle: 'full',
     timeStyle: 'short',
@@ -256,6 +257,19 @@ export const DetailView: React.FC<DetailViewProps> = ({
           <p className="text-sm font-bold text-[var(--text-primary)] leading-relaxed break-words whitespace-pre-wrap">
             {entry.negativeThought || <span className="italic font-bold text-[var(--text-muted)]">Nessun pensiero specificato</span>}
           </p>
+
+          {thoughtLabels.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[var(--border-subtle)]">
+              {thoughtLabels.map((lbl, idx) => (
+                <span
+                  key={idx}
+                  className="px-2.5 py-1 text-xs font-bold rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20"
+                >
+                  #{lbl}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Risposte alle Domande Custom */}
