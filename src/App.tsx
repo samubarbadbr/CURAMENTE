@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { CbtEntry, Tag, ViewType, PeriodFilter, ThemeMode, CustomQuestion } from './types';
+import { CbtEntry, Tag, ViewType, PeriodFilter, ThemeMode, CustomQuestion, DiaryNote } from './types';
 import { DB, seedDefaultTagsIfNeeded, cleanupAndDeduplicateTags, createBlankEntry, openDatabase } from './services/db';
 import { SyncService } from './services/sync';
 import { checkBiometricsAvailability, registerBiometricCredential } from './lib/biometrics';
@@ -22,7 +22,10 @@ import { DashboardExportModal } from './components/DashboardExportModal';
 import { generateTherapistCsv, exportSingleEntryPdf } from './services/therapistReportGenerator';
 import { ResetPinModal } from './components/ResetPinModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { DiaryNoteModal } from './components/DiaryNoteModal';
 import { audioSafety } from './services/audioSafety';
+import { useUnsavedAudio } from './hooks/useUnsavedAudio';
+import { loadDraftFromStorage, clearDraftFromStorage, isDraftEmpty } from './services/draftStorage';
 import {
   saveRecoveryEmailToCloud,
   handleIncomingRecoveryUrl,
@@ -71,6 +74,7 @@ export default function App() {
   const [isDbReady, setIsDbReady] = useState(false);
   const [entries, setEntries] = useState<CbtEntry[]>([]);
   const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [notes, setNotes] = useState<DiaryNote[]>([]);
   const [currentView, setCurrentView] = useState<ViewType>('timeline');
   const [direction, setDirection] = useState<number>(0);
 
@@ -79,51 +83,20 @@ export default function App() {
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
 
+  // Diary Note global modal state
+  const [isGlobalDiaryModalOpen, setIsGlobalDiaryModalOpen] = useState(false);
+  const [editingGlobalDiaryNote, setEditingGlobalDiaryNote] = useState<DiaryNote | null>(null);
+
+  const handleOpenGlobalNewNote = (noteToEdit?: DiaryNote | null) => {
+    setEditingGlobalDiaryNote(noteToEdit || null);
+    setIsGlobalDiaryModalOpen(true);
+  };
+
+  const { interceptNavigation } = useUnsavedAudio();
+
   // Audio safety check for navigation across views
   const handleSafeNavigate = (action: () => void | Promise<void>) => {
-    if (audioSafety.hasPendingChanges()) {
-      setConfirmModal({
-        isOpen: true,
-        title: audioSafety.isCurrentlyRecording()
-          ? 'Registrazione audio in corso'
-          : 'Registrazione audio non salvata',
-        message: audioSafety.isCurrentlyRecording()
-          ? 'Stai registrando una traccia audio. Vuoi salvare la registrazione prima di uscire, oppure uscire senza salvare?'
-          : 'Ci sono modifiche non salvate nella registrazione audio. Vuoi salvare prima di uscire, oppure uscire senza salvare?',
-        confirmLabel: 'Salva prima di uscire',
-        cancelLabel: 'Annulla / Esci senza salvare',
-        dismissLabel: 'Rimani qui',
-        isDanger: false,
-        onConfirm: async () => {
-          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-          const res = await audioSafety.stopAndSaveAll();
-          if (entryDraft) {
-            const updated = {
-              ...entryDraft,
-              ...(res.audioNote ? { audioNote: res.audioNote, audioDuration: res.audioDuration } : {}),
-            };
-            try {
-              await DB.put('entries', updated);
-              await loadEntries(periodFilter);
-              showToast('Registrazione e diario salvati');
-            } catch (err) {
-              console.error('Error auto-saving entry on navigation:', err);
-            }
-          }
-          await action();
-        },
-        onCancel: async () => {
-          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-          audioSafety.discardAndStopAll();
-          await action();
-        },
-        onDismiss: () => {
-          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-        },
-      });
-      return;
-    }
-    action();
+    interceptNavigation(action);
   };
 
   const navigateToView = (nextView: ViewType) => {
@@ -332,6 +305,17 @@ export default function App() {
     }
   }, []);
 
+  // Fetch all diary notes from IndexedDB
+  const loadNotes = useCallback(async () => {
+    try {
+      const allNotes = await DB.getAll<DiaryNote>('notes');
+      allNotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setNotes(allNotes);
+    } catch (err) {
+      console.warn('Failed to load diary notes:', err);
+    }
+  }, []);
+
   // Sync Push function
   const handleSyncPush = useCallback(async (pinToUse?: string, silent = false) => {
     const pin = pinToUse || syncPin;
@@ -344,12 +328,13 @@ export default function App() {
     try {
       const allEntries = await DB.getAll<CbtEntry>('entries');
       const tags = await DB.getAll<Tag>('tags');
+      const allNotes = await DB.getAll<DiaryNote>('notes');
 
-      const res = await SyncService.push(pin, { entries: allEntries, tags });
+      const res = await SyncService.push(pin, { entries: allEntries, tags, notes: allNotes });
       if (res.success) {
         setSyncStatus('synced');
         setLastSyncedAt(res.updatedAt || new Date().toISOString());
-        if (!silent) showToast(`Dati inviati al Cloud per il PIN ${pin}!`);
+        if (!silent) showToast(`Dati e diario inviati al Cloud per il PIN ${pin}!`);
         return true;
       } else {
         setSyncStatus('error');
@@ -387,14 +372,21 @@ export default function App() {
             await DB.put('tags', tag);
           }
         }
+        // Merge cloud diary notes into local IndexedDB
+        if (res.data.notes && Array.isArray(res.data.notes)) {
+          for (const note of res.data.notes) {
+            await DB.put('notes', note);
+          }
+        }
 
         const updatedTags = await cleanupAndDeduplicateTags();
         setAllTags(updatedTags);
         await loadEntries(periodFilter);
+        await loadNotes();
 
         setSyncStatus('synced');
         setLastSyncedAt(res.data.updatedAt || new Date().toISOString());
-        showToast(`Dati scaricati dal Cloud per il PIN ${pin}!`);
+        showToast(`Dati e diario scaricati dal Cloud per il PIN ${pin}!`);
 
         if (forceReload) {
           setTimeout(() => {
@@ -413,7 +405,56 @@ export default function App() {
       showToast(`Errore scaricamento: ${err?.message || 'Connessione fallita'}`);
       return false;
     }
-  }, [syncPin, loadEntries, periodFilter]);
+  }, [syncPin, loadEntries, loadNotes, periodFilter]);
+
+  // Diary Note operations with immediate Supabase cloud sync
+  const handleSaveDiaryNote = async (note: DiaryNote) => {
+    try {
+      await DB.put('notes', note);
+      showToast('Appunto salvato nel diario 📖');
+      await loadNotes();
+      if (syncPin) {
+        handleSyncPush(syncPin, true);
+      }
+    } catch (err: any) {
+      console.error('Error saving diary note:', err);
+      showToast('Errore durante il salvataggio dell\'appunto');
+    }
+  };
+
+  const handleDeleteDiaryNote = async (noteId: string) => {
+    try {
+      await DB.delete('notes', noteId);
+      showToast('Appunto eliminato dal diario');
+      await loadNotes();
+      if (syncPin) {
+        handleSyncPush(syncPin, true);
+      }
+    } catch (err: any) {
+      console.error('Error deleting diary note:', err);
+      showToast('Errore durante l\'eliminazione dell\'appunto');
+    }
+  };
+
+  const handleTogglePinDiaryNote = async (noteId: string) => {
+    try {
+      const existing = await DB.get<DiaryNote>('notes', noteId);
+      if (existing) {
+        const updated: DiaryNote = {
+          ...existing,
+          pinned: !existing.pinned,
+          updatedAt: new Date().toISOString(),
+        };
+        await DB.put('notes', updated);
+        await loadNotes();
+        if (syncPin) {
+          handleSyncPush(syncPin, true);
+        }
+      }
+    } catch (err: any) {
+      console.error('Error toggling pin:', err);
+    }
+  };
 
   // Test Supabase Connection
   const handleTestConnection = useCallback(async () => {
@@ -442,7 +483,7 @@ export default function App() {
     // Try pulling from cloud first for existing data on this PIN
     setSyncStatus('syncing');
     const pullRes = await SyncService.pull(cleanPin);
-    if (pullRes.success && pullRes.data && pullRes.data.entries?.length) {
+    if (pullRes.success && pullRes.data && (pullRes.data.entries?.length || pullRes.data.notes?.length)) {
       if (pullRes.data.entries && Array.isArray(pullRes.data.entries)) {
         for (const entry of pullRes.data.entries) {
           await DB.put('entries', entry);
@@ -453,21 +494,28 @@ export default function App() {
           await DB.put('tags', tag);
         }
       }
+      if (pullRes.data.notes && Array.isArray(pullRes.data.notes)) {
+        for (const note of pullRes.data.notes) {
+          await DB.put('notes', note);
+        }
+      }
       const updatedTags = await cleanupAndDeduplicateTags();
       setAllTags(updatedTags);
       await loadEntries(periodFilter);
+      await loadNotes();
       setSyncStatus('synced');
       setLastSyncedAt(pullRes.data.updatedAt || new Date().toISOString());
-      showToast(`Dati scaricati e collegati per il PIN ${cleanPin}!`);
+      showToast(`Dati e diario scaricati e collegati per il PIN ${cleanPin}!`);
     } else {
       // If no data on cloud, push local data up to cloud
       const allEntries = await DB.getAll<CbtEntry>('entries');
       const tags = await DB.getAll<Tag>('tags');
-      const pushRes = await SyncService.push(cleanPin, { entries: allEntries, tags });
+      const allNotes = await DB.getAll<DiaryNote>('notes');
+      const pushRes = await SyncService.push(cleanPin, { entries: allEntries, tags, notes: allNotes });
       if (pushRes.success) {
         setSyncStatus('synced');
         setLastSyncedAt(pushRes.updatedAt || new Date().toISOString());
-        showToast(`Dati salvati sul Cloud per il PIN ${cleanPin}!`);
+        showToast(`Dati e diario salvati sul Cloud per il PIN ${cleanPin}!`);
       } else {
         setSyncStatus('error');
         showToast(`Errore sincronizzazione: ${pushRes.error || 'Impossibile connettersi'}`);
@@ -562,6 +610,11 @@ export default function App() {
                   await DB.put('tags', tag);
                 }
               }
+              if (res.data.notes && Array.isArray(res.data.notes)) {
+                for (const note of res.data.notes) {
+                  await DB.put('notes', note);
+                }
+              }
               const updatedTags = await cleanupAndDeduplicateTags();
               if (isMounted) {
                 setAllTags(updatedTags);
@@ -569,6 +622,7 @@ export default function App() {
                 setLastSyncedAt(res.data.updatedAt || new Date().toISOString());
               }
               await loadEntries('30');
+              await loadNotes();
             } else {
               if (isMounted) setSyncStatus('idle');
             }
@@ -581,6 +635,7 @@ export default function App() {
         if (isMounted) {
           setIsDbReady(true);
           await loadEntries('30');
+          await loadNotes();
         }
       } catch (err) {
         console.error('Failed to bootstrap app:', err);
@@ -692,8 +747,15 @@ export default function App() {
   // Open New Entry form
   const handleOpenNewEntry = () => {
     handleSafeNavigate(() => {
-      setEditingEntryId(null);
-      setEntryDraft(createBlankEntry());
+      const saved = loadDraftFromStorage();
+      if (saved && saved.draft && !isDraftEmpty(saved.draft)) {
+        setEditingEntryId(saved.editingEntryId || null);
+        setEntryDraft(saved.draft);
+        showToast('Bozza ripristinata automaticamente 📝');
+      } else {
+        setEditingEntryId(null);
+        setEntryDraft(createBlankEntry());
+      }
       navigateToView('entry');
     });
   };
@@ -713,6 +775,7 @@ export default function App() {
   const handleSaveEntry = async (draft: CbtEntry) => {
     try {
       await DB.put('entries', draft);
+      clearDraftFromStorage();
       showToast('Voce di diario salvata con successo');
       await loadEntries(periodFilter);
       navigateToView('timeline');
@@ -954,11 +1017,13 @@ export default function App() {
   const handleExportJson = async () => {
     const allEntries = await DB.getAll<CbtEntry>('entries');
     const tags = await DB.getAll<Tag>('tags');
+    const allNotes = await DB.getAll<DiaryNote>('notes');
     const payload = {
       exportedAt: new Date().toISOString(),
       appName: 'Diariamente',
       entries: allEntries,
       tags,
+      notes: allNotes,
     };
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -1034,9 +1099,15 @@ export default function App() {
                 await DB.put('tags', tag);
               }
             }
+            if (payload.notes && Array.isArray(payload.notes)) {
+              for (const note of payload.notes) {
+                await DB.put('notes', note);
+              }
+            }
             const updatedTags = await cleanupAndDeduplicateTags();
             setAllTags(updatedTags);
             await loadEntries(periodFilter);
+            await loadNotes();
             showToast('Backup importato con successo');
 
             if (syncPin) {
@@ -1056,15 +1127,17 @@ export default function App() {
     setConfirmModal({
       isOpen: true,
       title: 'Elimina Tutti i Dati',
-      message: 'ATTENZIONE: Questa azione cancellerà irrevocabilmente tutte le registrazioni e impostazioni salvate su questo dispositivo.',
+      message: 'ATTENZIONE: Questa azione cancellerà irrevocabilmente tutte le registrazioni, gli appunti del diario e le impostazioni salvate su questo dispositivo.',
       isDanger: true,
       onConfirm: async () => {
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         await DB.clear('entries');
         await DB.clear('tags');
+        await DB.clear('notes');
         await DB.clear('settings');
         const freshTags = await seedDefaultTagsIfNeeded();
         setAllTags(freshTags);
+        setNotes([]);
         await loadEntries(periodFilter);
         navigateToView('timeline');
         showToast('Tutti i dati sono stati azzerati');
@@ -1189,6 +1262,7 @@ export default function App() {
           themeMode={themeMode}
           onToggleTheme={handleToggleThemeMode}
           onNewEntry={handleOpenNewEntry}
+          onNewNote={() => handleOpenGlobalNewNote()}
           isOnline={isOnline}
           isPrivacyModeEnabled={isPrivacyModeEnabled}
           onTogglePrivacyMode={handleTogglePrivacyMode}
@@ -1211,6 +1285,11 @@ export default function App() {
                 <TimelineView
                   entries={entries}
                   allTags={allTags}
+                  notes={notes}
+                  onSaveNote={handleSaveDiaryNote}
+                  onDeleteNote={handleDeleteDiaryNote}
+                  onTogglePinNote={handleTogglePinDiaryNote}
+                  onNewNote={() => handleOpenGlobalNewNote()}
                   periodFilter={periodFilter}
                   onFilterChange={(p) => setPeriodFilter(p)}
                   onSelectEntry={(id) => {
@@ -1222,12 +1301,13 @@ export default function App() {
                   onNewEntry={handleOpenNewEntry}
                   isPrivacyModeEnabled={isPrivacyModeEnabled}
                   onTogglePrivacyMode={handleTogglePrivacyMode}
+                  isSyncConfigured={Boolean(syncPin)}
                 />
               )}
 
-              {currentView === 'entry' && entryDraft && (
+              {currentView === 'entry' && (
                 <EntryFormView
-                  initialDraft={entryDraft}
+                  initialDraft={entryDraft || createBlankEntry()}
                   allTags={allTags}
                   isEditing={!!editingEntryId}
                   onSave={handleSaveEntry}
@@ -1360,6 +1440,21 @@ export default function App() {
         entries={entries}
         dashPeriod={dashPeriod}
         onShowToast={showToast}
+      />
+
+      <DiaryNoteModal
+        isOpen={isGlobalDiaryModalOpen}
+        initialNote={editingGlobalDiaryNote}
+        onSave={(note) => {
+          handleSaveDiaryNote(note);
+          setIsGlobalDiaryModalOpen(false);
+          setEditingGlobalDiaryNote(null);
+        }}
+        onClose={() => {
+          setIsGlobalDiaryModalOpen(false);
+          setEditingGlobalDiaryNote(null);
+        }}
+        isSyncConfigured={Boolean(syncPin)}
       />
     </div>
   );

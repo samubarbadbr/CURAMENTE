@@ -1,14 +1,16 @@
 import React from 'react';
-import { Plus, Sun, Moon, WifiOff, Brain, EyeOff, Eye, Home } from 'lucide-react';
+import { Plus, Sun, Moon, WifiOff, EyeOff, Eye } from 'lucide-react';
 import { ViewType, ThemeMode } from '../types';
 import { PWAInstallButton } from './PWAInstallButton';
 import { BrandLogo } from './BrandLogo';
+import { useUnsavedAudio } from '../hooks/useUnsavedAudio';
 
 interface HeaderProps {
   currentView: ViewType;
   themeMode: ThemeMode;
   onToggleTheme: () => void;
   onNewEntry: () => void;
+  onNewNote?: () => void;
   isOnline: boolean;
   isPrivacyModeEnabled?: boolean;
   onTogglePrivacyMode?: () => void;
@@ -24,6 +26,8 @@ export const Header: React.FC<HeaderProps> = ({
   onTogglePrivacyMode,
   onShowSplash,
 }) => {
+  const { hasUnsavedAudio, isRecording, isFormDirty, interceptNavigation } = useUnsavedAudio();
+
   const isDark =
     themeMode === 'cyber' ||
     themeMode === 'midnight' ||
@@ -46,7 +50,13 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             id="header-home-btn"
-            onClick={onShowSplash}
+            onClick={(e) => {
+              if (hasUnsavedAudio || isRecording || isFormDirty) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+              interceptNavigation(() => onShowSplash(), e);
+            }}
             className="flex items-center space-x-3 py-1.5 px-2 -ml-2 rounded-2xl hover:bg-[var(--bg-subtle)] active:scale-97 transition-all duration-150 cursor-pointer group select-none"
             aria-label="Torna alla copertina iniziale"
             title="Torna alla copertina"
@@ -122,7 +132,13 @@ export const Header: React.FC<HeaderProps> = ({
 
         <button
           type="button"
-          onClick={onNewEntry}
+          onClick={(e) => {
+            if (hasUnsavedAudio || isRecording || isFormDirty) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+            interceptNavigation(() => onNewEntry(), e);
+          }}
           className="btn-primary inline-flex items-center space-x-1 px-3 sm:px-4 py-2 min-h-[42px] rounded-full shadow-md active:scale-95 transition-all duration-150 cursor-pointer shrink-0"
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />

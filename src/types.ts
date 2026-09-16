@@ -63,6 +63,38 @@ export interface CbtEntry {
   alternativeThought?: string;
 }
 
+export type DiaryNoteCategory =
+  | 'Riflessione'
+  | 'Gratitudine'
+  | 'Pensiero'
+  | 'Obiettivo'
+  | 'Promemoria'
+  | 'Altro';
+
+export type DiaryNoteMood =
+  | 'sereno'
+  | 'grato'
+  | 'riflessivo'
+  | 'calmo'
+  | 'energico'
+  | 'ansioso'
+  | 'triste';
+
+export interface DiaryNote {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt?: string;
+  category?: DiaryNoteCategory;
+  mood?: DiaryNoteMood;
+  tags?: string[];
+  pinned?: boolean;
+  photo?: string;
+  audioNote?: string;
+  audioDuration?: number;
+}
+
 export interface AppSettings {
   key: string;
   value: any;

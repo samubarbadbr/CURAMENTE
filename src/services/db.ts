@@ -1,7 +1,7 @@
-import { CbtEntry, Tag } from '../types';
+import { CbtEntry, Tag, DiaryNote } from '../types';
 
 const DB_NAME = 'diario-mente-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbInstance: IDBDatabase | null = null;
 
@@ -27,6 +27,18 @@ export function generateUid(): string {
   return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9);
 }
 
+export function createBlankDiaryNote(): DiaryNote {
+  return {
+    id: generateUid(),
+    title: '',
+    content: '',
+    createdAt: new Date().toISOString(),
+    category: 'Riflessione',
+    mood: 'sereno',
+    pinned: false,
+  };
+}
+
 export function openDatabase(): Promise<IDBDatabase> {
   if (dbInstance) return Promise.resolve(dbInstance);
 
@@ -46,6 +58,10 @@ export function openDatabase(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains('settings')) {
         db.createObjectStore('settings', { keyPath: 'key' });
+      }
+      if (!db.objectStoreNames.contains('notes')) {
+        const notesStore = db.createObjectStore('notes', { keyPath: 'id' });
+        notesStore.createIndex('by_datetime', 'createdAt', { unique: false });
       }
     };
 

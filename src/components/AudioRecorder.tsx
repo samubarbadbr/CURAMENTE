@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { audioSafety } from '../services/audioSafety';
 import { ConfirmModal } from './ConfirmModal';
+import { useUnsavedAudio } from '../hooks/useUnsavedAudio';
 
 interface AudioRecorderProps {
   audioNote?: string; // base64 data URL
@@ -88,6 +89,12 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
   onRecordingChange,
   onUnsavedChange,
 }) => {
+  const {
+    setIsRecording: setGlobalIsRecording,
+    setHasUnsavedAudio: setGlobalHasUnsavedAudio,
+    registerRecorder: registerGlobalRecorder,
+  } = useUnsavedAudio();
+
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -135,16 +142,28 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
     if (audioNote && audioNote !== initialSavedAudioRef.current) {
       setHasUnsavedAudio(true);
       hasUnsavedAudioRef.current = true;
+      setGlobalHasUnsavedAudio(true);
       onUnsavedChange?.(true);
       audioSafety.notify();
     }
-  }, [audioNote, onUnsavedChange]);
+  }, [audioNote, onUnsavedChange, setGlobalHasUnsavedAudio]);
+
+  // Sync hasUnsavedAudio state to global context
+  useEffect(() => {
+    setGlobalHasUnsavedAudio(hasUnsavedAudio);
+  }, [hasUnsavedAudio, setGlobalHasUnsavedAudio]);
 
   // Notify recording state changes
   useEffect(() => {
     onRecordingChange?.(isRecording);
+    setGlobalIsRecording(isRecording);
+    if (isRecording) {
+      setHasUnsavedAudio(true);
+      hasUnsavedAudioRef.current = true;
+      setGlobalHasUnsavedAudio(true);
+    }
     audioSafety.notify();
-  }, [isRecording, onRecordingChange]);
+  }, [isRecording, onRecordingChange, setGlobalIsRecording, setGlobalHasUnsavedAudio]);
 
   const stopAndSave = useCallback((): Promise<{ audioNote?: string; audioDuration?: number }> => {
     return new Promise((resolve) => {
@@ -242,7 +261,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
     audioSafety.notify();
   }, [audioNote, onChange]);
 
-  // Register with global AudioSafetyService
+  // Register with global AudioSafetyService and AudioSafetyContext
   useEffect(() => {
     audioSafety.registerRecorder({
       id: idRef.current,
@@ -252,7 +271,13 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
       discardAndStop,
     });
 
+    const unregisterGlobal = registerGlobalRecorder({
+      stopAndSave,
+      discardAndStop,
+    });
+
     return () => {
+      unregisterGlobal();
       // Guaranteed clean shutdown of microphone streams when unmounting
       if (timerIntervalRef.current) {
         window.clearInterval(timerIntervalRef.current);
@@ -273,7 +298,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
       }
       audioSafety.unregisterRecorder(idRef.current);
     };
-  }, [stopAndSave, discardAndStop]);
+  }, [stopAndSave, discardAndStop, registerGlobalRecorder]);
 
   useEffect(() => {
     if (isRecording && recordingSeconds >= MAX_RECORDING_SECONDS) {

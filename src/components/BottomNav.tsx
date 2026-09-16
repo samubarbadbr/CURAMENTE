@@ -2,6 +2,7 @@ import React from 'react';
 import { Clock, BarChart3, Settings, HelpCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { ViewType } from '../types';
+import { useUnsavedAudio } from '../hooks/useUnsavedAudio';
 
 interface BottomNavProps {
   currentView: ViewType;
@@ -9,6 +10,8 @@ interface BottomNavProps {
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({ currentView, onSelectView }) => {
+  const { hasUnsavedAudio, isRecording, isFormDirty, interceptNavigation } = useUnsavedAudio();
+
   const navItems = [
     { id: 'timeline' as ViewType, label: 'Timeline', icon: Clock },
     { id: 'dashboard' as ViewType, label: 'Dashboard', icon: BarChart3 },
@@ -32,7 +35,13 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentView, onSelectView 
             <button
               key={item.id}
               type="button"
-              onClick={() => onSelectView(item.id)}
+              onClick={(e) => {
+                if (hasUnsavedAudio || isRecording || isFormDirty) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }
+                interceptNavigation(() => onSelectView(item.id), e);
+              }}
               className={`flex-1 flex flex-col items-center py-2 px-3 min-h-[48px] justify-center rounded-full text-xs transition-all duration-200 relative cursor-pointer select-none ${
                 isActive
                   ? 'nav-item-active font-bold'

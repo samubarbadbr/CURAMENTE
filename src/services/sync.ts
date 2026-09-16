@@ -1,9 +1,10 @@
 import { saveDataToCloud, loadDataFromCloud, SUPABASE_URL, SUPABASE_KEY, formatSupabaseErrorMessage } from '../lib/supabase';
-import { CbtEntry, Tag } from '../types';
+import { CbtEntry, Tag, DiaryNote } from '../types';
 
 export interface SyncDataPayload {
   entries: CbtEntry[];
   tags: Tag[];
+  notes?: DiaryNote[];
   settings?: Record<string, any>;
   updatedAt?: string;
 }
