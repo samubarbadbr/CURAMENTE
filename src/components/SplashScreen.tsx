@@ -77,18 +77,6 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
       className="fixed inset-0 z-[70] flex flex-col items-center justify-between bg-black text-white select-none cursor-default touch-none overscroll-none transition-colors duration-200 overflow-hidden h-[100dvh]"
       style={{ perspective: 1200 }}
     >
-      {/* Sottile barra di avanzamento YouTube top-edge a filo schermo */}
-      <div className="w-full h-[2.5px] bg-transparent overflow-hidden z-30">
-        <div
-          className={`h-full bg-white will-change-[width] transition-shadow duration-200 ${
-            isMaxed
-              ? 'shadow-[0_0_16px_#FFFFFF] brightness-125'
-              : 'shadow-[0_0_10px_rgba(255,255,255,0.9)]'
-          }`}
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-
       {/* Sfondo: Scultura 3D Liquid Glass & Chrome fotorealistica (Autentico stile Glassmorphism di riferimento) */}
       <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center overflow-hidden">
         <img

@@ -8,7 +8,6 @@ import {
   AlertCircle,
   Volume2,
   Upload,
-  Sparkles,
   RefreshCw,
 } from 'lucide-react';
 import { audioSafety } from '../services/audioSafety';
@@ -26,59 +25,6 @@ interface AudioRecorderProps {
 }
 
 const MAX_RECORDING_SECONDS = 120; // 2 minutes maximum
-
-// Generate a clean offline demo chime wave (PCM WAV Base64) for instant testing
-function generateDemoWavBase64(): Promise<string> {
-  return new Promise((resolve) => {
-    try {
-      const sampleRate = 22050;
-      const duration = 2.5;
-      const totalSamples = Math.floor(sampleRate * duration);
-      const buffer = new ArrayBuffer(44 + totalSamples * 2);
-      const view = new DataView(buffer);
-
-      const writeString = (offset: number, str: string) => {
-        for (let i = 0; i < str.length; i++) {
-          view.setUint8(offset + i, str.charCodeAt(i));
-        }
-      };
-
-      writeString(0, 'RIFF');
-      view.setUint32(4, 36 + totalSamples * 2, true);
-      writeString(8, 'WAVE');
-      writeString(12, 'fmt ');
-      view.setUint32(16, 16, true);
-      view.setUint16(20, 1, true); // PCM
-      view.setUint16(22, 1, true); // Mono
-      view.setUint32(24, sampleRate, true);
-      view.setUint32(28, sampleRate * 2, true);
-      view.setUint16(32, 2, true);
-      view.setUint16(34, 16, true);
-      writeString(36, 'data');
-      view.setUint32(40, totalSamples * 2, true);
-
-      let offset = 44;
-      for (let i = 0; i < totalSamples; i++) {
-        const t = i / sampleRate;
-        const decay = Math.exp(-1.8 * t);
-        const sample =
-          0.4 * Math.sin(2 * Math.PI * 440 * t) * decay +
-          0.3 * Math.sin(2 * Math.PI * 554 * t) * decay +
-          0.2 * Math.sin(2 * Math.PI * 659 * t) * decay;
-        const intSample = Math.max(-1, Math.min(1, sample)) * 0x7fff;
-        view.setInt16(offset, intSample, true);
-        offset += 2;
-      }
-
-      const blob = new Blob([buffer], { type: 'audio/wav' });
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.readAsDataURL(blob);
-    } catch {
-      resolve('');
-    }
-  });
-}
 
 export const AudioRecorder: React.FC<AudioRecorderProps> = ({
   audioNote,
@@ -98,7 +44,6 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isNoDeviceFound, setIsNoDeviceFound] = useState(false);
   const [hasUnsavedAudio, setHasUnsavedAudio] = useState(false);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
 
@@ -123,7 +68,6 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
   const timerIntervalRef = useRef<number | null>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const simCleanupRef = useRef<(() => void) | null>(null);
 
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -179,10 +123,6 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
 
       const recorder = mediaRecorderRef.current;
       recorder.onstop = () => {
-        if (simCleanupRef.current) {
-          simCleanupRef.current();
-          simCleanupRef.current = null;
-        }
         const mime = recorder.mimeType || 'audio/webm';
         const blob = new Blob(audioChunksRef.current, { type: mime });
         const reader = new FileReader();
@@ -237,11 +177,6 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
       mediaStreamRef.current = null;
     }
 
-    if (simCleanupRef.current) {
-      simCleanupRef.current();
-      simCleanupRef.current = null;
-    }
-
     if (audioElementRef.current) {
       audioElementRef.current.pause();
     }
@@ -289,10 +224,6 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
         });
         mediaStreamRef.current = null;
       }
-      if (simCleanupRef.current) {
-        simCleanupRef.current();
-        simCleanupRef.current = null;
-      }
       if (audioElementRef.current) {
         audioElementRef.current.pause();
       }
@@ -306,144 +237,85 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
     }
   }, [recordingSeconds, isRecording]);
 
-  // Start simulated recording using Web Audio API (100% reliable even without physical mic)
-  const startSimulatedRecording = () => {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) {
-        // Fallback directly to generated demo note
-        handleLoadDemoAudio();
-        return;
-      }
-      const ctx = new AudioCtx();
-      const dest = ctx.createMediaStreamDestination();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(320, ctx.currentTime);
-      gain.gain.setValueAtTime(0.12, ctx.currentTime);
-      osc.connect(gain);
-      gain.connect(dest);
-      osc.start();
-
-      simCleanupRef.current = () => {
-        try {
-          osc.stop();
-          ctx.close();
-        } catch {}
-      };
-
-      const stream = dest.stream;
-      mediaStreamRef.current = stream;
-      audioChunksRef.current = [];
-
-      const recorder = new MediaRecorder(stream);
-      recorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      recorder.onstop = () => {
-        if (simCleanupRef.current) {
-          simCleanupRef.current();
-          simCleanupRef.current = null;
-        }
-        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64Data = reader.result as string;
-          const finalDuration = recordingSeconds || 2;
-          setPlayerDuration(finalDuration);
-          onChange(base64Data, finalDuration);
-        };
-        reader.readAsDataURL(blob);
-      };
-
-      mediaRecorderRef.current = recorder;
-      recorder.start(250);
-      setIsRecording(true);
-      setRecordingSeconds(0);
-      setErrorMessage(null);
-      setIsNoDeviceFound(false);
-
-      timerIntervalRef.current = window.setInterval(() => {
-        setRecordingSeconds((prev) => prev + 1);
-      }, 1000);
-    } catch {
-      handleLoadDemoAudio();
-    }
-  };
-
-  // Start real or fallback recording
+  // Start real voice recording
   const startRecording = async () => {
     setErrorMessage(null);
-    setIsNoDeviceFound(false);
 
-    if (!navigator?.mediaDevices?.getUserMedia) {
-      setIsNoDeviceFound(true);
-      setErrorMessage('Microfono non accessibile dal browser corrente.');
+    const hasGetUserMedia = Boolean(
+      (navigator?.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') ||
+      (navigator as any)?.webkitGetUserMedia ||
+      (navigator as any)?.mozGetUserMedia
+    );
+
+    if (!hasGetUserMedia) {
+      setErrorMessage(
+        'Il microfono non è supportato dal browser corrente. Puoi caricare un file audio con il pulsante "Carica file".'
+      );
       return;
     }
 
     try {
-      // Check if devices exist (non-blocking)
-      if (navigator.mediaDevices.enumerateDevices) {
-        try {
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          const hasAudioInput = devices.some((d) => d.kind === 'audioinput');
-          if (devices.length > 0 && !hasAudioInput) {
-            setIsNoDeviceFound(true);
-            setErrorMessage('Nessun microfono hardware rilevato su questo dispositivo.');
-            return;
-          }
-        } catch {
-          // Ignore enumerateDevices failure and try getUserMedia
+      // Request microphone stream directly so the browser prompts the user
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+      } catch (advancedErr: any) {
+        // If advanced constraints fail or are not supported on this device/browser, try basic audio constraint
+        if (
+          advancedErr?.name === 'OverconstrainedError' ||
+          advancedErr?.name === 'TypeError' ||
+          advancedErr?.name === 'ConstraintNotSatisfiedError'
+        ) {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } else {
+          throw advancedErr;
         }
       }
 
-      let stream: MediaStream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch (micErr: any) {
-        const isNotFound =
-          micErr?.name === 'NotFoundError' ||
-          micErr?.name === 'DevicesNotFoundError' ||
-          String(micErr?.message || '').toLowerCase().includes('device not found') ||
-          String(micErr?.message || '').toLowerCase().includes('not found');
-
-        if (isNotFound) {
-          setIsNoDeviceFound(true);
-          setErrorMessage(
-            'Nessun microfono hardware rilevato. Puoi registrare una traccia simulata o caricare un file audio.'
-          );
-          return;
-        }
-        throw micErr;
+      if (!stream || stream.getAudioTracks().length === 0) {
+        throw new Error('Nessuna traccia audio rilevata dal microfono.');
       }
 
       mediaStreamRef.current = stream;
       audioChunksRef.current = [];
 
-      const mimeTypes = [
+      // Check supported MIME types across browsers (Chrome, Safari iOS 14.8+, Firefox, Edge)
+      const candidateMimeTypes = [
         'audio/webm;codecs=opus',
         'audio/webm',
         'audio/mp4',
         'audio/aac',
         'audio/ogg;codecs=opus',
+        'audio/wav',
       ];
       let selectedMimeType = '';
-      for (const t of mimeTypes) {
-        if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) {
-          selectedMimeType = t;
-          break;
+      if (typeof MediaRecorder !== 'undefined' && typeof MediaRecorder.isTypeSupported === 'function') {
+        for (const t of candidateMimeTypes) {
+          try {
+            if (MediaRecorder.isTypeSupported(t)) {
+              selectedMimeType = t;
+              break;
+            }
+          } catch {
+            // Ignore type check error
+          }
         }
       }
 
-      const recorder = selectedMimeType
-        ? new MediaRecorder(stream, { mimeType: selectedMimeType })
-        : new MediaRecorder(stream);
+      let recorder: MediaRecorder;
+      try {
+        recorder = selectedMimeType
+          ? new MediaRecorder(stream, { mimeType: selectedMimeType })
+          : new MediaRecorder(stream);
+      } catch {
+        recorder = new MediaRecorder(stream);
+      }
 
       recorder.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) {
@@ -458,44 +330,74 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
         const reader = new FileReader();
         reader.onloadend = () => {
           const base64Data = reader.result as string;
-          const finalDuration = recordingSeconds || 1;
+          const finalDuration = recordingSecondsRef.current || 1;
           setPlayerDuration(finalDuration);
           onChange(base64Data, finalDuration);
         };
         reader.readAsDataURL(blob);
 
         if (mediaStreamRef.current) {
-          mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+          mediaStreamRef.current.getTracks().forEach((t) => {
+            try { t.stop(); } catch {}
+          });
           mediaStreamRef.current = null;
         }
       };
 
       mediaRecorderRef.current = recorder;
-      recorder.start(250);
+
+      // Safe start with timeslice or default fallback
+      try {
+        recorder.start(500);
+      } catch {
+        recorder.start();
+      }
 
       setIsRecording(true);
+      isRecordingRef.current = true;
       setRecordingSeconds(0);
+      recordingSecondsRef.current = 0;
+      setErrorMessage(null);
 
+      if (timerIntervalRef.current) {
+        window.clearInterval(timerIntervalRef.current);
+      }
       timerIntervalRef.current = window.setInterval(() => {
-        setRecordingSeconds((prev) => prev + 1);
+        setRecordingSeconds((prev) => {
+          const next = prev + 1;
+          recordingSecondsRef.current = next;
+          return next;
+        });
       }, 1000);
     } catch (err: any) {
       console.warn('Avviso registrazione vocale:', err?.name, err?.message);
+      setIsRecording(false);
+      isRecordingRef.current = false;
 
       const isPermissionError =
         err?.name === 'NotAllowedError' ||
         err?.name === 'PermissionDeniedError' ||
-        String(err?.message || '').toLowerCase().includes('permission');
+        String(err?.message || '').toLowerCase().includes('permission') ||
+        String(err?.message || '').toLowerCase().includes('denied') ||
+        String(err?.message || '').toLowerCase().includes('disallowed');
 
       if (isPermissionError) {
-        setErrorMessage('Permesso microfono non concesso nel browser.');
-      } else {
-        setIsNoDeviceFound(true);
         setErrorMessage(
-          'Impossibile accedere al microfono hardware. Puoi provare la simulazione o caricare un file.'
+          'Permesso microfono non concesso nel browser. Tocca "Riprova" e seleziona "Consenti", oppure consenti l\'accesso al microfono nelle impostazioni del browser.'
+        );
+      } else if (
+        err?.name === 'NotFoundError' ||
+        err?.name === 'DevicesNotFoundError' ||
+        String(err?.message || '').toLowerCase().includes('not found')
+      ) {
+        setErrorMessage(
+          'Nessun microfono rilevato su questo dispositivo. Collega un microfono o carica un file audio.'
+        );
+      } else {
+        setErrorMessage(
+          'Impossibile accedere al microfono. Verifica che non sia occupato da un\'altra applicazione o prova a ricaricare la pagina.'
         );
       }
-      setIsRecording(false);
     }
   };
 
@@ -506,10 +408,13 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
     }
 
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {}
     }
 
     setIsRecording(false);
+    isRecordingRef.current = false;
   };
 
   const cancelRecording = () => {
@@ -520,21 +425,22 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
 
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.onstop = null;
-      mediaRecorderRef.current.stop();
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {}
     }
 
     if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current.getTracks().forEach((t) => {
+        try { t.stop(); } catch {}
+      });
       mediaStreamRef.current = null;
     }
 
-    if (simCleanupRef.current) {
-      simCleanupRef.current();
-      simCleanupRef.current = null;
-    }
-
     setIsRecording(false);
+    isRecordingRef.current = false;
     setRecordingSeconds(0);
+    recordingSecondsRef.current = 0;
     audioChunksRef.current = [];
   };
 
@@ -580,16 +486,6 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
     };
     reader.readAsDataURL(file);
     e.target.value = '';
-  };
-
-  const handleLoadDemoAudio = async () => {
-    setErrorMessage(null);
-    setIsNoDeviceFound(false);
-    const demoBase64 = await generateDemoWavBase64();
-    if (demoBase64) {
-      setPlayerDuration(3);
-      onChange(demoBase64, 3);
-    }
   };
 
   const togglePlay = () => {
@@ -781,32 +677,25 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
         </div>
       )}
 
-      {/* Avviso in caso di microfono non trovato con alternative immediate funzionanti */}
+      {/* Avviso in caso di errore microfono con pulsante riprova e carica file */}
       {errorMessage && (
         <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 space-y-2 animate-fade-in text-xs font-medium">
           <div className="flex items-start space-x-2">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
             <div className="space-y-1">
               <span className="font-bold block text-[var(--text-primary)]">{errorMessage}</span>
-              {isNoDeviceFound && (
-                <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
-                  Puoi registrare una traccia audio di test simulata (funziona al 100% senza microfono fisico) oppure caricare un file audio dal tuo dispositivo:
-                </p>
-              )}
             </div>
           </div>
 
           <div className="flex items-center gap-2 pt-1 pl-6 flex-wrap">
-            {isNoDeviceFound && (
-              <button
-                type="button"
-                onClick={startSimulatedRecording}
-                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-500 text-white shadow-xs transition-all active:scale-95 cursor-pointer"
-              >
-                <Mic className="w-3.5 h-3.5" />
-                <span>Registra comunque (Test)</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={startRecording}
+              className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 transition-all active:scale-95 cursor-pointer shadow-xs"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Riprova microfono</span>
+            </button>
 
             <button
               type="button"
@@ -815,24 +704,6 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
             >
               <Upload className="w-3.5 h-3.5" />
               <span>Carica file audio</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleLoadDemoAudio}
-              className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-400 border border-indigo-500/30 transition-all active:scale-95 cursor-pointer"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Traccia demo</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={startRecording}
-              className="inline-flex items-center space-x-1 px-2 py-1.5 rounded-xl text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-subtle)] border border-[var(--border-solid)] transition-all active:scale-95 cursor-pointer"
-            >
-              <RefreshCw className="w-3 h-3" />
-              <span>Riprova</span>
             </button>
           </div>
         </div>

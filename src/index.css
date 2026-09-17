@@ -231,11 +231,13 @@ html[data-theme='amethyst'] {
 /* Base surface elements uniformly mapping to theme variables */
 .glass-panel {
   background-color: color-mix(in srgb, var(--bg-surface) 35%, transparent) !important;
-  backdrop-filter: blur(48px) saturate(200%) contrast(105%);
-  -webkit-backdrop-filter: blur(48px) saturate(200%) contrast(105%);
+  backdrop-filter: blur(64px) saturate(220%);
+  -webkit-backdrop-filter: blur(64px) saturate(220%);
   border: 1px solid var(--border-solid) !important;
   border-radius: 24px;
   box-shadow: var(--panel-shadow, 0 10px 32px rgba(0, 0, 0, 0.3)), inset 0 1px 1.5px rgba(255, 255, 255, 0.12);
+  padding: clamp(1rem, 5vw, 2rem);
+  margin-bottom: 1.5rem;
 }
 
 .glass-header, header {
