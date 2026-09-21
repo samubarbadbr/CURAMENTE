@@ -56,7 +56,7 @@ export const CustomQuestionModal: React.FC<CustomQuestionModalProps> = ({
   const [prompt, setPrompt] = useState('');
   const [category, setCategory] = useState<QuestionCategory>('Gratitudine');
   const [responseType, setResponseType] = useState<QuestionResponseType>('text');
-  const [scaleMax, setScaleMax] = useState<5 | 10>(10);
+  const [scaleMax, setScaleMax] = useState<5 | 10 | 100>(100);
   const [frequency, setFrequency] = useState<QuestionFrequency>('daily');
   const [isEnabled, setIsEnabled] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,9 +72,12 @@ export const CustomQuestionModal: React.FC<CustomQuestionModalProps> = ({
         } else if (questionToEdit.responseType === 'scale_10') {
           setResponseType('scale_10');
           setScaleMax(10);
+        } else if (questionToEdit.responseType === 'scale_100') {
+          setResponseType('scale_100');
+          setScaleMax(100);
         } else {
           setResponseType(questionToEdit.responseType);
-          setScaleMax(10);
+          setScaleMax(100);
         }
         setFrequency(questionToEdit.frequency);
         setIsEnabled(questionToEdit.isEnabled);
@@ -82,7 +85,7 @@ export const CustomQuestionModal: React.FC<CustomQuestionModalProps> = ({
         setPrompt('');
         setCategory('Gratitudine');
         setResponseType('text');
-        setScaleMax(10);
+        setScaleMax(100);
         setFrequency('daily');
         setIsEnabled(false);
       }
@@ -100,10 +103,12 @@ export const CustomQuestionModal: React.FC<CustomQuestionModalProps> = ({
     }
 
     const finalResponseType: QuestionResponseType =
-      responseType === 'scale_5' || responseType === 'scale_10'
+      responseType === 'scale_5' || responseType === 'scale_10' || responseType === 'scale_100'
         ? scaleMax === 5
           ? 'scale_5'
-          : 'scale_10'
+          : scaleMax === 10
+          ? 'scale_10'
+          : 'scale_100'
         : responseType;
 
     onSave({
@@ -116,7 +121,7 @@ export const CustomQuestionModal: React.FC<CustomQuestionModalProps> = ({
     onClose();
   };
 
-  const isScaleSelected = responseType === 'scale_5' || responseType === 'scale_10';
+  const isScaleSelected = responseType === 'scale_5' || responseType === 'scale_10' || responseType === 'scale_100';
 
   return (
     <AnimatePresence>
@@ -270,24 +275,24 @@ export const CustomQuestionModal: React.FC<CustomQuestionModalProps> = ({
                 </button>
               </div>
 
-              {/* Sub-selector for Scale Max (1-5 vs 1-10) */}
+              {/* Sub-selector for Scale Max (1-5 vs 1-10 vs 0-100) */}
               {isScaleSelected && (
-                <div className="p-3 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] flex items-center justify-between mt-2 animate-fade-in">
+                <div className="p-3 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2 animate-fade-in">
                   <span className="text-xs font-bold text-[var(--text-primary)]">Intervallo della scala:</span>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => {
-                        setScaleMax(5);
-                        setResponseType('scale_5');
+                        setScaleMax(100);
+                        setResponseType('scale_100');
                       }}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        scaleMax === 5
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        scaleMax === 100
                           ? 'bg-[var(--accent-btn)] text-[var(--accent-btn-text)] font-black shadow-xs'
                           : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-solid)]'
                       }`}
                     >
-                      Da 1 a 5
+                      0 - 100 (passi da 5)
                     </button>
                     <button
                       type="button"
@@ -295,13 +300,27 @@ export const CustomQuestionModal: React.FC<CustomQuestionModalProps> = ({
                         setScaleMax(10);
                         setResponseType('scale_10');
                       }}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                         scaleMax === 10
                           ? 'bg-[var(--accent-btn)] text-[var(--accent-btn-text)] font-black shadow-xs'
                           : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-solid)]'
                       }`}
                     >
-                      Da 1 a 10
+                      1 - 10
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setScaleMax(5);
+                        setResponseType('scale_5');
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        scaleMax === 5
+                          ? 'bg-[var(--accent-btn)] text-[var(--accent-btn-text)] font-black shadow-xs'
+                          : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-solid)]'
+                      }`}
+                    >
+                      1 - 5
                     </button>
                   </div>
                 </div>

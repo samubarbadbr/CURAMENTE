@@ -80,6 +80,67 @@ export async function saveDataToCloud(pin: string, payloadData: any) {
   }
 }
 
+export async function checkCloudDataExists(pin: string): Promise<{
+  success: boolean;
+  exists: boolean;
+  data: any | null;
+  updatedAt?: string;
+  error?: string;
+}> {
+  if (!pin) return { success: false, exists: false, data: null, error: 'PIN / User ID mancante' };
+  const cleanId = pin.trim().toLowerCase();
+  try {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return { success: false, exists: false, data: null, error: 'Dispositivo offline' };
+    }
+
+    const headers = {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`
+    };
+
+    const queryUrls = [
+      `${SUPABASE_URL}/rest/v1/user_sync_data?user_pin=eq.${encodeURIComponent(cleanId)}&select=*`,
+      `${SUPABASE_URL}/rest/v1/user_sync_data?pin=eq.${encodeURIComponent(cleanId)}&select=*`,
+      `${SUPABASE_URL}/rest/v1/user_sync_data?user_id=eq.${encodeURIComponent(cleanId)}&select=*`
+    ];
+
+    for (const url of queryUrls) {
+      try {
+        const res = await fetch(url, { method: 'GET', headers });
+        if (res.ok) {
+          const rows = await res.json();
+          if (Array.isArray(rows) && rows.length > 0) {
+            const row = rows[0];
+            const payload = row.data || row.payload || row;
+            const updatedAt = row.updated_at || (payload && payload.updatedAt);
+            if (payload && typeof payload === 'object' && !payload.updatedAt && updatedAt) {
+              payload.updatedAt = updatedAt;
+            }
+            return {
+              success: true,
+              exists: true,
+              data: payload,
+              updatedAt
+            };
+          } else if (Array.isArray(rows) && rows.length === 0) {
+            return {
+              success: true,
+              exists: false,
+              data: null
+            };
+          }
+        }
+      } catch (e) {
+        // try next column query
+      }
+    }
+    return { success: true, exists: false, data: null };
+  } catch (err: any) {
+    return { success: false, exists: false, data: null, error: err?.message || 'Errore di rete' };
+  }
+}
+
 export async function loadDataFromCloud(pin: string) {
   if (!pin) return null;
   const cleanId = pin.trim().toLowerCase();
@@ -107,7 +168,12 @@ export async function loadDataFromCloud(pin: string) {
         if (res.ok) {
           const data = await res.json();
           if (data && data.length > 0) {
-            return data[0].data || data[0].payload || data[0];
+            const row = data[0];
+            const payload = row.data || row.payload || row;
+            if (payload && typeof payload === 'object' && !payload.updatedAt && row.updated_at) {
+              payload.updatedAt = row.updated_at;
+            }
+            return payload;
           }
         }
       } catch (e) {

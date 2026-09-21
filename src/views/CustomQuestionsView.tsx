@@ -283,6 +283,12 @@ export const CustomQuestionsView: React.FC<CustomQuestionsViewProps> = ({
                               <span>Testo Libero</span>
                             </>
                           )}
+                          {q.responseType === 'scale_100' && (
+                            <>
+                              <Sliders className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
+                              <span>Barra 0 - 100 (passi da 5)</span>
+                            </>
+                          )}
                           {q.responseType === 'scale_5' && (
                             <>
                               <Sliders className="w-3.5 h-3.5 text-[var(--accent-primary)]" />

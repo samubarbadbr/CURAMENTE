@@ -329,8 +329,14 @@ export default function App() {
       const allEntries = await DB.getAll<CbtEntry>('entries');
       const tags = await DB.getAll<Tag>('tags');
       const allNotes = await DB.getAll<DiaryNote>('notes');
+      const customQuestions = CustomQuestionsService.load();
 
-      const res = await SyncService.push(pin, { entries: allEntries, tags, notes: allNotes });
+      const res = await SyncService.push(pin, {
+        entries: allEntries,
+        tags,
+        notes: allNotes,
+        customQuestions,
+      });
       if (res.success) {
         setSyncStatus('synced');
         setLastSyncedAt(res.updatedAt || new Date().toISOString());
@@ -377,6 +383,10 @@ export default function App() {
           for (const note of res.data.notes) {
             await DB.put('notes', note);
           }
+        }
+        // Merge cloud custom questions
+        if (res.data.customQuestions && Array.isArray(res.data.customQuestions)) {
+          CustomQuestionsService.save(res.data.customQuestions);
         }
 
         const updatedTags = await cleanupAndDeduplicateTags();
@@ -480,46 +490,34 @@ export default function App() {
       console.warn(e);
     }
 
-    // Try pulling from cloud first for existing data on this PIN
     setSyncStatus('syncing');
-    const pullRes = await SyncService.pull(cleanPin);
-    if (pullRes.success && pullRes.data && (pullRes.data.entries?.length || pullRes.data.notes?.length)) {
-      if (pullRes.data.entries && Array.isArray(pullRes.data.entries)) {
-        for (const entry of pullRes.data.entries) {
-          await DB.put('entries', entry);
-        }
-      }
-      if (pullRes.data.tags && Array.isArray(pullRes.data.tags)) {
-        for (const tag of pullRes.data.tags) {
-          await DB.put('tags', tag);
-        }
-      }
-      if (pullRes.data.notes && Array.isArray(pullRes.data.notes)) {
-        for (const note of pullRes.data.notes) {
-          await DB.put('notes', note);
-        }
-      }
-      const updatedTags = await cleanupAndDeduplicateTags();
-      setAllTags(updatedTags);
-      await loadEntries(periodFilter);
-      await loadNotes();
-      setSyncStatus('synced');
-      setLastSyncedAt(pullRes.data.updatedAt || new Date().toISOString());
-      showToast(`Dati e diario scaricati e collegati per il PIN ${cleanPin}!`);
-    } else {
-      // If no data on cloud, push local data up to cloud
-      const allEntries = await DB.getAll<CbtEntry>('entries');
-      const tags = await DB.getAll<Tag>('tags');
-      const allNotes = await DB.getAll<DiaryNote>('notes');
-      const pushRes = await SyncService.push(cleanPin, { entries: allEntries, tags, notes: allNotes });
-      if (pushRes.success) {
+    try {
+      // Check cloud data and merge / backup silently
+      const res = await SyncService.silentSyncOnStartup(cleanPin, async (payload, summary) => {
+        const updatedTags = await cleanupAndDeduplicateTags();
+        setAllTags(updatedTags);
+        await loadEntries(periodFilter);
+        await loadNotes();
+      });
+
+      if (res.success) {
         setSyncStatus('synced');
-        setLastSyncedAt(pushRes.updatedAt || new Date().toISOString());
-        showToast(`Dati e diario salvati sul Cloud per il PIN ${cleanPin}!`);
+        setLastSyncedAt(res.updatedAt || new Date().toISOString());
+        if (res.existsOnCloud && res.hasDifferences) {
+          showToast(`Sincronizzazione completata (${res.summary})`);
+        } else if (res.existsOnCloud && !res.hasDifferences) {
+          showToast(`Cloud e dispositivo già allineati per il PIN ${cleanPin}`);
+        } else {
+          showToast(`Dati collegati e salvati su Cloud per il PIN ${cleanPin}!`);
+        }
       } else {
-        setSyncStatus('error');
-        showToast(`Errore sincronizzazione: ${pushRes.error || 'Impossibile connettersi'}`);
+        setSyncStatus('idle');
+        showToast(res.summary || 'Verifica connessione cloud completata');
       }
+    } catch (err: any) {
+      console.error('Errore salvataggio PIN e sync:', err);
+      setSyncStatus('error');
+      showToast(`Errore connessione: ${err?.message || 'Impossibile connettersi'}`);
     }
   };
 
@@ -590,46 +588,54 @@ export default function App() {
         let activeSyncPin = syncPinRow?.value;
         if (!activeSyncPin) {
           try {
-            activeSyncPin = localStorage.getItem('diariamente_sync_pin') || localStorage.getItem('diariomente_sync_pin') || '';
+            activeSyncPin =
+              localStorage.getItem('diariamente_sync_pin') ||
+              localStorage.getItem('diariomente_sync_pin') ||
+              '';
+          } catch {}
+        }
+        if (!activeSyncPin && effectivePinCode) {
+          activeSyncPin = effectivePinCode;
+        }
+        if (!activeSyncPin) {
+          try {
+            let devId = localStorage.getItem('diariamente_device_sync_id');
+            if (!devId) {
+              devId = 'usr_' + Math.random().toString(36).substring(2, 10);
+              localStorage.setItem('diariamente_device_sync_id', devId);
+            }
+            activeSyncPin = devId;
           } catch {}
         }
 
         if (activeSyncPin && isMounted) {
           setSyncPin(activeSyncPin);
           setSyncStatus('syncing');
-          // Auto-fetch from Supabase when app opens
-          SyncService.pull(activeSyncPin).then(async (res) => {
-            if (res.success && res.data) {
-              if (res.data.entries && Array.isArray(res.data.entries)) {
-                for (const entry of res.data.entries) {
-                  await DB.put('entries', entry);
-                }
-              }
-              if (res.data.tags && Array.isArray(res.data.tags)) {
-                for (const tag of res.data.tags) {
-                  await DB.put('tags', tag);
-                }
-              }
-              if (res.data.notes && Array.isArray(res.data.notes)) {
-                for (const note of res.data.notes) {
-                  await DB.put('notes', note);
-                }
-              }
-              const updatedTags = await cleanupAndDeduplicateTags();
-              if (isMounted) {
-                setAllTags(updatedTags);
+
+          // Check if data exists on Cloud via Supabase and silently sync if differences are found
+          SyncService.silentSyncOnStartup(activeSyncPin, async (payload, summary) => {
+            if (!isMounted) return;
+            console.log('[Silent Cloud Sync all\'avvio] Differenze sincronizzate con successo:', summary);
+            const updatedTags = await cleanupAndDeduplicateTags();
+            setAllTags(updatedTags);
+            await loadEntries('30');
+            await loadNotes();
+            setSyncStatus('synced');
+            setLastSyncedAt(new Date().toISOString());
+          })
+            .then((res) => {
+              if (!isMounted) return;
+              if (res.success) {
                 setSyncStatus('synced');
-                setLastSyncedAt(res.data.updatedAt || new Date().toISOString());
+                setLastSyncedAt(res.updatedAt || new Date().toISOString());
+              } else {
+                setSyncStatus('idle');
               }
-              await loadEntries('30');
-              await loadNotes();
-            } else {
+            })
+            .catch((err) => {
+              console.warn('Avviso controllo automatico cloud all\'avvio:', err);
               if (isMounted) setSyncStatus('idle');
-            }
-          }).catch((err) => {
-            console.warn('Auto fetch cloud error on startup:', err);
-            if (isMounted) setSyncStatus('error');
-          });
+            });
         }
 
         if (isMounted) {
@@ -659,6 +665,39 @@ export default function App() {
       window.removeEventListener('offline', handleOffline);
     };
   }, [applyTheme, loadEntries]);
+
+  // Auto silent cloud check on app resume / tab focus (minimum 45s cooldown)
+  useEffect(() => {
+    let lastCheckTime = Date.now();
+    const handleVisibilityOrFocus = async () => {
+      if (document.visibilityState === 'visible' && Date.now() - lastCheckTime > 45000) {
+        lastCheckTime = Date.now();
+        const currentPin =
+          syncPin ||
+          localStorage.getItem('diariamente_sync_pin') ||
+          localStorage.getItem('diariomente_sync_pin') ||
+          localStorage.getItem('diariamente_device_sync_id');
+        if (currentPin) {
+          await SyncService.silentSyncOnStartup(currentPin, async (payload, summary) => {
+            console.log('[Resume Cloud Sync] Sincronizzati nuovi dati da Cloud:', summary);
+            const updatedTags = await cleanupAndDeduplicateTags();
+            setAllTags(updatedTags);
+            await loadEntries(periodFilter);
+            await loadNotes();
+            setSyncStatus('synced');
+            setLastSyncedAt(new Date().toISOString());
+          });
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+    };
+  }, [syncPin, periodFilter, loadEntries, loadNotes]);
 
   // Recovery Return Hook: Detect incoming email recovery link or PASSWORD_RECOVERY event
   useEffect(() => {

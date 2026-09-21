@@ -16,7 +16,7 @@ export type QuestionCategory =
   | 'Riflessione'
   | 'Altro';
 
-export type QuestionResponseType = 'text' | 'scale_5' | 'scale_10' | 'boolean';
+export type QuestionResponseType = 'text' | 'scale_5' | 'scale_10' | 'scale_100' | 'boolean';
 
 export type QuestionFrequency = 'daily' | 'weekdays' | 'weekend';
 

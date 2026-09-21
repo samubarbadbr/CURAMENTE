@@ -563,6 +563,13 @@ NOTIFY pgrst, 'reload schema';`;
               <span>Verifica Connessione Cloud</span>
             </button>
           )}
+
+          <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold leading-relaxed">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500 mt-0.5" />
+            <span>
+              <strong>Sincronizzazione automatica all'avvio:</strong> L'esistenza di dati su Cloud viene verificata automaticamente ad ogni avvio dell'app tramite Supabase. Se viene rilevata una differenza, i database locali vengono sincronizzati in modo silenzioso.
+            </span>
+          </div>
         </div>
       </div>
 

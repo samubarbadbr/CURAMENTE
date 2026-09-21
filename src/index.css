@@ -236,8 +236,19 @@ html[data-theme='amethyst'] {
   border: 1px solid var(--border-solid) !important;
   border-radius: 24px;
   box-shadow: var(--panel-shadow, 0 10px 32px rgba(0, 0, 0, 0.3)), inset 0 1px 1.5px rgba(255, 255, 255, 0.12);
-  padding: clamp(1rem, 5vw, 2rem);
+  padding-top: 2rem;
+  padding-bottom: 2rem;
   margin-bottom: 1.5rem;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  will-change: transform, box-shadow;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .glass-panel:hover {
+    transform: translateY(-3px) scale(1.008);
+    border-color: color-mix(in srgb, var(--accent-primary) 32%, var(--border-solid)) !important;
+    box-shadow: 0 22px 50px -6px rgba(0, 0, 0, 0.42), 0 8px 20px -2px rgba(0, 0, 0, 0.26), inset 0 1px 2px rgba(255, 255, 255, 0.2) !important;
+  }
 }
 
 .glass-header, header {

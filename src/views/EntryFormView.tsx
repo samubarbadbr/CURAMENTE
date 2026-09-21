@@ -136,6 +136,19 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   const [isPhotoObscured, setIsPhotoObscured] = useState(false);
 
+  // Custom questions reactive state (must be initialized before openSections to avoid TDZ error)
+  const [customQuestions, setCustomQuestions] = useState<CustomQuestion[]>(() =>
+    CustomQuestionsService.getApplicableQuestionsForDate(initialDraft.eventDatetime)
+  );
+
+  useEffect(() => {
+    const handleQuestionsUpdate = () => {
+      setCustomQuestions(CustomQuestionsService.getApplicableQuestionsForDate(draft.eventDatetime));
+    };
+    window.addEventListener('custom_questions_updated', handleQuestionsUpdate);
+    return () => window.removeEventListener('custom_questions_updated', handleQuestionsUpdate);
+  }, [draft.eventDatetime]);
+
   // Smooth collapsible sections state for optional fields
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
     return {
@@ -188,7 +201,10 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
       audio: Boolean(draft.audioNote),
       triggers: Boolean(draft.triggerFactors?.trim()),
       thoughtTags: Boolean(draft.thoughtTagIds && draft.thoughtTagIds.length > 0),
-      customQuestions: Boolean(draft.customAnswers && Object.keys(draft.customAnswers).length > 0),
+      customQuestions: Boolean(
+        (draft.customAnswers && Object.keys(draft.customAnswers).length > 0) ||
+        (customQuestions && customQuestions.length > 0)
+      ),
       physicalSymptoms: Boolean(draft.physicalSymptomsText?.trim() || (draft.physicalSymptomTagIds && draft.physicalSymptomTagIds.length > 0)),
       negativeThoughtsExt: Boolean(draft.negativeThoughtsExtended?.trim() || (draft.negativeThoughtsIntensity && draft.negativeThoughtsIntensity > 0)),
       bodyAttention: Boolean(draft.bodyFocusedAttentionLevel && draft.bodyFocusedAttentionLevel > 0),
@@ -198,19 +214,6 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
       notes: Boolean(draft.notes?.trim()),
     });
   };
-
-  // Custom questions reactive state
-  const [customQuestions, setCustomQuestions] = useState<CustomQuestion[]>(() =>
-    CustomQuestionsService.getApplicableQuestionsForDate(initialDraft.eventDatetime)
-  );
-
-  useEffect(() => {
-    const handleQuestionsUpdate = () => {
-      setCustomQuestions(CustomQuestionsService.getApplicableQuestionsForDate(draft.eventDatetime));
-    };
-    window.addEventListener('custom_questions_updated', handleQuestionsUpdate);
-    return () => window.removeEventListener('custom_questions_updated', handleQuestionsUpdate);
-  }, [draft.eventDatetime]);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -1237,7 +1240,23 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                         />
                       )}
 
-                      {/* 2. Scale 1-5 or 1-10 response */}
+                      {/* 2. Scale 0-100 response with step 5 */}
+                      {q.responseType === 'scale_100' && (
+                        <div className="pt-1">
+                          <GradientSlider
+                            value={typeof currentValue === 'number' ? currentValue : 50}
+                            onChange={(val) => handleCustomAnswerChange(q.id, val)}
+                            step={5}
+                            min={0}
+                            max={100}
+                            lowLabel="Minimo"
+                            midLabel="Medio"
+                            highLabel="Massimo"
+                          />
+                        </div>
+                      )}
+
+                      {/* 3. Scale 1-5 or 1-10 response */}
                       {(q.responseType === 'scale_5' || q.responseType === 'scale_10') && (
                         <div className="space-y-1.5">
                           <div className="flex items-center justify-between text-[10px] font-bold text-[var(--text-secondary)] px-1">

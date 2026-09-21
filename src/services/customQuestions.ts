@@ -18,7 +18,7 @@ export const DEFAULT_CUSTOM_QUESTIONS: CustomQuestion[] = [
     id: 'default-q-2',
     prompt: 'Come valuto il mio livello di energia e serenità interiore?',
     category: 'Mood',
-    responseType: 'scale_10',
+    responseType: 'scale_100',
     frequency: 'daily',
     isEnabled: false,
     isDefault: true,
