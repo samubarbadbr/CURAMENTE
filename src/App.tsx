@@ -287,7 +287,21 @@ export default function App() {
   const loadEntries = useCallback(async (period: PeriodFilter) => {
     try {
       const all = await DB.getAll<CbtEntry>('entries');
-      all.sort((a, b) => new Date(b.eventDatetime).getTime() - new Date(a.eventDatetime).getTime());
+      const parseTime = (dateStr?: string) => {
+        if (!dateStr) return 0;
+        const d = new Date(dateStr);
+        const t = d.getTime();
+        if (!isNaN(t)) return t;
+        const d2 = new Date(dateStr.replace(' ', 'T'));
+        const t2 = d2.getTime();
+        return !isNaN(t2) ? t2 : 0;
+      };
+
+      all.sort((a, b) => {
+        const timeA = parseTime(a.eventDatetime) || parseTime(a.createdAt);
+        const timeB = parseTime(b.eventDatetime) || parseTime(b.createdAt);
+        return timeB - timeA;
+      });
 
       if (period === 'all') {
         setEntries(all);
@@ -295,10 +309,19 @@ export default function App() {
       }
 
       const days = Number(period);
+      if (isNaN(days)) {
+        setEntries(all);
+        return;
+      }
+
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - days);
+      cutoff.setHours(0, 0, 0, 0); // Include entire day starting at midnight
 
-      const filtered = all.filter((e) => new Date(e.eventDatetime) >= cutoff);
+      const filtered = all.filter((e) => {
+        const entryTime = parseTime(e.eventDatetime) || parseTime(e.createdAt);
+        return entryTime >= cutoff.getTime();
+      });
       setEntries(filtered);
     } catch (err) {
       console.error('Failed to load entries:', err);
@@ -1352,7 +1375,10 @@ export default function App() {
                   onTogglePinNote={handleTogglePinDiaryNote}
                   onNewNote={() => handleOpenGlobalNewNote()}
                   periodFilter={periodFilter}
-                  onFilterChange={(p) => setPeriodFilter(p)}
+                  onFilterChange={(p) => {
+                    setPeriodFilter(p);
+                    loadEntries(p);
+                  }}
                   onSelectEntry={(id) => {
                     setDetailEntryId(id);
                     navigateToView('detail');

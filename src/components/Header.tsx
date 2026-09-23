@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Sun, Moon, WifiOff, EyeOff, Eye } from 'lucide-react';
+import { Plus, Sun, Moon, WifiOff, EyeOff, Eye, BookOpen } from 'lucide-react';
 import { ViewType, ThemeMode } from '../types';
 import { PWAInstallButton } from './PWAInstallButton';
 import { BrandLogo } from './BrandLogo';
@@ -21,6 +21,7 @@ export const Header: React.FC<HeaderProps> = ({
   themeMode,
   onToggleTheme,
   onNewEntry,
+  onNewNote,
   isOnline,
   isPrivacyModeEnabled = false,
   onTogglePrivacyMode,
@@ -45,7 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
         aria-hidden="true"
       />
       {/* Top Left: Unified Sophisticated & Larger Brand Element */}
-      <div className="flex items-center">
+      <div className="flex items-center min-w-0">
         {onShowSplash ? (
           <button
             type="button"
@@ -57,34 +58,34 @@ export const Header: React.FC<HeaderProps> = ({
               }
               interceptNavigation(() => onShowSplash(), e);
             }}
-            className="flex items-center space-x-3 py-1.5 px-2 -ml-2 rounded-2xl hover:bg-[var(--bg-subtle)] active:scale-97 transition-all duration-150 cursor-pointer group select-none"
+            className="flex items-center space-x-2 sm:space-x-3 py-1.5 px-2 -ml-2 rounded-2xl hover:bg-[var(--bg-subtle)] active:scale-97 transition-all duration-150 cursor-pointer group select-none"
             aria-label="Torna alla copertina iniziale"
             title="Torna alla copertina"
           >
-            <BrandLogo className="w-10 h-10 group-hover:scale-105 transition-all duration-150" />
-            <div className="flex items-center space-x-2">
-              <h1 className="text-lg sm:text-xl font-black tracking-tight text-[var(--text-primary)] leading-none">
+            <BrandLogo className="w-9 h-9 sm:w-10 sm:h-10 group-hover:scale-105 transition-all duration-150 shrink-0" />
+            <div className="flex items-center space-x-2 min-w-0">
+              <h1 className="text-lg sm:text-xl font-black tracking-tight text-[var(--text-primary)] leading-none truncate">
                 Diariamente
               </h1>
               {!isOnline && (
-                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30 shrink-0">
                   <WifiOff className="w-3 h-3" />
-                  <span>Offline</span>
+                  <span className="hidden sm:inline">Offline</span>
                 </span>
               )}
             </div>
           </button>
         ) : (
-          <div className="flex items-center space-x-3 py-1.5 select-none">
-            <BrandLogo className="w-10 h-10" />
-            <div className="flex items-center space-x-2">
-              <h1 className="text-lg sm:text-xl font-black tracking-tight text-[var(--text-primary)] leading-none">
+          <div className="flex items-center space-x-2 sm:space-x-3 py-1.5 select-none min-w-0">
+            <BrandLogo className="w-9 h-9 sm:w-10 sm:h-10 shrink-0" />
+            <div className="flex items-center space-x-2 min-w-0">
+              <h1 className="text-lg sm:text-xl font-black tracking-tight text-[var(--text-primary)] leading-none truncate">
                 Diariamente
               </h1>
               {!isOnline && (
-                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30 shrink-0">
                   <WifiOff className="w-3 h-3" />
-                  <span>Offline</span>
+                  <span className="hidden sm:inline">Offline</span>
                 </span>
               )}
             </div>
@@ -130,6 +131,28 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </button>
 
+        {/* Pulsante Appunto Diario (Secondario ma importante per la terapia) */}
+        {onNewNote && (
+          <button
+            type="button"
+            onClick={(e) => {
+              if (hasUnsavedAudio || isRecording || isFormDirty) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+              interceptNavigation(() => onNewNote(), e);
+            }}
+            className="inline-flex items-center space-x-1.5 px-3 sm:px-3.5 py-2.5 min-h-[44px] rounded-full text-xs sm:text-sm font-bold text-[var(--text-primary)] bg-[var(--bg-surface)] hover:bg-[var(--bg-subtle)] active:scale-95 transition-all duration-150 border border-[var(--border-solid)] shadow-sm cursor-pointer shrink-0"
+            title="Aggiungi appunto o riflessione nel diario"
+            aria-label="Aggiungi appunto diario"
+          >
+            <BookOpen className="w-4 h-4 stroke-[2.5] text-[var(--accent-primary)] shrink-0" />
+            <span className="hidden sm:inline">Appunto Diario</span>
+            <span className="sm:hidden">Appunto</span>
+          </button>
+        )}
+
+        {/* Pulsante + Nuova (Azione Principale Primaria ad alta enfasi) */}
         <button
           type="button"
           onClick={(e) => {
@@ -139,10 +162,14 @@ export const Header: React.FC<HeaderProps> = ({
             }
             interceptNavigation(() => onNewEntry(), e);
           }}
-          className="btn-primary inline-flex items-center space-x-1.5 px-3.5 sm:px-4 py-2.5 min-h-[44px] rounded-full shadow-md active:scale-95 transition-all duration-150 cursor-pointer shrink-0 bg-[var(--accent-btn)] text-[var(--accent-btn-text)]"
+          className="btn-primary inline-flex items-center space-x-1.5 px-4 sm:px-5 py-2.5 min-h-[44px] rounded-full shadow-lg shadow-[var(--accent-btn)]/25 active:scale-95 transition-all duration-150 cursor-pointer shrink-0 bg-[var(--accent-btn)] text-[var(--accent-btn-text)] ring-2 ring-[var(--accent-btn)]/30 hover:brightness-110"
+          title="Nuova scheda clinica CBT (Scheda ABCDE)"
+          aria-label="Nuova scheda clinica CBT"
         >
-          <Plus className="w-4 h-4 stroke-[2.5] text-[var(--accent-btn-text)]" />
-          <span className="font-bold text-xs sm:text-sm text-[var(--accent-btn-text)]">Nuova</span>
+          <Plus className="w-4 h-4 stroke-[3] text-[var(--accent-btn-text)] shrink-0" />
+          <span className="font-black text-xs sm:text-sm tracking-wide text-[var(--accent-btn-text)]">
+            Nuova
+          </span>
         </button>
       </div>
     </header>

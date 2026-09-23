@@ -7,7 +7,6 @@ import {
   Pin,
   Camera,
   Trash2,
-  Calendar,
   Cloud,
   Mic,
   BookOpen,
@@ -16,6 +15,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { AudioRecorder } from './AudioRecorder';
+import { CustomDatePicker } from './CustomDatePicker';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { exportSingleDiaryNotePdf } from '../services/diaryReportGenerator';
 
@@ -63,13 +63,55 @@ export const DiaryNoteModal: React.FC<DiaryNoteModalProps> = ({
   const [category, setCategory] = useState<DiaryNoteCategory>('Riflessione');
   const [mood, setMood] = useState<DiaryNoteMood>('sereno');
   const [pinned, setPinned] = useState(false);
-  const [eventDatetime, setEventDatetime] = useState('');
+  const [noteDate, setNoteDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [noteTime, setNoteTime] = useState(() => {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  });
   const [photo, setPhoto] = useState<string | undefined>(undefined);
   const [audioNote, setAudioNote] = useState<string | undefined>(undefined);
   const [audioDuration, setAudioDuration] = useState<number | undefined>(undefined);
   const [showAudioRecorder, setShowAudioRecorder] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  // Helper to extract local date (YYYY-MM-DD) and time (HH:mm)
+  const extractDateAndTimeToState = (isoDateStr?: string) => {
+    try {
+      const d = isoDateStr ? new Date(isoDateStr) : new Date();
+      const validD = !isNaN(d.getTime()) ? d : new Date();
+      const yyyy = validD.getFullYear();
+      const mm = String(validD.getMonth() + 1).padStart(2, '0');
+      const dd = String(validD.getDate()).padStart(2, '0');
+      const hh = String(validD.getHours()).padStart(2, '0');
+      const min = String(validD.getMinutes()).padStart(2, '0');
+      return {
+        date: `${yyyy}-${mm}-${dd}`,
+        time: `${hh}:${min}`,
+      };
+    } catch {
+      const now = new Date();
+      return {
+        date: now.toISOString().slice(0, 10),
+        time: '12:00',
+      };
+    }
+  };
+
+  // Helper to compute ISO string from state
+  const getNoteIsoDatetime = () => {
+    try {
+      const [y, m, d] = (noteDate || new Date().toISOString().slice(0, 10)).split('-').map(Number);
+      const [hh, mm] = (noteTime || '12:00').split(':').map(Number);
+      const dateObj = new Date(y, m - 1, d, hh, mm);
+      if (!isNaN(dateObj.getTime())) {
+        return dateObj.toISOString();
+      }
+    } catch (err) {
+      console.error('Error combining date/time:', err);
+    }
+    return new Date().toISOString();
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -84,16 +126,9 @@ export const DiaryNoteModal: React.FC<DiaryNoteModalProps> = ({
         setAudioDuration(initialNote.audioDuration);
         setShowAudioRecorder(!!initialNote.audioNote);
 
-        try {
-          const d = new Date(initialNote.createdAt);
-          const offset = d.getTimezoneOffset() * 60000;
-          const localIso = new Date(d.getTime() - offset).toISOString().slice(0, 16);
-          setEventDatetime(localIso);
-        } catch {
-          const now = new Date();
-          const offset = now.getTimezoneOffset() * 60000;
-          setEventDatetime(new Date(now.getTime() - offset).toISOString().slice(0, 16));
-        }
+        const { date, time } = extractDateAndTimeToState(initialNote.createdAt);
+        setNoteDate(date);
+        setNoteTime(time);
       } else {
         setTitle('');
         setContent('');
@@ -105,9 +140,9 @@ export const DiaryNoteModal: React.FC<DiaryNoteModalProps> = ({
         setAudioDuration(undefined);
         setShowAudioRecorder(false);
 
-        const now = new Date();
-        const offset = now.getTimezoneOffset() * 60000;
-        setEventDatetime(new Date(now.getTime() - offset).toISOString().slice(0, 16));
+        const { date, time } = extractDateAndTimeToState();
+        setNoteDate(date);
+        setNoteTime(time);
       }
       setErrorMsg('');
     }
@@ -146,7 +181,7 @@ export const DiaryNoteModal: React.FC<DiaryNoteModalProps> = ({
       id: initialNote ? initialNote.id : `note-temp-${Date.now()}`,
       title: title.trim(),
       content: content.trim(),
-      createdAt: eventDatetime ? new Date(eventDatetime).toISOString() : new Date().toISOString(),
+      createdAt: getNoteIsoDatetime(),
       updatedAt: new Date().toISOString(),
       category,
       mood,
@@ -182,7 +217,7 @@ export const DiaryNoteModal: React.FC<DiaryNoteModalProps> = ({
       id: initialNote ? initialNote.id : `note-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
       title: title.trim(),
       content: content.trim(),
-      createdAt: eventDatetime ? new Date(eventDatetime).toISOString() : new Date().toISOString(),
+      createdAt: getNoteIsoDatetime(),
       updatedAt: new Date().toISOString(),
       category,
       mood,
@@ -271,22 +306,29 @@ export const DiaryNoteModal: React.FC<DiaryNoteModalProps> = ({
             </div>
           )}
 
-          {/* Date & Pinned switch */}
-          <div className="flex flex-wrap items-center justify-between gap-2.5">
-            <div className="flex items-center space-x-2">
-              <Calendar className="w-4 h-4 text-[var(--text-secondary)] shrink-0" />
+          {/* Date, Time & Pinned switch */}
+          <div className="flex flex-wrap items-center justify-between gap-2.5 relative z-30">
+            <div className="flex items-center gap-2">
+              <div className="w-38 sm:w-44">
+                <CustomDatePicker
+                  value={noteDate}
+                  onChange={(newDate) => setNoteDate(newDate)}
+                />
+              </div>
+
               <input
-                type="datetime-local"
-                value={eventDatetime}
-                onChange={(e) => setEventDatetime(e.target.value)}
-                className="text-xs font-bold px-2.5 py-1.5 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-solid)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
+                type="time"
+                value={noteTime}
+                onChange={(e) => setNoteTime(e.target.value)}
+                className="w-24 sm:w-28 px-2.5 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)] text-xs font-bold text-[var(--text-primary)] hover:border-[var(--accent-primary)] focus:outline-none focus:border-[var(--accent-primary)] shadow-sm transition-all cursor-pointer"
+                aria-label="Orario appunto"
               />
             </div>
 
             <button
               type="button"
               onClick={() => setPinned(!pinned)}
-              className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+              className={`inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                 pinned
                   ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/40 shadow-xs'
                   : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] border-[var(--border-solid)] hover:text-[var(--text-primary)]'

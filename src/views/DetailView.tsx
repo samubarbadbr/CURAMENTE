@@ -20,6 +20,7 @@ import {
   Check,
   X,
   FileDown,
+  Heart,
 } from 'lucide-react';
 import { AudioPlayerView } from '../components/AudioRecorder';
 
@@ -232,9 +233,10 @@ export const DetailView: React.FC<DetailViewProps> = ({
               emotionLabels.map((lbl, idx) => (
                 <span
                   key={`emo-${lbl}-${idx}`}
-                  className="px-3 py-1 rounded-full text-xs font-bold bg-[var(--bg-subtle)] text-[var(--text-primary)] border border-[var(--border-solid)]"
+                  className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30"
                 >
-                  {lbl}
+                  <Heart className="w-3 h-3 text-rose-500 fill-rose-500/20 stroke-[2.5]" />
+                  <span>{lbl}</span>
                 </span>
               ))
             ) : (
