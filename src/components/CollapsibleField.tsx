@@ -41,7 +41,7 @@ export const CollapsibleCard: React.FC<CollapsibleFieldProps> = ({
           type="button"
           onClick={onToggle}
           aria-expanded={isOpen}
-          className="flex-1 flex items-center justify-between text-left cursor-pointer group py-0.5 focus:outline-none select-none min-h-[32px]"
+          className="flex-1 flex items-center justify-between text-left cursor-pointer group py-1 focus:outline-none select-none min-h-[44px]"
         >
           <div className="flex items-center space-x-2 flex-wrap gap-y-1.5">
             <div className="text-[var(--accent-primary)] shrink-0">{icon}</div>

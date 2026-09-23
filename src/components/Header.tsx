@@ -92,15 +92,15 @@ export const Header: React.FC<HeaderProps> = ({
         )}
       </div>
 
-      {/* Action Buttons (Top Right) - Shifted left slightly on mobile with safe inset */}
-      <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0 mr-1 sm:mr-0">
+      {/* Action Buttons (Top Right) */}
+      <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
         <PWAInstallButton variant="header" />
 
         {onTogglePrivacyMode && (
           <button
             type="button"
             onClick={onTogglePrivacyMode}
-            className={`p-2.5 min-h-[42px] min-w-[42px] rounded-full transition-all duration-150 border shadow-sm cursor-pointer flex items-center justify-center ${
+            className={`p-2.5 min-h-[44px] min-w-[44px] rounded-full transition-all duration-150 border shadow-sm cursor-pointer flex items-center justify-center ${
               isPrivacyModeEnabled
                 ? 'bg-[var(--accent-primary)]/15 text-[var(--accent-primary)] border-[var(--accent-primary)]/50 ring-2 ring-[var(--accent-primary)]/20'
                 : 'bg-[var(--bg-surface)] text-[var(--text-primary)] border-[var(--border-solid)] hover:opacity-80'
@@ -119,7 +119,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           type="button"
           onClick={onToggleTheme}
-          className="p-2.5 min-h-[42px] min-w-[42px] rounded-full text-[var(--text-primary)] bg-[var(--bg-surface)] hover:opacity-80 active:scale-95 transition-all duration-150 border border-[var(--border-solid)] shadow-sm cursor-pointer flex items-center justify-center"
+          className="p-2.5 min-h-[44px] min-w-[44px] rounded-full text-[var(--text-primary)] bg-[var(--bg-surface)] hover:opacity-80 active:scale-95 transition-all duration-150 border border-[var(--border-solid)] shadow-sm cursor-pointer flex items-center justify-center"
           aria-label={isDark ? 'Passa a tema chiaro (Light Minimal)' : 'Passa a tema scuro (Scuro Neon)'}
           title={isDark ? 'Passa a tema chiaro (Light Minimal)' : 'Passa a tema scuro (Scuro Neon)'}
         >
@@ -139,7 +139,7 @@ export const Header: React.FC<HeaderProps> = ({
             }
             interceptNavigation(() => onNewEntry(), e);
           }}
-          className="btn-primary inline-flex items-center space-x-1.5 px-3.5 sm:px-4 py-2 min-h-[42px] rounded-full shadow-md active:scale-95 transition-all duration-150 cursor-pointer shrink-0 bg-[var(--accent-btn)] text-[var(--accent-btn-text)]"
+          className="btn-primary inline-flex items-center space-x-1.5 px-3.5 sm:px-4 py-2.5 min-h-[44px] rounded-full shadow-md active:scale-95 transition-all duration-150 cursor-pointer shrink-0 bg-[var(--accent-btn)] text-[var(--accent-btn-text)]"
         >
           <Plus className="w-4 h-4 stroke-[2.5] text-[var(--accent-btn-text)]" />
           <span className="font-bold text-xs sm:text-sm text-[var(--accent-btn-text)]">Nuova</span>

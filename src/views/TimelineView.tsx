@@ -25,11 +25,15 @@ import {
   Plus,
   Pin,
   Cloud,
+  Download,
+  Share2,
+  Loader2,
 } from 'lucide-react';
 import { CustomDropdown } from '../components/CustomDropdown';
 import { DiaryNoteCard } from '../components/DiaryNoteCard';
 import { DiaryNoteModal } from '../components/DiaryNoteModal';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { exportDiaryNotesPdf, exportSingleDiaryNotePdf } from '../services/diaryReportGenerator';
 
 interface TimelineViewProps {
   entries: CbtEntry[];
@@ -48,6 +52,7 @@ interface TimelineViewProps {
   isPrivacyModeEnabled?: boolean;
   onTogglePrivacyMode?: () => void;
   isSyncConfigured?: boolean;
+  onShowToast?: (msg: string) => void;
 }
 
 type SubViewType = 'entries' | 'notes' | 'all';
@@ -69,6 +74,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   isPrivacyModeEnabled = false,
   onTogglePrivacyMode,
   isSyncConfigured = false,
+  onShowToast,
 }) => {
   // Active sub-tab
   const [activeSubView, setActiveSubView] = useState<SubViewType>('all');
@@ -417,6 +423,50 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const totalEntriesCount = entries.length;
   const totalNotesCount = notes.length;
 
+  const [isExportingNotesPdf, setIsExportingNotesPdf] = useState(false);
+
+  const handleExportNotesDirect = async (action: 'download' | 'share' = 'download') => {
+    if (filteredNotes.length === 0 || isExportingNotesPdf) return;
+    setIsExportingNotesPdf(true);
+    try {
+      const patientName = localStorage.getItem('diariamente_patient_name') || 'Paziente';
+      const periodLabel = periodOptions.find((p) => p.value === periodFilter)?.label || 'Tutti';
+      await exportDiaryNotesPdf(
+        filteredNotes,
+        {
+          patientName,
+          categoryFilter: selectedNoteCategory,
+          periodLabel,
+        },
+        (msg) => {
+          if (onShowToast) onShowToast(msg);
+        },
+        action
+      );
+    } catch (err) {
+      console.error('Notes export error:', err);
+      if (onShowToast) onShowToast('Errore durante la generazione del PDF');
+    } finally {
+      setIsExportingNotesPdf(false);
+    }
+  };
+
+  const handleExportSingleNote = async (note: DiaryNote) => {
+    try {
+      await exportSingleDiaryNotePdf(
+        note,
+        undefined,
+        (msg) => {
+          if (onShowToast) onShowToast(msg);
+        },
+        'auto'
+      );
+    } catch (err) {
+      console.error('Notes export error:', err);
+      if (onShowToast) onShowToast('Errore durante l\'esportazione del PDF');
+    }
+  };
+
   return (
     <div className="space-y-6 pb-24 animate-fade-in">
       {/* Intro Header & Action Controls */}
@@ -492,19 +542,20 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       </div>
 
       {/* Segmented Sub-View Switcher (Schede CBT | Diario Libero | Tutto Insieme) */}
-      <div className="flex items-center p-1 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] max-w-full overflow-x-auto">
+      <div className="flex items-center p-1 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] max-w-full">
         <button
           type="button"
           onClick={() => setActiveSubView('all')}
-          className={`flex-1 min-w-[110px] sm:min-w-0 py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center space-x-2 cursor-pointer ${
+          className={`flex-1 min-w-0 py-2.5 px-1.5 sm:px-3 min-h-[44px] rounded-xl text-xs font-black transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
             activeSubView === 'all'
               ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm border border-[var(--border-solid)]'
               : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
           }`}
         >
-          <Layers className="w-3.5 h-3.5 stroke-[2.2]" />
-          <span>Tutto Insieme</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[var(--badge-bg)] text-[var(--badge-text)] font-black">
+          <Layers className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
+          <span className="truncate hidden sm:inline">Tutto Insieme</span>
+          <span className="truncate sm:hidden">Tutti</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[var(--badge-bg)] text-[var(--badge-text)] font-black shrink-0">
             {totalEntriesCount + totalNotesCount}
           </span>
         </button>
@@ -512,15 +563,16 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         <button
           type="button"
           onClick={() => setActiveSubView('entries')}
-          className={`flex-1 min-w-[110px] sm:min-w-0 py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center space-x-2 cursor-pointer ${
+          className={`flex-1 min-w-0 py-2.5 px-1.5 sm:px-3 min-h-[44px] rounded-xl text-xs font-black transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
             activeSubView === 'entries'
               ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm border border-[var(--border-solid)]'
               : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
           }`}
         >
-          <ClipboardList className="w-3.5 h-3.5 stroke-[2.2]" />
-          <span>Schede CBT</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[var(--badge-bg)] text-[var(--badge-text)] font-black">
+          <ClipboardList className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
+          <span className="truncate hidden sm:inline">Schede CBT</span>
+          <span className="truncate sm:hidden">CBT</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[var(--badge-bg)] text-[var(--badge-text)] font-black shrink-0">
             {totalEntriesCount}
           </span>
         </button>
@@ -528,46 +580,71 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         <button
           type="button"
           onClick={() => setActiveSubView('notes')}
-          className={`flex-1 min-w-[110px] sm:min-w-0 py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center space-x-2 cursor-pointer ${
+          className={`flex-1 min-w-0 py-2.5 px-1.5 sm:px-3 min-h-[44px] rounded-xl text-xs font-black transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
             activeSubView === 'notes'
               ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm border border-[var(--border-solid)]'
               : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
           }`}
         >
-          <BookOpen className="w-3.5 h-3.5 stroke-[2.2]" />
-          <span>Diario & Appunti</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[var(--accent-primary)]/15 text-[var(--accent-primary)] font-black">
+          <BookOpen className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
+          <span className="truncate hidden sm:inline">Diario & Appunti</span>
+          <span className="truncate sm:hidden">Appunti</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[var(--accent-primary)]/15 text-[var(--accent-primary)] font-black shrink-0">
             {totalNotesCount}
           </span>
         </button>
       </div>
 
-      {/* Quick Add Banner for Journal Notes */}
-      {(activeSubView === 'notes' || activeSubView === 'all') && (
-        <div
-          onClick={handleOpenNewNoteModal}
-          className="glass-panel rounded-[20px] p-4 sm:p-5 border border-dashed border-[var(--accent-primary)]/40 hover:border-[var(--accent-primary)] bg-gradient-to-r from-[var(--bg-surface)] via-[var(--bg-surface)] to-[var(--accent-primary)]/5 transition-all duration-150 hover:shadow-md cursor-pointer group flex items-center justify-between gap-3"
-        >
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-[var(--accent-primary)]/15 text-[var(--accent-primary)] flex items-center justify-center group-hover:scale-105 transition-transform">
-              <BookOpen className="w-5 h-5 stroke-[2.5]" />
+      {/* Quick Add Banner for CBT Entries */}
+      {activeSubView === 'entries' && (
+        <div className="rounded-[20px] p-3.5 sm:p-5 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center space-x-3 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 text-indigo-500 flex items-center justify-center shrink-0">
+              <ClipboardList className="w-5 h-5 stroke-[2.5]" />
             </div>
-            <div>
-              <h4 className="text-sm font-black text-[var(--text-primary)]">
-                Hai qualcosa da appuntarti oggi?
+            <div className="min-w-0">
+              <h4 className="text-sm font-black text-[var(--text-primary)] truncate">
+                Vuoi registrare una scheda CBT?
               </h4>
-              <p className="text-xs font-bold text-[var(--text-secondary)] line-clamp-1">
-                Scrivi un appunto, una riflessione, gratitudine o un promemoria salvato su cloud
+              <p className="text-xs font-medium text-[var(--text-secondary)] line-clamp-1">
+                Analizza un evento, pensieri automatici, distorsioni e risposte razionali
               </p>
             </div>
           </div>
           <button
             type="button"
-            className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-black bg-[var(--accent-btn)] text-[var(--accent-btn-text)] shadow-xs group-hover:opacity-95 shrink-0 border border-[var(--border-solid)]"
+            onClick={onNewEntry}
+            className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2.5 min-h-[44px] rounded-xl text-xs font-black bg-[var(--accent-btn)] text-[var(--accent-btn-text)] shadow-xs hover:opacity-90 active:scale-95 transition-all shrink-0 border border-[var(--border-solid)] cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5 stroke-[3] text-[var(--accent-btn-text)]" />
-            <span className="hidden sm:inline text-[var(--accent-btn-text)]">Scrivi Appunto</span>
-            <span className="sm:hidden text-[var(--accent-btn-text)]">Scrivi</span>
+            <Plus className="w-4 h-4 stroke-[3] text-[var(--accent-btn-text)]" />
+            <span className="text-[var(--accent-btn-text)]">Nuova Scheda CBT</span>
+          </button>
+        </div>
+      )}
+
+      {/* Quick Add Banner for Journal Notes */}
+      {activeSubView === 'notes' && (
+        <div className="rounded-[20px] p-3.5 sm:p-5 border border-[var(--border-solid)] bg-[var(--bg-surface)] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center space-x-3 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-[var(--accent-primary)]/15 text-[var(--accent-primary)] flex items-center justify-center shrink-0">
+              <BookOpen className="w-5 h-5 stroke-[2.5]" />
+            </div>
+            <div className="min-w-0">
+              <h4 className="text-sm font-black text-[var(--text-primary)] truncate">
+                Hai qualcosa da appuntarti oggi?
+              </h4>
+              <p className="text-xs font-medium text-[var(--text-secondary)] line-clamp-1">
+                Scrivi un appunto, una riflessione, gratitudine o promemoria
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleOpenNewNoteModal}
+            className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2.5 min-h-[44px] rounded-xl text-xs font-black bg-[var(--accent-btn)] text-[var(--accent-btn-text)] shadow-xs hover:opacity-90 active:scale-95 transition-all shrink-0 border border-[var(--border-solid)] cursor-pointer"
+          >
+            <Plus className="w-4 h-4 stroke-[3] text-[var(--accent-btn-text)]" />
+            <span className="text-[var(--accent-btn-text)]">Scrivi Appunto</span>
           </button>
         </div>
       )}
@@ -677,6 +754,20 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             </div>
 
             <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1">
+              <button
+                type="button"
+                onClick={() => setSelectedEmotionIds([])}
+                className={`px-2.5 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+                  selectedEmotionIds.length === 0
+                    ? 'bg-[var(--accent-btn)] text-[var(--accent-btn-text)] border-[var(--accent-btn)] shadow-xs font-black'
+                    : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] border-[var(--border-solid)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                <span className={selectedEmotionIds.length === 0 ? 'text-[var(--accent-btn-text)]' : ''}>
+                  Tutte le emozioni
+                </span>
+              </button>
+
               {emotionTags.map((tag) => {
                 const isSelected = selectedEmotionIds.includes(tag.id);
                 const count = tagCounts[tag.id] ?? 0;
@@ -730,7 +821,41 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       {/* VIEW: DIARY & NOTES TAB */}
       {/* ========================================================================= */}
       {activeSubView === 'notes' && (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
+          {/* Notes Therapist Export & Quick Action Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 sm:p-3.5 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-solid)]">
+            <div className="flex items-center space-x-2 text-xs font-black text-[var(--text-primary)]">
+              <BookOpen className="w-4 h-4 text-[var(--accent-primary)] stroke-[2.2] shrink-0" />
+              <span>Diario Personale & Appunti ({filteredNotes.length})</span>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => handleExportNotesDirect('download')}
+                disabled={filteredNotes.length === 0 || isExportingNotesPdf}
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center space-x-1.5 px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-black bg-[var(--bg-surface)] border border-[var(--border-solid)] text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-all active:scale-95 shadow-xs disabled:opacity-40 cursor-pointer"
+                title="Scarica PDF organizzato e formattato da condividere con la psicoterapeuta"
+              >
+                {isExportingNotesPdf ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Download className="w-3.5 h-3.5 text-[#5B67CA]" />
+                )}
+                <span>Scarica PDF</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleExportNotesDirect('share')}
+                disabled={filteredNotes.length === 0 || isExportingNotesPdf}
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center space-x-1.5 px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-black bg-[#5B67CA] hover:bg-[#4A55B8] text-white shadow-xs transition-all active:scale-95 disabled:opacity-40 cursor-pointer"
+                title="Invia direttamente il report PDF su WhatsApp o email alla psicoterapeuta"
+              >
+                <Share2 className="w-3.5 h-3.5 stroke-[2.2]" />
+                <span>Condividi (WhatsApp)</span>
+              </button>
+            </div>
+          </div>
+
           {/* Pinned Notes Section */}
           {pinnedNotes.length > 0 && (
             <div className="space-y-3">
@@ -747,6 +872,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     onEdit={handleEditNote}
                     onDelete={(id) => setDeletingNoteId(id)}
                     onTogglePin={handleTogglePin}
+                    onExport={handleExportSingleNote}
+                    onShowToast={onShowToast}
                     delayIndex={idx}
                   />
                 ))}
@@ -801,6 +928,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                         onEdit={handleEditNote}
                         onDelete={(id) => setDeletingNoteId(id)}
                         onTogglePin={handleTogglePin}
+                        onExport={handleExportSingleNote}
+                        onShowToast={onShowToast}
                         delayIndex={idx}
                       />
                     ))}
@@ -917,41 +1046,41 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                             isRevealed ? 'privacy-revealed' : ''
                           }`}
                         >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-xs font-black text-[var(--text-primary)]">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                              <span className="text-xs font-black text-[var(--text-primary)] shrink-0">
                                 {formatTime(entry.eventDatetime)}
                               </span>
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-[var(--badge-bg)] text-[var(--badge-text)] border border-[var(--badge-border)]">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-[var(--badge-bg)] text-[var(--badge-text)] border border-[var(--badge-border)] shrink-0">
                                 Scheda CBT
                               </span>
                               {entry.photo && (
-                                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-[var(--badge-bg)] text-[var(--badge-text)] border border-[var(--badge-border)]" title="Foto allegata">
+                                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-[var(--badge-bg)] text-[var(--badge-text)] border border-[var(--badge-border)] shrink-0" title="Foto allegata">
                                   <Camera className="w-3 h-3 stroke-[2.5]" />
                                   <span>Foto</span>
                                 </span>
                               )}
                               {entry.audioNote && (
-                                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-400 border border-rose-500/30" title="Audio-nota vocale">
+                                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-400 border border-rose-500/30 shrink-0" title="Audio-nota vocale">
                                   <Mic className="w-3 h-3 stroke-[2.5]" />
                                   <span>Audio</span>
                                 </span>
                               )}
                             </div>
 
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0 flex-wrap gap-y-1">
                               {isPrivacyModeEnabled && (
                                 <button
                                   type="button"
                                   onClick={(e) => toggleRevealEntry(entry.id, e)}
-                                  className="p-1.5 rounded-lg bg-[var(--bg-subtle)] hover:bg-[var(--accent-btn)] text-[var(--text-secondary)] hover:text-[var(--accent-btn-text)] transition-all duration-150 cursor-pointer"
+                                  className="min-h-[44px] min-w-[44px] rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--accent-btn)] text-[var(--text-secondary)] hover:text-[var(--accent-btn-text)] transition-all duration-150 cursor-pointer flex items-center justify-center shrink-0"
                                   title={isRevealed ? 'Nascondi dettagli' : 'Rivelazione rapida testo'}
                                   aria-label="Alterna visibilità scheda"
                                 >
                                   {isRevealed ? (
-                                    <Eye className="w-3.5 h-3.5 stroke-[2.5]" />
+                                    <Eye className="w-4 h-4 stroke-[2.5]" />
                                   ) : (
-                                    <EyeOff className="w-3.5 h-3.5 text-[var(--accent-primary)] stroke-[2.5]" />
+                                    <EyeOff className="w-4 h-4 text-[var(--accent-primary)] stroke-[2.5]" />
                                   )}
                                 </button>
                               )}
@@ -963,12 +1092,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                                     e.stopPropagation();
                                     onExportEntry(entry);
                                   }}
-                                  className="p-1.5 px-2 rounded-lg bg-[var(--bg-subtle)] hover:bg-[#5B67CA] text-[var(--text-secondary)] hover:text-white transition-all duration-150 cursor-pointer flex items-center space-x-1 border border-transparent hover:border-[#5B67CA]"
+                                  className="min-h-[44px] px-2.5 rounded-xl bg-[var(--bg-subtle)] hover:bg-[#5B67CA] text-[var(--text-secondary)] hover:text-white transition-all duration-150 cursor-pointer flex items-center space-x-1 border border-transparent hover:border-[#5B67CA] shrink-0"
                                   title="Esporta PDF dedicato"
                                   aria-label="Esporta PDF"
                                 >
                                   <FileDown className="w-3.5 h-3.5 stroke-[2.2]" />
-                                  <span className="text-[11px] font-bold">PDF</span>
+                                  <span className="text-xs font-bold">PDF</span>
                                 </button>
                               )}
 
@@ -979,18 +1108,18 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                                     e.stopPropagation();
                                     onEditEntry(entry.id);
                                   }}
-                                  className="p-1.5 rounded-lg bg-[var(--bg-subtle)] hover:bg-[var(--accent-btn)] text-[var(--text-primary)] hover:text-[var(--accent-btn-text)] transition-all duration-150 cursor-pointer"
+                                  className="min-h-[44px] min-w-[44px] rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--accent-btn)] text-[var(--text-primary)] hover:text-[var(--accent-btn-text)] transition-all duration-150 cursor-pointer flex items-center justify-center shrink-0"
                                   title="Modifica scheda"
                                   aria-label="Modifica scheda"
                                 >
-                                  <Pencil className="w-3.5 h-3.5 stroke-[2.5]" />
+                                  <Pencil className="w-4 h-4 stroke-[2.5]" />
                                 </button>
                               )}
 
-                              <div className={`inline-flex items-center space-x-2 px-2.5 py-1 rounded-full text-xs font-black border ${anxietyBadgeStyle}`}>
+                              <div className={`inline-flex items-center space-x-1.5 sm:space-x-2 px-2 sm:px-2.5 py-1 rounded-full text-xs font-black border shrink-0 ${anxietyBadgeStyle}`}>
                                 <Activity className="w-3.5 h-3.5 shrink-0 stroke-[2.5]" />
                                 <span>Ansia {anxiety}</span>
-                                <div className="w-10 h-1.5 rounded-full bg-[var(--bg-subtle)] overflow-hidden ml-1">
+                                <div className="w-8 sm:w-10 h-1.5 rounded-full bg-[var(--bg-subtle)] overflow-hidden ml-0.5 sm:ml-1 hidden xs:block sm:block">
                                   <div
                                     className={`h-full rounded-full ${barColor}`}
                                     style={{ width: `${anxiety}%` }}
@@ -1048,6 +1177,42 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       {/* ========================================================================= */}
       {activeSubView === 'all' && (
         <div className="space-y-6">
+          {/* Notes Therapist Export Bar in Unified All view if notes exist */}
+          {filteredNotes.length > 0 && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 sm:p-3.5 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-solid)]">
+              <div className="flex items-center space-x-2 text-xs font-black text-[var(--text-primary)]">
+                <BookOpen className="w-4 h-4 text-[var(--accent-primary)] stroke-[2.2] shrink-0" />
+                <span>Esportazione Appunti del Diario per Psicoterapeuta ({filteredNotes.length})</span>
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => handleExportNotesDirect('download')}
+                  disabled={isExportingNotesPdf}
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center space-x-1.5 px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-black bg-[var(--bg-surface)] border border-[var(--border-solid)] text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-all active:scale-95 shadow-xs disabled:opacity-40 cursor-pointer"
+                  title="Scarica PDF organizzato e formattato da condividere con la psicoterapeuta"
+                >
+                  {isExportingNotesPdf ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <FileDown className="w-3.5 h-3.5 text-[#5B67CA]" />
+                  )}
+                  <span>Scarica PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleExportNotesDirect('share')}
+                  disabled={isExportingNotesPdf}
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center space-x-1.5 px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-black bg-[#5B67CA] hover:bg-[#4A55B8] text-white shadow-xs transition-all active:scale-95 disabled:opacity-40 cursor-pointer"
+                  title="Invia direttamente il report PDF su WhatsApp o email alla psicoterapeuta"
+                >
+                  <Share2 className="w-3.5 h-3.5 stroke-[2.2]" />
+                  <span>Condividi (WhatsApp)</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Pinned Notes in Unified View */}
           {pinnedNotes.length > 0 && (
             <div className="space-y-3">
@@ -1064,6 +1229,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     onEdit={handleEditNote}
                     onDelete={(id) => setDeletingNoteId(id)}
                     onTogglePin={handleTogglePin}
+                    onExport={handleExportSingleNote}
+                    onShowToast={onShowToast}
                     delayIndex={idx}
                   />
                 ))}
@@ -1132,6 +1299,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                               onEdit={handleEditNote}
                               onDelete={(id) => setDeletingNoteId(id)}
                               onTogglePin={handleTogglePin}
+                              onExport={handleExportSingleNote}
+                              onShowToast={onShowToast}
                               delayIndex={idx}
                             />
                           </div>
@@ -1170,41 +1339,41 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                             isRevealed ? 'privacy-revealed' : ''
                           }`}
                         >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-xs font-black text-[var(--text-primary)]">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                              <span className="text-xs font-black text-[var(--text-primary)] shrink-0">
                                 {formatTime(entry.eventDatetime)}
                               </span>
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-[var(--badge-bg)] text-[var(--badge-text)] border border-[var(--badge-border)]">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-[var(--badge-bg)] text-[var(--badge-text)] border border-[var(--badge-border)] shrink-0">
                                 Scheda CBT
                               </span>
                               {entry.photo && (
-                                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-[var(--badge-bg)] text-[var(--badge-text)] border border-[var(--badge-border)]" title="Foto allegata">
+                                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-[var(--badge-bg)] text-[var(--badge-text)] border border-[var(--badge-border)] shrink-0" title="Foto allegata">
                                   <Camera className="w-3 h-3 stroke-[2.5]" />
                                   <span>Foto</span>
                                 </span>
                               )}
                               {entry.audioNote && (
-                                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-400 border border-rose-500/30" title="Audio-nota">
+                                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-400 border border-rose-500/30 shrink-0" title="Audio-nota">
                                   <Mic className="w-3 h-3 stroke-[2.5]" />
                                   <span>Audio</span>
                                 </span>
                               )}
                             </div>
 
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0 flex-wrap gap-y-1">
                               {isPrivacyModeEnabled && (
                                 <button
                                   type="button"
                                   onClick={(e) => toggleRevealEntry(entry.id, e)}
-                                  className="p-1.5 rounded-lg bg-[var(--bg-subtle)] hover:bg-[var(--accent-btn)] text-[var(--text-secondary)] hover:text-[var(--accent-btn-text)] transition-all duration-150 cursor-pointer"
+                                  className="min-h-[44px] min-w-[44px] rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--accent-btn)] text-[var(--text-secondary)] hover:text-[var(--accent-btn-text)] transition-all duration-150 cursor-pointer flex items-center justify-center shrink-0"
                                   title={isRevealed ? 'Nascondi dettagli' : 'Rivelazione rapida testo'}
                                   aria-label="Alterna visibilità scheda"
                                 >
                                   {isRevealed ? (
-                                    <Eye className="w-3.5 h-3.5 stroke-[2.5]" />
+                                    <Eye className="w-4 h-4 stroke-[2.5]" />
                                   ) : (
-                                    <EyeOff className="w-3.5 h-3.5 text-[var(--accent-primary)] stroke-[2.5]" />
+                                    <EyeOff className="w-4 h-4 text-[var(--accent-primary)] stroke-[2.5]" />
                                   )}
                                 </button>
                               )}
@@ -1216,12 +1385,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                                     e.stopPropagation();
                                     onExportEntry(entry);
                                   }}
-                                  className="p-1.5 px-2 rounded-lg bg-[var(--bg-subtle)] hover:bg-[#5B67CA] text-[var(--text-secondary)] hover:text-white transition-all duration-150 cursor-pointer flex items-center space-x-1 border border-transparent hover:border-[#5B67CA]"
+                                  className="min-h-[44px] px-2.5 rounded-xl bg-[var(--bg-subtle)] hover:bg-[#5B67CA] text-[var(--text-secondary)] hover:text-white transition-all duration-150 cursor-pointer flex items-center space-x-1 border border-transparent hover:border-[#5B67CA] shrink-0"
                                   title="Esporta PDF dedicato"
                                   aria-label="Esporta PDF"
                                 >
                                   <FileDown className="w-3.5 h-3.5 stroke-[2.2]" />
-                                  <span className="text-[11px] font-bold">PDF</span>
+                                  <span className="text-xs font-bold">PDF</span>
                                 </button>
                               )}
 
@@ -1232,18 +1401,18 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                                     e.stopPropagation();
                                     onEditEntry(entry.id);
                                   }}
-                                  className="p-1.5 rounded-lg bg-[var(--bg-subtle)] hover:bg-[var(--accent-btn)] text-[var(--text-primary)] hover:text-[var(--accent-btn-text)] transition-all duration-150 cursor-pointer"
+                                  className="min-h-[44px] min-w-[44px] rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--accent-btn)] text-[var(--text-primary)] hover:text-[var(--accent-btn-text)] transition-all duration-150 cursor-pointer flex items-center justify-center shrink-0"
                                   title="Modifica scheda"
                                   aria-label="Modifica scheda"
                                 >
-                                  <Pencil className="w-3.5 h-3.5 stroke-[2.5]" />
+                                  <Pencil className="w-4 h-4 stroke-[2.5]" />
                                 </button>
                               )}
 
-                              <div className={`inline-flex items-center space-x-2 px-2.5 py-1 rounded-full text-xs font-black border ${anxietyBadgeStyle}`}>
+                              <div className={`inline-flex items-center space-x-1.5 sm:space-x-2 px-2 sm:px-2.5 py-1 rounded-full text-xs font-black border shrink-0 ${anxietyBadgeStyle}`}>
                                 <Activity className="w-3.5 h-3.5 shrink-0 stroke-[2.5]" />
                                 <span>Ansia {anxiety}</span>
-                                <div className="w-10 h-1.5 rounded-full bg-[var(--bg-subtle)] overflow-hidden ml-1">
+                                <div className="w-8 sm:w-10 h-1.5 rounded-full bg-[var(--bg-subtle)] overflow-hidden ml-0.5 sm:ml-1 hidden xs:block sm:block">
                                   <div
                                     className={`h-full rounded-full ${barColor}`}
                                     style={{ width: `${anxiety}%` }}
@@ -1322,6 +1491,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           setEditingNote(null);
         }}
         isSyncConfigured={isSyncConfigured}
+        onShowToast={onShowToast}
       />
 
       {/* Delete Note Confirmation Modal */}

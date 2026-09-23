@@ -40,6 +40,23 @@ export interface ReportStats {
 }
 
 /**
+ * Remove emoji characters from strings for clean, formal clinical presentations
+ */
+export function removeEmojis(text: unknown): string {
+  if (text === null || text === undefined) return '';
+  return String(text)
+    // Remove Unicode emojis, pictographs, symbols, flags and modifier sequences
+    .replace(
+      /([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]|[\uFE00-\uFE0F])/gu,
+      ''
+    )
+    .replace(/[\u{1F000}-\u{1FAFF}]/gu, '')
+    // Normalize any repeated whitespace
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+/**
  * Filter entries according to report filter options
  */
 export function filterEntriesForReport(
@@ -232,59 +249,59 @@ function escapeHtml(text: unknown): string {
 }
 
 /**
- * Helper to generate an anxiety value with color scaling and dark high-contrast text
- * Using pure inline styling and baseline alignment to guarantee exact horizontal alignment with the label
+ * Helper to generate anxiety score: text color with subtle underline for clinical look (no circles/pills)
  */
 function getAnxietyBadgeHtml(score: number): string {
-  let colorClass = 'badge-score-low';
   let color = '#059669';
+  let underlineColor = '#a7f3d0';
   if (score >= 70) {
-    colorClass = 'badge-score-high';
     color = '#dc2626';
+    underlineColor = '#fecaca';
   } else if (score >= 40) {
-    colorClass = 'badge-score-med';
     color = '#d97706';
+    underlineColor = '#fed7aa';
   }
-  return `<span class="${colorClass}" style="display: inline; font-size: 11.5px; font-weight: 900; color: ${color}; line-height: 1.2; vertical-align: baseline;">${score}/100</span>`;
+  return `<span class="badge-score" style="display: inline-block; font-size: 11.5px; font-weight: 900; color: ${color}; border-bottom: 1.5px solid ${underlineColor}; padding-bottom: 1px; line-height: 1.2; vertical-align: baseline;">${score}/100</span>`;
 }
 
 /**
- * Helper to generate frequency score with dark high-contrast blue text
+ * Helper to generate frequency score: deep navy text color with subtle underline
  */
 function getFrequencyBadgeHtml(score: number): string {
-  return `<span class="badge-freq-score" style="display: inline; font-size: 11.5px; font-weight: 900; color: #1e3a8a; line-height: 1.2; vertical-align: baseline;">${score}/100</span>`;
+  return `<span class="badge-freq-score" style="display: inline-block; font-size: 11.5px; font-weight: 900; color: #1e3a8a; border-bottom: 1.5px solid #bfdbfe; padding-bottom: 1px; line-height: 1.2; vertical-align: baseline;">${score}/100</span>`;
 }
 
 /**
- * Helper to generate body attention value with dark high-contrast purple text
+ * Helper to generate body attention score: rich purple text color with subtle underline
  */
 function getBodyAttentionBadgeHtml(score: number): string {
-  return `<span class="badge-attention-score" style="display: inline; font-size: 11.5px; font-weight: 900; color: #6b21a8; line-height: 1.2; vertical-align: baseline;">${score}/100</span>`;
+  return `<span class="badge-attention-score" style="display: inline-block; font-size: 11.5px; font-weight: 900; color: #6b21a8; border-bottom: 1.5px solid #e9d5ff; padding-bottom: 1px; line-height: 1.2; vertical-align: baseline;">${score}/100</span>`;
 }
 
 /**
- * Helper to generate soft count display for checks, reassurances, avoidances
+ * Helper to generate behavior occurrence count with clear text coloring (no circles/pills)
  */
 function getCountPillHtml(count: number, singular = 'volta', plural = 'volte'): string {
   const label = `${count} ${count === 1 ? singular : plural}`;
   if (count > 0) {
-    return `<span class="badge-count-score" style="display: inline; font-size: 11.5px; font-weight: 900; color: #9a3412; line-height: 1.2; vertical-align: baseline;">${label}</span>`;
+    return `<span class="badge-count-score" style="display: inline-block; font-size: 11.5px; font-weight: 900; color: #9a3412; border-bottom: 1.5px solid #fed7aa; padding-bottom: 1px; line-height: 1.2; vertical-align: baseline;">${label}</span>`;
   }
-  return `<span style="display: inline; font-size: 11px; font-weight: 600; color: #64748b; line-height: 1.2; vertical-align: baseline;">${label}</span>`;
+  return `<span style="display: inline-block; font-size: 11px; font-weight: 600; color: #64748b; line-height: 1.2; vertical-align: baseline;">${label}</span>`;
 }
 
 /**
  * Generate full self-contained printable HTML document adhering strictly to the therapist's sheet
- * Symmetrical, centered A4 layout with clean typography, fixed table columns, and structured cards
+ * Perfectly centered A4 layout with clean typography, fixed table columns, subtle underlines and no emojis
  */
 export function generateTherapistReportHtml(
   entries: CbtEntry[],
   allTags: Tag[],
-  customQuestions: CustomQuestion[],
+  _customQuestions: CustomQuestion[],
   options: TherapistReportFilterOptions
 ): string {
-  const tagMap = new Map(allTags.map((t) => [t.id, t.label]));
-  const dateRangeDisplay = formatItalianDateRange(entries, options);
+  const tagMap = new Map(allTags.map((t) => [t.id, removeEmojis(t.label)]));
+  const dateRangeDisplay = removeEmojis(formatItalianDateRange(entries, options));
+  const cleanPatientName = removeEmojis(options.patientName);
 
   // SEZIONE 1: TABELLA ANALISI SITUAZIONALI (5 colonne fisse)
   // DATA (16%) | SITUAZIONE (27%) | FATTORI SCATENANTI (22%) | EMOZIONI (16%) | PENSIERO NEGATIVO (19%)
@@ -304,7 +321,8 @@ export function generateTherapistReportHtml(
       const emoLabels = (e.emotionTagIds || [])
         .map((id) => tagMap.get(id))
         .filter((label): label is string => Boolean(label && !label.startsWith('tag-')));
-      const thought = e.negativeThought ? escapeHtml(e.negativeThought) : '—';
+      const rawThought = e.negativeThought ? removeEmojis(e.negativeThought) : '—';
+      const thought = escapeHtml(rawThought);
       const beliefLevel = e.thoughtBeliefLevel !== undefined ? e.thoughtBeliefLevel : 0;
 
       return `
@@ -314,24 +332,31 @@ export function generateTherapistReportHtml(
             <div style="font-size: 10.5px; font-weight: 600; color: #64748b; margin-top: 2px;">ore ${timePart}</div>
           </td>
           <td style="padding: 10px 12px; color: #0f172a; font-weight: 500; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #f1f5f9; vertical-align: top; line-height: 1.45; word-break: break-word;">
-            ${escapeHtml(e.situation || '—')}
+            ${escapeHtml(removeEmojis(e.situation) || '—')}
           </td>
           <td style="padding: 10px 12px; color: #0f172a; font-weight: 500; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #f1f5f9; vertical-align: top; line-height: 1.45; word-break: break-word;">
-            ${escapeHtml(e.triggerFactors || '—')}
+            ${escapeHtml(removeEmojis(e.triggerFactors) || '—')}
           </td>
           <td style="padding: 10px 12px; color: #0f172a; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #f1f5f9; vertical-align: top;">
             ${
               emoLabels.length > 0
-                ? `<div style="font-size: 11px; font-weight: 700; color: #312e81; line-height: 1.4;">${emoLabels
-                    .map((lbl) => escapeHtml(lbl))
-                    .join(', ')}</div>`
+                ? `<div style="font-size: 11px; line-height: 1.45;">
+                    ${emoLabels
+                      .map(
+                        (lbl) =>
+                          `<span style="color: #4338ca; font-weight: 700; border-bottom: 1px solid #c7d2fe; padding-bottom: 1px; margin-right: 4px; display: inline-block;">${escapeHtml(lbl)}</span>`
+                      )
+                      .join(' ')}
+                  </div>`
                 : '<span style="color: #94a3b8; font-style: italic;">—</span>'
             }
           </td>
           <td style="padding: 10px 12px; color: #0f172a; border-bottom: 1px solid #e2e8f0; vertical-align: top; word-break: break-word;">
-            <div style="font-weight: 700; color: #0f172a; margin-bottom: 6px; line-height: 1.4; font-size: 11px;">${thought}</div>
+            <div style="margin-bottom: 6px; line-height: 1.45; font-size: 11px;">
+              <span style="font-weight: 700; color: #1e1b4b; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 1px;">${thought}</span>
+            </div>
             <div style="margin-top: 4px; font-size: 10.5px; color: #4338ca; font-weight: 700; line-height: 1.2;">
-              <span style="display: inline; vertical-align: baseline;">Quanto credo al pensiero:</span> <strong style="display: inline; font-size: 11px; font-weight: 900; color: #1e1b4b; vertical-align: baseline;">${beliefLevel}/100</strong>
+              <span style="display: inline; vertical-align: baseline;">Grado di convinzione:</span> <strong style="display: inline; font-size: 11px; font-weight: 900; color: #1e1b4b; vertical-align: baseline; border-bottom: 1px dotted #818cf8;">${beliefLevel}/100</strong>
             </div>
           </td>
         </tr>
@@ -340,7 +365,7 @@ export function generateTherapistReportHtml(
     .join('');
 
   // SEZIONE 2: REGISTRO CLINICO DETTAGLIATO
-  // Schede strutturate con header (Data/Ora e Ansia) e 6 righe cliniche distinte
+  // Schede strutturate con header (Data/Ora e Ansia) e 6 blocchi clinici distinti
   const detailedEntriesHtml = entries
     .map((e) => {
       const d = new Date(e.eventDatetime);
@@ -355,33 +380,52 @@ export function generateTherapistReportHtml(
       const physTags = (e.physicalSymptomTagIds || [])
         .map((id) => tagMap.get(id))
         .filter((label): label is string => Boolean(label && !label.startsWith('tag-')));
-      const physDetail = e.physicalSymptomsText ? e.physicalSymptomsText.trim() : '';
+      const physDetail = removeEmojis(e.physicalSymptomsText ? e.physicalSymptomsText.trim() : '');
       let physicalHtml = '';
       if (physTags.length > 0 && physDetail) {
         physicalHtml = `
-          <div style="font-weight: 700; color: #1e1b4b; line-height: 1.4;">${escapeHtml(physTags.join(', '))}</div>
-          <div style="margin-top: 3px; color: #334155; line-height: 1.4; word-break: break-word;">${escapeHtml(physDetail)}</div>
+          <div style="font-size: 11px; line-height: 1.4;">
+            ${physTags
+              .map(
+                (lbl) =>
+                  `<span style="color: #3730a3; font-weight: 700; border-bottom: 1px solid #c7d2fe; padding-bottom: 1px; margin-right: 6px; display: inline-block;">${escapeHtml(lbl)}</span>`
+              )
+              .join(' ')}
+          </div>
+          <div style="margin-top: 4px; color: #334155; line-height: 1.45; word-break: break-word;">${escapeHtml(physDetail)}</div>
         `;
       } else if (physTags.length > 0) {
-        physicalHtml = `<div style="font-weight: 700; color: #1e1b4b; line-height: 1.4;">${escapeHtml(physTags.join(', '))}</div>`;
+        physicalHtml = `
+          <div style="font-size: 11px; line-height: 1.4;">
+            ${physTags
+              .map(
+                (lbl) =>
+                  `<span style="color: #3730a3; font-weight: 700; border-bottom: 1px solid #c7d2fe; padding-bottom: 1px; margin-right: 6px; display: inline-block;">${escapeHtml(lbl)}</span>`
+              )
+              .join(' ')}
+          </div>
+        `;
       } else if (physDetail) {
-        physicalHtml = `<div style="color: #334155; line-height: 1.4; word-break: break-word;">${escapeHtml(physDetail)}</div>`;
+        physicalHtml = `<div style="color: #334155; line-height: 1.45; word-break: break-word;">${escapeHtml(physDetail)}</div>`;
       } else {
         physicalHtml = '<span style="color: #94a3b8; font-style: italic;">Nessuno specificato</span>';
       }
 
-      const thoughtDesc = e.negativeThoughtsExtended || e.negativeThought || 'Nessuna descrizione';
+      const thoughtDesc = removeEmojis(e.negativeThoughtsExtended || e.negativeThought || 'Nessuna descrizione');
       const thoughtFreq = e.negativeThoughtsIntensity ?? e.thoughtBeliefLevel ?? 0;
+      const thoughtTags = (e.thoughtTagIds || [])
+        .map((id) => tagMap.get(id))
+        .filter((label): label is string => Boolean(label && !label.startsWith('tag-')));
 
-      const controlAction = e.symptomControlDescription ? e.symptomControlDescription.trim() : 'Nessuna azione specificata';
-      const reassuranceType = e.reassuranceSeekingType ? e.reassuranceSeekingType.trim() : 'Nessuna richiesta specificata';
-      const avoidanceType = e.avoidanceType ? e.avoidanceType.trim() : 'Nessun evitamento specificato';
+      const controlAction = removeEmojis(e.symptomControlDescription ? e.symptomControlDescription.trim() : 'Nessuna azione specificata');
+      const reassuranceType = removeEmojis(e.reassuranceSeekingType ? e.reassuranceSeekingType.trim() : 'Nessuna richiesta specificata');
+      const avoidanceType = removeEmojis(e.avoidanceType ? e.avoidanceType.trim() : 'Nessun evitamento specificato');
 
       return `
-        <div class="clinical-entry-card" style="margin-bottom: 18px; border: 1.5px solid #e2e8f0; border-radius: 10px; background: #ffffff; overflow: hidden; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);">
+        <div class="clinical-entry-card" style="margin-bottom: 18px; border: 1px solid #cbd5e1; border-left: 3px solid #4338ca; border-radius: 4px; background: #ffffff; overflow: hidden; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);">
           
           <!-- Testata Scheda: Data a sinistra, Ansia Complessiva a destra -->
-          <table style="width: 100%; border-collapse: collapse; background: #f8fafc; border-bottom: 1.5px solid #e2e8f0;">
+          <table style="width: 100%; border-collapse: collapse; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
             <tr>
               <td style="padding: 9px 14px; text-align: left; vertical-align: middle;">
                 <span style="display: inline; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; line-height: 1.2; vertical-align: baseline; margin-right: 6px;">REGISTRAZIONE CLINICA:</span>
@@ -400,11 +444,11 @@ export function generateTherapistReportHtml(
           <div style="padding: 2px 0;">
             
             <!-- 1. Sintomi fisici -->
-            <div class="clinical-block" style="padding: 8px 14px; border-bottom: 1px solid #f1f5f9;">
-              <div style="font-size: 10.5px; font-weight: 800; color: #0f172a; margin-bottom: 2px;">
+            <div class="clinical-block" style="padding: 9px 16px; border-bottom: 1px solid #f1f5f9;">
+              <div style="font-size: 10.5px; font-weight: 800; color: #0f172a; margin-bottom: 3px;">
                 1. Sintomi fisici
               </div>
-              <div style="font-size: 11px; font-weight: 500; line-height: 1.4; word-break: break-word;">
+              <div style="font-size: 11px; font-weight: 500; line-height: 1.45; word-break: break-word;">
                 ${physicalHtml}
               </div>
             </div>
@@ -422,9 +466,28 @@ export function generateTherapistReportHtml(
                   </td>
                 </tr>
               </table>
-              <div style="font-size: 11.5px; color: #0f172a; font-weight: 500; line-height: 1.45; word-break: break-word;">
-                ${escapeHtml(thoughtDesc)}
+              <div style="font-size: 11.5px; line-height: 1.5; word-break: break-word;">
+                <span style="font-weight: 700; color: #1e1b4b; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 1px;">
+                  ${escapeHtml(thoughtDesc)}
+                </span>
               </div>
+              ${
+                thoughtTags.length > 0
+                  ? `
+                <div style="margin-top: 6px; font-size: 10.5px; line-height: 1.4;">
+                  <span style="color: #64748b; font-weight: 600; margin-right: 4px;">Schemi di pensiero:</span>
+                  ${thoughtTags
+                    .map(
+                      (t) =>
+                        `<span style="color: #4f46e5; font-weight: 700; border-bottom: 1px solid #e0e7ff; padding-bottom: 1px; margin-right: 6px; display: inline-block;">${escapeHtml(
+                          t
+                        )}</span>`
+                    )
+                    .join(' ')}
+                </div>
+              `
+                  : ''
+              }
             </div>
 
             <!-- 3. Attenzione focalizzata sul corpo -->
@@ -464,7 +527,7 @@ export function generateTherapistReportHtml(
               <table style="width: 100%; border-collapse: collapse; margin-bottom: 4px;">
                 <tr>
                   <td style="text-align: left; vertical-align: middle; font-size: 11px; font-weight: 800; color: #0f172a;">
-                    5. Ricerca di rassicurazioni (che tipo di richiesta e quante volte)
+                    5. Ricerca di rassicurazioni (tipo di richiesta e frequenza)
                   </td>
                   <td style="text-align: right; vertical-align: middle; white-space: nowrap;">
                     ${getCountPillHtml(e.reassuranceSeekingCount ?? 0)}
@@ -493,6 +556,40 @@ export function generateTherapistReportHtml(
               </div>
             </div>
 
+            ${
+              e.alternativeThought
+                ? `
+              <!-- Ristrutturazione Cognitiva / Pensiero Alternativo -->
+              <div class="clinical-block" style="padding: 9px 16px; border-top: 1px solid #f1f5f9; background: #f8fafc;">
+                <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #047857; margin-bottom: 3px;">
+                  Pensiero alternativo / Ristrutturazione
+                </div>
+                <div style="font-size: 11px; font-weight: 600; line-height: 1.45; word-break: break-word;">
+                  <span style="color: #065f46; border-bottom: 1px solid #a7f3d0; padding-bottom: 1px;">
+                    ${escapeHtml(removeEmojis(e.alternativeThought))}
+                  </span>
+                </div>
+              </div>
+            `
+                : ''
+            }
+
+            ${
+              e.notes && e.notes.trim()
+                ? `
+              <!-- Note aggiuntive -->
+              <div class="clinical-block" style="padding: 9px 16px; border-top: 1px solid #f1f5f9; background: #fdfdfd;">
+                <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; margin-bottom: 3px;">
+                  Note cliniche
+                </div>
+                <div style="font-size: 11px; color: #334155; font-weight: 500; line-height: 1.45; word-break: break-word;">
+                  ${escapeHtml(removeEmojis(e.notes))}
+                </div>
+              </div>
+            `
+                : ''
+            }
+
           </div>
 
         </div>
@@ -505,11 +602,11 @@ export function generateTherapistReportHtml(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Report Clinico - Diariamente - ${escapeHtml(dateRangeDisplay)}</title>
+  <title>Report Clinico - DiariaMente - ${escapeHtml(dateRangeDisplay)}</title>
   <style>
     @page {
       size: A4 portrait;
-      margin: 10mm 10mm 10mm 10mm;
+      margin: 10mm;
     }
 
     * {
@@ -524,19 +621,22 @@ export function generateTherapistReportHtml(
       color: #0f172a !important;
       color-scheme: light !important;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      margin: 0 !important;
+      margin: 0 auto !important;
       padding: 0 !important;
       line-height: 1.5;
       -webkit-font-smoothing: antialiased;
+      display: flex !important;
+      justify-content: center !important;
+      width: 100% !important;
     }
 
     .report-container {
-      width: 794px !important;
+      width: 100% !important;
       max-width: 794px !important;
       margin: 0 auto !important;
       background: #ffffff !important;
       background-color: #ffffff !important;
-      padding: 14px 20px 16px 20px !important;
+      padding: 16px 24px 20px 24px !important;
       box-shadow: none !important;
       box-sizing: border-box !important;
     }
@@ -557,12 +657,14 @@ export function generateTherapistReportHtml(
         background-color: #ffffff !important;
         color: #0f172a !important;
         padding: 0 !important;
-        margin: 0 !important;
+        margin: 0 auto !important;
+        display: block !important;
       }
       .report-container {
         width: 100% !important;
         max-width: 100% !important;
         padding: 0 !important;
+        margin: 0 auto !important;
         background: #ffffff !important;
         background-color: #ffffff !important;
         box-shadow: none !important;
@@ -581,7 +683,7 @@ export function generateTherapistReportHtml(
     }
 
     .section-title {
-      border-bottom: 2px solid #4f46e5;
+      border-bottom: 2px solid #4338ca;
       padding: 0 0 6px 0;
       font-size: 11.5px;
       font-weight: 900;
@@ -597,7 +699,7 @@ export function generateTherapistReportHtml(
 
   <div class="report-container">
     
-    <!-- HEADER PDF CLINICO PROFESSIONALE ED ELEGANTE -->
+    <!-- HEADER PDF CLINICO PROFESSIONALE, CENTRATO ED ELEGANTE -->
     <table style="width: 100%; border-collapse: collapse; margin-bottom: 22px; border-bottom: 2px solid #e2e8f0; background: #ffffff;">
       <tr>
         <td style="padding: 4px 0 16px 0; text-align: left; vertical-align: middle;">
@@ -610,14 +712,14 @@ export function generateTherapistReportHtml(
         </td>
         <td style="padding: 4px 0 16px 0; text-align: right; vertical-align: middle; white-space: nowrap;">
           ${
-            options.patientName
+            cleanPatientName
               ? `
-            <div style="display: inline-block; text-align: right; border: 1.5px solid #cbd5e1; background: #f8fafc; padding: 6px 14px; border-radius: 8px;">
+            <div style="display: inline-block; text-align: right; border-bottom: 2px solid #4338ca; padding: 2px 4px 4px 12px;">
               <div style="font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; line-height: 1.1;">
                 Paziente
               </div>
               <div style="font-size: 13px; font-weight: 900; color: #1e1b4b; line-height: 1.2; margin-top: 2px;">
-                ${escapeHtml(options.patientName)}
+                ${escapeHtml(cleanPatientName)}
               </div>
             </div>
           `
@@ -634,8 +736,8 @@ export function generateTherapistReportHtml(
       ${
         entries.length > 0
           ? `
-        <div class="table-wrapper" style="border-radius: 8px; overflow: hidden; border: 1.5px solid #cbd5e1; background: #ffffff; margin-bottom: 20px;">
-          <table style="width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 11px;">
+        <div class="table-wrapper" style="border-radius: 4px; overflow: hidden; border: 1.5px solid #cbd5e1; background: #ffffff; margin-bottom: 20px;">
+          <table style="width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 11px; margin: 0 auto;">
             <colgroup>
               <col style="width: 16%;">
               <col style="width: 27%;">
@@ -658,7 +760,7 @@ export function generateTherapistReportHtml(
           </table>
         </div>
       `
-          : '<p style="color: #64748b; font-style: italic; padding: 10px 0;">Nessuna registrazione per il periodo selezionato.</p>'
+          : '<p style="color: #64748b; font-style: italic; padding: 10px 0; text-align: center;">Nessuna registrazione per il periodo selezionato.</p>'
       }
     </section>
 
@@ -669,7 +771,7 @@ export function generateTherapistReportHtml(
       ${
         entries.length > 0
           ? detailedEntriesHtml
-          : '<p style="color: #64748b; font-style: italic; padding: 10px 0;">Nessuna registrazione per il periodo selezionato.</p>'
+          : '<p style="color: #64748b; font-style: italic; padding: 10px 0; text-align: center;">Nessuna registrazione per il periodo selezionato.</p>'
       }
     </section>
 
@@ -680,7 +782,7 @@ export function generateTherapistReportHtml(
 }
 
 /**
- * Generate Raw Tabular CSV matching the exact sections and columns of the clinical sheet
+ * Generate Raw Tabular CSV matching the exact sections and columns of the clinical sheet without emojis
  */
 export function generateTherapistCsv(
   entries: CbtEntry[],
@@ -688,11 +790,11 @@ export function generateTherapistCsv(
   _customQuestions: CustomQuestion[],
   _options: TherapistReportFilterOptions
 ): string {
-  const tagMap = new Map(allTags.map((t) => [t.id, t.label]));
+  const tagMap = new Map(allTags.map((t) => [t.id, removeEmojis(t.label)]));
 
   const escapeCsv = (val: unknown): string => {
     if (val === null || val === undefined) return '""';
-    const s = String(val).replace(/"/g, '""');
+    const s = removeEmojis(String(val)).replace(/"/g, '""');
     return `"${s}"`;
   };
 
@@ -710,16 +812,17 @@ export function generateTherapistCsv(
       hour: '2-digit',
       minute: '2-digit',
     });
-    const situation = e.situation || '';
-    const triggers = e.triggerFactors || '';
+    const situation = removeEmojis(e.situation || '');
+    const triggers = removeEmojis(e.triggerFactors || '');
     const emoList = (e.emotionTagIds || [])
       .map((id) => tagMap.get(id))
       .filter((label): label is string => Boolean(label && !label.startsWith('tag-')))
       .join(', ');
     const thoughtBelief = e.thoughtBeliefLevel !== undefined ? e.thoughtBeliefLevel : 0;
-    const thoughtCell = e.negativeThought
-      ? `${e.negativeThought} (Quanto credo al pensiero: ${thoughtBelief}/100)`
-      : `(Quanto credo al pensiero: ${thoughtBelief}/100)`;
+    const cleanThought = removeEmojis(e.negativeThought || '');
+    const thoughtCell = cleanThought
+      ? `${cleanThought} (Grado di convinzione: ${thoughtBelief}/100)`
+      : `(Grado di convinzione: ${thoughtBelief}/100)`;
 
     csv += [d, situation, triggers, emoList, thoughtCell].map(escapeCsv).join(',') + '\r\n';
   });
@@ -734,8 +837,8 @@ export function generateTherapistCsv(
     'Pensieri negativi (descrizione e frequenza 0-100)',
     'Attenzione focalizzata sul corpo (frequenza)',
     'Controllo dei sintomi / Check (azioni svolte e numero di volte)',
-    'Ricerca di rassicurazioni (che tipo di richiesta e quante volte)',
-    'Evitamento (tipologia e numero di volte)',
+    'Ricerca di rassicurazioni (tipo di richiesta e frequenza)',
+    'Evitamento (tipologia e frequenza)',
     'Ansia complessiva (0-100)',
   ].map(escapeCsv).join(',') + '\r\n';
 
@@ -751,7 +854,7 @@ export function generateTherapistCsv(
     const physTags = (e.physicalSymptomTagIds || [])
       .map((id) => tagMap.get(id))
       .filter((label): label is string => Boolean(label && !label.startsWith('tag-')));
-    const physDetail = e.physicalSymptomsText ? e.physicalSymptomsText.trim() : '';
+    const physDetail = removeEmojis(e.physicalSymptomsText ? e.physicalSymptomsText.trim() : '');
     let physicalText = '';
     if (physTags.length > 0 && physDetail) {
       physicalText = `${physTags.join(', ')} (${physDetail})`;
@@ -763,21 +866,21 @@ export function generateTherapistCsv(
       physicalText = 'Nessuno specificato';
     }
 
-    const thoughtDesc = e.negativeThoughtsExtended || e.negativeThought || 'Nessuna descrizione';
+    const thoughtDesc = removeEmojis(e.negativeThoughtsExtended || e.negativeThought || 'Nessuna descrizione');
     const thoughtFreq = e.negativeThoughtsIntensity ?? e.thoughtBeliefLevel ?? 0;
     const thoughtsCell = `${thoughtDesc} (Frequenza: ${thoughtFreq}/100)`;
 
     const bodyAttentionCell = `${e.bodyFocusedAttentionLevel ?? 0}/100`;
 
-    const controlAction = e.symptomControlDescription ? e.symptomControlDescription.trim() : 'Nessuna azione specificata';
+    const controlAction = removeEmojis(e.symptomControlDescription ? e.symptomControlDescription.trim() : 'Nessuna azione specificata');
     const controlCount = `${e.symptomControlCount ?? 0} ${e.symptomControlCount === 1 ? 'volta' : 'volte'}`;
     const checkCell = `${controlAction} (${controlCount})`;
 
-    const reassType = e.reassuranceSeekingType ? e.reassuranceSeekingType.trim() : 'Nessuna richiesta specificata';
+    const reassType = removeEmojis(e.reassuranceSeekingType ? e.reassuranceSeekingType.trim() : 'Nessuna richiesta specificata');
     const reassCount = `${e.reassuranceSeekingCount ?? 0} ${e.reassuranceSeekingCount === 1 ? 'volta' : 'volte'}`;
     const reassuranceCell = `${reassType} (${reassCount})`;
 
-    const avoidType = e.avoidanceType ? e.avoidanceType.trim() : 'Nessun evitamento specificato';
+    const avoidType = removeEmojis(e.avoidanceType ? e.avoidanceType.trim() : 'Nessun evitamento specificato');
     const avoidCount = `${e.avoidanceCount ?? 0} ${e.avoidanceCount === 1 ? 'volta' : 'volte'}`;
     const avoidanceCell = `${avoidType} (${avoidCount})`;
 
@@ -799,8 +902,8 @@ export function generateTherapistCsv(
 }
 
 /**
- * Generazione ed esportazione diretta del file PDF clinico (A4, multipagina con interruzioni pulite)
- * Nessun foglio bianco: il canvas viene renderizzato a piena opacità (1.0) con colori e contrasto esatti.
+ * Generazione ed esportazione diretta del file PDF clinico (A4, multipagina con interruzioni pulite e perfetto allineamento centrato)
+ * Il PDF viene centrato con margini simmetrici esatti da 10 mm a sinistra e destra, senza emoji e con sottolineature sottili professionali.
  */
 export async function exportTherapistPdf(
   entries: CbtEntry[],
@@ -817,7 +920,8 @@ export async function exportTherapistPdf(
 
   onToast?.('Generazione PDF in corso...');
 
-  const dateRangeDisplay = formatItalianDateRange(entries, options);
+  const dateRangeDisplay = removeEmojis(formatItalianDateRange(entries, options));
+  const cleanPatientName = removeEmojis(options.patientName);
   const html = generateTherapistReportHtml(entries, allTags, customQuestions, options);
   const dateIso = new Date().toISOString().slice(0, 10);
   const filename = `report-clinico-diariamente-${dateIso}.pdf`;
@@ -828,16 +932,16 @@ export async function exportTherapistPdf(
   container.style.position = 'fixed';
   container.style.top = '0';
   container.style.left = '0';
+  container.style.right = '0';
+  container.style.margin = '0 auto';
   container.style.width = '794px';
   container.style.maxWidth = '794px';
   container.style.backgroundColor = '#ffffff';
   container.style.color = '#0f172a';
   container.style.zIndex = '-9999';
-  container.style.opacity = '1'; // 100% opaco: evita categoricamente fogli bianchi o trasparenti!
+  container.style.opacity = '1'; // 100% opaco: garantisce contrasto elevato e colori nitidi
   container.style.visibility = 'visible';
   container.style.pointerEvents = 'none';
-  container.style.margin = '0';
-  container.style.padding = '0';
   container.style.boxSizing = 'border-box';
   container.innerHTML = html;
   document.body.appendChild(container);
@@ -926,8 +1030,9 @@ export async function exportTherapistPdf(
     });
 
     const a4WidthMm = 210;
-    const marginSideMm = 8;
-    const contentWidthMm = a4WidthMm - marginSideMm * 2; // 194 mm
+    // Larghezza contenuto impostata a 190 mm: lascia esattamente 10 mm a sinistra e 10 mm a destra (perfettamente centrato)
+    const contentWidthMm = 190;
+    const marginSideMm = (a4WidthMm - contentWidthMm) / 2; // Esattamente 10.0 mm
 
     // Suddivisione in fette di pagina calcolando i breakpoint per evitare tagli antiestetici
     interface PageSlice {
@@ -940,8 +1045,8 @@ export async function exportTherapistPdf(
 
     while (currentY < canvas.height - 4) {
       const isFirst = slices.length === 0;
-      // Pagina 1 ha 273mm utili (10mm top, 14mm bottom). Pagine successive 267mm (16mm top per testata, 14mm bottom)
-      const availHeightMm = isFirst ? 273 : 267;
+      // Pagina 1 ha 272mm utili (12mm top, 13mm bottom). Pagine successive 265mm (18mm top per testata, 14mm bottom)
+      const availHeightMm = isFirst ? 272 : 265;
       const maxSlicePx = Math.floor((canvas.width * availHeightMm) / contentWidthMm);
 
       const remainingPx = canvas.height - currentY;
@@ -988,7 +1093,7 @@ export async function exportTherapistPdf(
       }
 
       const sliceHeightMm = (slice.sliceHeightPx * contentWidthMm) / canvas.width;
-      const topMm = slice.isFirstPage ? 10 : 16;
+      const topMm = slice.isFirstPage ? 12 : 18;
 
       const pageCanvas = document.createElement('canvas');
       pageCanvas.width = canvas.width;
@@ -1010,27 +1115,27 @@ export async function exportTherapistPdf(
           slice.sliceHeightPx
         );
 
-        // Compressione bilanciata al 0.88: genera un file PDF leggero e nitidissimo, ideale per WhatsApp
-        const imgData = pageCanvas.toDataURL('image/jpeg', 0.88);
+        // Compressione bilanciata: genera un file PDF leggero e nitidissimo
+        const imgData = pageCanvas.toDataURL('image/jpeg', 0.9);
         pdf.addImage(imgData, 'JPEG', marginSideMm, topMm, contentWidthMm, sliceHeightMm, undefined, 'FAST');
       }
 
-      // Testata superiore di continuazione (dalla pagina 2 in poi)
+      // Testata superiore di continuazione (dalla pagina 2 in poi) perfettamente centrata/allineata sui 10 mm
       if (pageIndex > 0) {
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(8.5);
         pdf.setTextColor(71, 85, 105);
-        pdf.text('DiariaMente — Report Clinico CBT', marginSideMm, 9.5);
-        const rightSubtitle = options.patientName ? `Paziente: ${options.patientName}` : '';
+        pdf.text('DiariaMente — Report Clinico CBT', marginSideMm, 10.5);
+        const rightSubtitle = cleanPatientName ? `Paziente: ${cleanPatientName}` : '';
         if (rightSubtitle) {
-          pdf.text(rightSubtitle, a4WidthMm - marginSideMm, 9.5, { align: 'right' });
+          pdf.text(rightSubtitle, a4WidthMm - marginSideMm, 10.5, { align: 'right' });
         }
         pdf.setDrawColor(226, 232, 240);
         pdf.setLineWidth(0.25);
-        pdf.line(marginSideMm, 12, a4WidthMm - marginSideMm, 12);
+        pdf.line(marginSideMm, 13.5, a4WidthMm - marginSideMm, 13.5);
       }
 
-      // Piè di pagina professionale su tutte le pagine
+      // Piè di pagina professionale su tutte le pagine, simmetricamente spaziato
       pdf.setDrawColor(226, 232, 240);
       pdf.setLineWidth(0.25);
       pdf.line(marginSideMm, 287, a4WidthMm - marginSideMm, 287);
@@ -1056,8 +1161,8 @@ export async function exportTherapistPdf(
         pdfBlob,
         filename,
         'Report Clinico CBT — DiariaMente',
-        options.patientName
-          ? `Report clinico CBT per il paziente ${options.patientName} (periodo: ${dateRangeDisplay}).`
+        cleanPatientName
+          ? `Report clinico CBT per il paziente ${cleanPatientName} (periodo: ${dateRangeDisplay}).`
           : `Report clinico CBT DiariaMente (periodo: ${dateRangeDisplay}).`
       );
 

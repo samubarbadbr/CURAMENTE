@@ -1330,7 +1330,7 @@ export default function App() {
           onShowSplash={() => setShowSplash(true)}
         />
 
-        <main className="flex-1 px-4 sm:px-6 pt-3 pb-24 overflow-x-hidden">
+        <main className="flex-1 px-4 sm:px-6 md:px-8 pt-2.5 sm:pt-3 pb-28 sm:pb-24 max-w-4xl mx-auto w-full overflow-x-hidden">
           <AnimatePresence mode="wait" custom={direction}>
             <motion.div
               key={currentView}
@@ -1363,6 +1363,7 @@ export default function App() {
                   isPrivacyModeEnabled={isPrivacyModeEnabled}
                   onTogglePrivacyMode={handleTogglePrivacyMode}
                   isSyncConfigured={Boolean(syncPin)}
+                  onShowToast={showToast}
                 />
               )}
 
@@ -1492,6 +1493,7 @@ export default function App() {
         isOpen={isTherapistExportModalOpen}
         onClose={() => setIsTherapistExportModalOpen(false)}
         entries={exportEntries.length > 0 ? exportEntries : entries}
+        notes={notes}
         allTags={allTags}
         customQuestions={customQuestions}
         onShowToast={showToast}
@@ -1518,6 +1520,7 @@ export default function App() {
           setEditingGlobalDiaryNote(null);
         }}
         isSyncConfigured={Boolean(syncPin)}
+        onShowToast={showToast}
       />
     </div>
   );

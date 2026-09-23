@@ -1,11 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { CbtEntry, CustomQuestion, Tag } from '../types';
+import { CbtEntry, CustomQuestion, Tag, DiaryNote } from '../types';
 import {
   TherapistReportFilterOptions,
   filterEntriesForReport,
   generateTherapistCsv,
   exportTherapistPdf,
 } from '../services/therapistReportGenerator';
+import { exportDiaryNotesPdf, filterNotesForReport } from '../services/diaryReportGenerator';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { CustomDatePicker } from './CustomDatePicker';
 import {
   X,
@@ -19,6 +21,8 @@ import {
   Download,
   ListChecks,
   Share2,
+  BookOpen,
+  Layers,
 } from 'lucide-react';
 import { canSharePdfFiles, isMobileDevice } from '../services/pdfSharingUtils';
 
@@ -26,19 +30,29 @@ interface TherapistExportModalProps {
   isOpen: boolean;
   onClose: () => void;
   entries: CbtEntry[];
+  notes?: DiaryNote[];
   allTags: Tag[];
   customQuestions: CustomQuestion[];
   onShowToast: (msg: string) => void;
+  initialExportScope?: 'cbt' | 'notes' | 'all';
 }
 
 export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
   isOpen,
   onClose,
   entries,
+  notes = [],
   allTags,
   customQuestions,
   onShowToast,
+  initialExportScope = 'cbt',
 }) => {
+  // Lock background scroll when modal is open
+  useBodyScrollLock(isOpen);
+
+  // Export scope: 'cbt', 'notes', or 'all'
+  const [exportScope, setExportScope] = useState<'cbt' | 'notes' | 'all'>(initialExportScope);
+
   // Saved patient name in localStorage
   const [patientName, setPatientName] = useState(() => {
     return localStorage.getItem('diariamente_patient_name') || '';
@@ -133,22 +147,75 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
     [patientName, period, customStartDate, customEndDate, lastSessionDate, sortOrder]
   );
 
-  // Filter entries in real-time
+  // Filter entries and notes in real-time
   const filteredEntries = useMemo(() => {
     return filterEntriesForReport(entries, filterOptions);
   }, [entries, filterOptions]);
+
+  const filteredNotes = useMemo(() => {
+    return filterNotesForReport(notes, {
+      patientName: patientName.trim(),
+      period,
+      customStartDate,
+      customEndDate,
+      lastSessionDate,
+      sortOrder,
+    });
+  }, [notes, patientName, period, customStartDate, customEndDate, lastSessionDate, sortOrder]);
+
+  const totalSelectedItems = useMemo(() => {
+    if (exportScope === 'cbt') return filteredEntries.length;
+    if (exportScope === 'notes') return filteredNotes.length;
+    return filteredEntries.length + filteredNotes.length;
+  }, [exportScope, filteredEntries.length, filteredNotes.length]);
 
   if (!isOpen) return null;
 
   // 1. Direct PDF Export (Download immediato del file PDF nel dispositivo)
   const handleExportPdf = async () => {
-    if (filteredEntries.length === 0) {
+    if (totalSelectedItems === 0) {
       onShowToast('Nessuna registrazione trovata per il periodo selezionato');
       return;
     }
     setIsExportingPdf(true);
     try {
-      await exportTherapistPdf(filteredEntries, allTags, customQuestions, filterOptions, onShowToast, 'download');
+      if (exportScope === 'notes') {
+        await exportDiaryNotesPdf(
+          filteredNotes,
+          {
+            patientName: patientName.trim(),
+            period,
+            customStartDate,
+            customEndDate,
+            lastSessionDate,
+            sortOrder,
+          },
+          onShowToast,
+          'download'
+        );
+      } else if (exportScope === 'cbt') {
+        await exportTherapistPdf(filteredEntries, allTags, customQuestions, filterOptions, onShowToast, 'download');
+      } else {
+        // Both: first CBT entries, then Notes
+        if (filteredEntries.length > 0) {
+          await exportTherapistPdf(filteredEntries, allTags, customQuestions, filterOptions, onShowToast, 'download');
+        }
+        if (filteredNotes.length > 0) {
+          await exportDiaryNotesPdf(
+            filteredNotes,
+            {
+              patientName: patientName.trim(),
+              period,
+              customStartDate,
+              customEndDate,
+              lastSessionDate,
+              sortOrder,
+            },
+            onShowToast,
+            'download'
+          );
+        }
+      }
     } catch (err) {
       console.error('Error during PDF export:', err);
       onShowToast('Errore durante la generazione del PDF');
@@ -159,13 +226,48 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
 
   // 2. Direct PDF Sharing (Ideale per WhatsApp, Telegram, Email su smartphone)
   const handleSharePdf = async () => {
-    if (filteredEntries.length === 0) {
+    if (totalSelectedItems === 0) {
       onShowToast('Nessuna registrazione trovata per il periodo selezionato');
       return;
     }
     setIsSharingPdf(true);
     try {
-      await exportTherapistPdf(filteredEntries, allTags, customQuestions, filterOptions, onShowToast, 'share');
+      if (exportScope === 'notes') {
+        await exportDiaryNotesPdf(
+          filteredNotes,
+          {
+            patientName: patientName.trim(),
+            period,
+            customStartDate,
+            customEndDate,
+            lastSessionDate,
+            sortOrder,
+          },
+          onShowToast,
+          'share'
+        );
+      } else if (exportScope === 'cbt') {
+        await exportTherapistPdf(filteredEntries, allTags, customQuestions, filterOptions, onShowToast, 'share');
+      } else {
+        // Share notes if only notes exist, or CBT if only CBT exist, or CBT first
+        if (filteredEntries.length > 0) {
+          await exportTherapistPdf(filteredEntries, allTags, customQuestions, filterOptions, onShowToast, 'share');
+        } else if (filteredNotes.length > 0) {
+          await exportDiaryNotesPdf(
+            filteredNotes,
+            {
+              patientName: patientName.trim(),
+              period,
+              customStartDate,
+              customEndDate,
+              lastSessionDate,
+              sortOrder,
+            },
+            onShowToast,
+            'share'
+          );
+        }
+      }
     } catch (err) {
       console.error('Error during PDF share:', err);
       onShowToast('Errore durante la condivisione del PDF');
@@ -177,7 +279,7 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
   // 3. Direct CSV Export (Formattato con le medesime sezioni e colonne)
   const handleExportCsvData = async () => {
     if (filteredEntries.length === 0) {
-      onShowToast('Nessuna registrazione da esportare');
+      onShowToast('Nessuna scheda CBT da esportare in formato CSV');
       return;
     }
 
@@ -203,25 +305,25 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-2.5 sm:p-4 bg-black/75 backdrop-blur-md animate-fade-in overscroll-contain"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-xl max-h-[92vh] flex flex-col bg-[var(--bg-surface)] border border-[var(--border-solid)] rounded-[24px] shadow-2xl overflow-hidden text-[var(--text-primary)] animate-scale-up"
+        className="relative w-full max-w-xl max-h-[90vh] sm:max-h-[92vh] flex flex-col bg-[var(--bg-surface)] border border-[var(--border-solid)] rounded-[24px] shadow-2xl overflow-hidden text-[var(--text-primary)] animate-scale-up overscroll-contain"
         onClick={(e) => e.stopPropagation()}
       >
         {/* MODAL HEADER */}
-        <div className="flex items-center justify-between p-5 border-b border-[var(--border-solid)] bg-[var(--bg-subtle)]/50 shrink-0">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[var(--border-solid)] bg-[var(--bg-subtle)]/50 shrink-0">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-2xl bg-[#5B67CA]/15 border border-[#5B67CA]/30 text-[#5B67CA] flex items-center justify-center shrink-0 shadow-sm">
               <FileText className="w-5 h-5 stroke-[2.2]" />
             </div>
             <div>
-              <h2 className="text-lg font-black tracking-tight text-[var(--text-primary)]">
+              <h2 className="text-base sm:text-lg font-black tracking-tight text-[var(--text-primary)]">
                 Esporta Report Clinico
               </h2>
-              <p className="text-xs font-semibold text-[var(--text-secondary)]">
-                Struttura conforme allo schema operativo della terapeuta
+              <p className="text-[11px] sm:text-xs font-semibold text-[var(--text-secondary)]">
+                Report professionale per la seduta con la terapeuta
               </p>
             </div>
           </div>
@@ -237,8 +339,65 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
         </div>
 
         {/* MODAL BODY (SCROLLABLE) */}
-        <div className="overflow-y-auto p-5 space-y-5 text-sm">
+        <div className="overflow-y-auto p-4 sm:p-5 space-y-4 sm:space-y-5 text-sm touch-pan-y">
           
+          {/* EXPORT SCOPE SELECTOR */}
+          <div className="space-y-1.5">
+            <label className="flex items-center space-x-2 text-xs font-black uppercase tracking-wider text-[var(--text-secondary)]">
+              <Layers className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
+              <span>Cosa desideri esportare?</span>
+            </label>
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+              <button
+                type="button"
+                onClick={() => setExportScope('all')}
+                className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex flex-col items-center justify-center space-y-0.5 ${
+                  exportScope === 'all'
+                    ? 'bg-[#5B67CA]/15 text-[#5B67CA] border-[#5B67CA]/50 font-black shadow-xs ring-1 ring-[#5B67CA]'
+                    : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] border-[var(--border-solid)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                <div className="flex items-center space-x-1">
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>Tutto</span>
+                </div>
+                <span className="text-[10px] opacity-80">({filteredEntries.length + filteredNotes.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setExportScope('cbt')}
+                className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex flex-col items-center justify-center space-y-0.5 ${
+                  exportScope === 'cbt'
+                    ? 'bg-[#5B67CA]/15 text-[#5B67CA] border-[#5B67CA]/50 font-black shadow-xs ring-1 ring-[#5B67CA]'
+                    : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] border-[var(--border-solid)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                <div className="flex items-center space-x-1">
+                  <ListChecks className="w-3.5 h-3.5" />
+                  <span>Schede CBT</span>
+                </div>
+                <span className="text-[10px] opacity-80">({filteredEntries.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setExportScope('notes')}
+                className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex flex-col items-center justify-center space-y-0.5 ${
+                  exportScope === 'notes'
+                    ? 'bg-[#5B67CA]/15 text-[#5B67CA] border-[#5B67CA]/50 font-black shadow-xs ring-1 ring-[#5B67CA]'
+                    : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] border-[var(--border-solid)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                <div className="flex items-center space-x-1">
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>Appunti</span>
+                </div>
+                <span className="text-[10px] opacity-80">({filteredNotes.length})</span>
+              </button>
+            </div>
+          </div>
+
           {/* PATIENT NAME FIELD */}
           <div className="space-y-1.5">
             <label className="flex items-center space-x-2 text-xs font-black uppercase tracking-wider text-[var(--text-secondary)]">
@@ -255,14 +414,18 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
           </div>
 
           {/* DATE RANGE FILTER & SHORTCUTS */}
-          <div className="space-y-3 p-4 rounded-2xl bg-[var(--bg-subtle)]/70 border border-[var(--border-solid)]">
+          <div className="space-y-3 p-3.5 sm:p-4 rounded-2xl bg-[var(--bg-subtle)]/70 border border-[var(--border-solid)]">
             <div className="flex items-center justify-between">
               <label className="flex items-center space-x-2 text-xs font-black uppercase tracking-wider text-[var(--text-secondary)]">
                 <Calendar className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
                 <span>Periodo del Report</span>
               </label>
               <span className="text-[11px] font-bold text-[#5B67CA] bg-[#5B67CA]/10 px-2.5 py-0.5 rounded-full border border-[#5B67CA]/20">
-                {filteredEntries.length} {filteredEntries.length === 1 ? 'registrazione' : 'registrazioni'}
+                {exportScope === 'cbt'
+                  ? `${filteredEntries.length} ${filteredEntries.length === 1 ? 'scheda CBT' : 'schede CBT'}`
+                  : exportScope === 'notes'
+                  ? `${filteredNotes.length} ${filteredNotes.length === 1 ? 'appunto' : 'appunti'}`
+                  : `${filteredEntries.length} schede + ${filteredNotes.length} appunti`}
               </span>
             </div>
 
@@ -440,24 +603,24 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
         </div>
 
         {/* MODAL ACTIONS FOOTER: Avvio diretto download PDF, condivisione e download CSV */}
-        <div className="p-4 border-t border-[var(--border-solid)] bg-[var(--bg-subtle)]/70 flex flex-col sm:flex-row items-center justify-between gap-2.5 shrink-0">
+        <div className="p-3.5 sm:p-4 border-t border-[var(--border-solid)] bg-[var(--bg-subtle)]/70 flex flex-col sm:flex-row items-center justify-between gap-2.5 shrink-0">
           <button
             type="button"
             onClick={handleExportCsvData}
             disabled={filteredEntries.length === 0}
-            className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-3.5 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)] hover:bg-[var(--bg-subtle)] text-xs font-black text-[var(--text-primary)] transition-all active:scale-95 disabled:opacity-40 cursor-pointer shadow-xs"
+            className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-3.5 py-2.5 min-h-[44px] rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)] hover:bg-[var(--bg-subtle)] text-xs font-black text-[var(--text-primary)] transition-all active:scale-95 disabled:opacity-40 cursor-pointer shadow-xs"
             title="Avvia direttamente il download del file .csv con la struttura clinica"
           >
             <Table className="w-4 h-4 text-emerald-500 stroke-[2.2]" />
-            <span>Scarica CSV</span>
+            <span>Scarica CSV (CBT)</span>
           </button>
 
           <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2">
             <button
               type="button"
               onClick={handleExportPdf}
-              disabled={filteredEntries.length === 0 || isExportingPdf || isSharingPdf}
-              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)] hover:bg-[var(--bg-subtle)] text-xs font-black text-[var(--text-primary)] transition-all active:scale-95 disabled:opacity-50 cursor-pointer shadow-xs"
+              disabled={totalSelectedItems === 0 || isExportingPdf || isSharingPdf}
+              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2.5 min-h-[44px] rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)] hover:bg-[var(--bg-subtle)] text-xs font-black text-[var(--text-primary)] transition-all active:scale-95 disabled:opacity-50 cursor-pointer shadow-xs"
               title="Scarica il file PDF direttamente nella cartella Download del dispositivo"
             >
               {isExportingPdf ? (
@@ -476,8 +639,8 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
             <button
               type="button"
               onClick={handleSharePdf}
-              disabled={filteredEntries.length === 0 || isExportingPdf || isSharingPdf}
-              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl bg-[#5B67CA] hover:bg-[#4A55B8] text-white text-xs font-black shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+              disabled={totalSelectedItems === 0 || isExportingPdf || isSharingPdf}
+              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-5 py-2.5 min-h-[44px] rounded-xl bg-[#5B67CA] hover:bg-[#4A55B8] text-white text-xs font-black shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
               title="Condividi direttamente il PDF con WhatsApp, Email o altre app"
             >
               {isSharingPdf ? (

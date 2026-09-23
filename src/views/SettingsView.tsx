@@ -10,8 +10,6 @@ import {
   ShieldCheck,
   ChevronRight,
   ChevronDown,
-  ChevronUp,
-  Code2,
   FileText,
   Table,
   Printer,
@@ -23,9 +21,6 @@ import {
   RefreshCw,
   KeyRound,
   Wifi,
-  Database,
-  Copy,
-  Check,
   Laptop,
   Sparkles,
   HelpCircle,
@@ -40,7 +35,6 @@ import {
   ShieldAlert,
   AlertCircle,
   AlertTriangle,
-  WifiOff,
   Activity,
   Brain,
   Heart,
@@ -118,8 +112,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pinInput, setPinInput] = useState(syncPin);
   const [isEditingPin, setIsEditingPin] = useState(!syncPin);
-  const [showTechnicalSpecs, setShowTechnicalSpecs] = useState(false);
-  const [copiedSql, setCopiedSql] = useState(false);
 
   // App Lock PIN local state
   const [appPinDraft, setAppPinDraft] = useState('');
@@ -213,41 +205,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       </button>
     </div>
   );
-
-  const sqlScript = `-- 1. Crea o aggiorna la tabella 'user_sync_data' nel tuo progetto Supabase
-CREATE TABLE IF NOT EXISTS public.user_sync_data (
-  user_pin TEXT PRIMARY KEY,
-  pin TEXT,
-  user_id TEXT,
-  data JSONB,
-  payload JSONB,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Assicura che tutte le colonne necessarie siano presenti
-ALTER TABLE public.user_sync_data ADD COLUMN IF NOT EXISTS user_pin TEXT;
-ALTER TABLE public.user_sync_data ADD COLUMN IF NOT EXISTS user_id TEXT;
-ALTER TABLE public.user_sync_data ADD COLUMN IF NOT EXISTS data JSONB;
-ALTER TABLE public.user_sync_data ADD COLUMN IF NOT EXISTS payload JSONB;
-ALTER TABLE public.user_sync_data ADD COLUMN IF NOT EXISTS pin TEXT;
-ALTER TABLE public.user_sync_data ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
-
--- 2. Abilita la sicurezza Row Level Security (RLS)
-ALTER TABLE public.user_sync_data ENABLE ROW LEVEL SECURITY;
-
--- 3. Crea la policy per consentire la sincronizzazione anonima
-DROP POLICY IF EXISTS "Accesso completo anonimo" ON public.user_sync_data;
-CREATE POLICY "Accesso completo anonimo" ON public.user_sync_data
-  FOR ALL USING (true) WITH CHECK (true);
-
--- 4. Ricarica la cache dello schema per applicare subito le modifiche
-NOTIFY pgrst, 'reload schema';`;
-
-  const handleCopySql = () => {
-    navigator.clipboard.writeText(sqlScript);
-    setCopiedSql(true);
-    setTimeout(() => setCopiedSql(false), 2000);
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -598,70 +555,6 @@ NOTIFY pgrst, 'reload schema';`;
 
         {/* PWA Install Button Card Component */}
         <PWAInstallButton variant="card" />
-
-        {/* COLLAPSIBLE DETTAGLI TECNICI & ARCHITETTURA (Per sviluppatore / acquirente) */}
-        <div className="pt-1">
-          <button
-            type="button"
-            onClick={() => setShowTechnicalSpecs(!showTechnicalSpecs)}
-            className="w-full flex items-center justify-between p-3 rounded-xl bg-[var(--bg-subtle)]/70 hover:bg-[var(--bg-subtle)] border border-[var(--border-solid)] text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer"
-          >
-            <div className="flex items-center space-x-2">
-              <Code2 className="w-4 h-4 text-indigo-400 shrink-0" />
-              <span>Specifiche tecniche &amp; Architettura (Sviluppatore / Acquirente)</span>
-            </div>
-            <div className="flex items-center space-x-1 text-[11px] font-medium text-[var(--text-muted)]">
-              <span>{showTechnicalSpecs ? 'Comprimi' : 'Mostra dettagli'}</span>
-              {showTechnicalSpecs ? (
-                <ChevronUp className="w-3.5 h-3.5" />
-              ) : (
-                <ChevronDown className="w-3.5 h-3.5" />
-              )}
-            </div>
-          </button>
-
-          {showTechnicalSpecs && (
-            <div className="mt-2.5 p-4 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] space-y-3 animate-fade-in text-xs">
-              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
-                <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text-primary)]">
-                  Riepilogo Architettura &amp; Specifiche Tecniche
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
-                  Client-First PWA
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)]/70 space-y-1">
-                  <span className="font-bold text-[var(--text-primary)] flex items-center gap-1.5 text-[11px]">
-                    <Database className="w-3.5 h-3.5 text-indigo-400 shrink-0" /> Persistenza Dati Locale
-                  </span>
-                  <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
-                    Database IndexedDB asincrono con fallback su LocalStorage. Voci, tag e digest PIN isolati nel client locale.
-                  </p>
-                </div>
-
-                <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)]/70 space-y-1">
-                  <span className="font-bold text-[var(--text-primary)] flex items-center gap-1.5 text-[11px]">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> Service Worker Cache
-                  </span>
-                  <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
-                    Strategia Cache-First su bundle statico (HTML, JS, CSS, icone PWA). Avvio immediato e 100% offline garantito.
-                  </p>
-                </div>
-
-                <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-solid)]/70 space-y-1">
-                  <span className="font-bold text-[var(--text-primary)] flex items-center gap-1.5 text-[11px]">
-                    <WifiOff className="w-3.5 h-3.5 text-amber-400 shrink-0" /> Sicurezza &amp; Auth Offline
-                  </span>
-                  <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
-                    Verifica credenziali crittografica locale (PIN SHA-256 + WebAuthn biometrico FIDO2) senza dipendenza da rete.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* BACKUP & DATA TRANSFER SECTION */}

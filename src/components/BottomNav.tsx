@@ -15,16 +15,16 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentView, onSelectView 
   const navItems = [
     { id: 'timeline' as ViewType, label: 'Timeline', icon: Clock },
     { id: 'dashboard' as ViewType, label: 'Dashboard', icon: BarChart3 },
-    { id: 'custom_questions' as ViewType, label: 'Domande Custom', icon: HelpCircle },
-    { id: 'settings' as ViewType, label: 'Impostazioni', icon: Settings },
+    { id: 'custom_questions' as ViewType, label: 'Domande', fullLabel: 'Domande Custom', icon: HelpCircle },
+    { id: 'settings' as ViewType, label: 'Impostazioni', fullLabel: 'Impostazioni', icon: Settings },
   ];
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-30 w-full max-w-2xl lg:max-w-3xl mx-auto px-4 sm:px-6 pt-2 pointer-events-none"
-      style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+      className="fixed bottom-0 left-0 right-0 z-30 w-full max-w-xl lg:max-w-2xl mx-auto px-4 sm:px-6 pt-1.5 pointer-events-none"
+      style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
     >
-      <div className="glass-nav rounded-full p-1.5 flex items-center justify-around shadow-2xl border border-[var(--border-solid)] bg-[var(--bg-surface)] backdrop-blur-2xl pointer-events-auto relative">
+      <div className="glass-nav rounded-full p-1 sm:p-1.5 flex items-center justify-around shadow-2xl border border-[var(--border-solid)] bg-[var(--bg-surface)] backdrop-blur-2xl pointer-events-auto relative">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive =
@@ -42,26 +42,29 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentView, onSelectView 
                 }
                 interceptNavigation(() => onSelectView(item.id), e);
               }}
-              className={`flex-1 flex flex-col items-center py-2 px-3 min-h-[48px] justify-center rounded-full text-xs transition-all duration-200 relative cursor-pointer select-none ${
+              className={`flex-1 flex flex-col items-center py-1.5 sm:py-2 px-1 sm:px-2.5 min-h-[46px] sm:min-h-[48px] justify-center rounded-full text-xs transition-all duration-200 relative cursor-pointer select-none ${
                 isActive
-                  ? 'nav-item-active font-bold'
-                  : 'nav-item-inactive hover:text-[var(--text-primary)] font-medium'
+                  ? 'nav-item-active font-black'
+                  : 'nav-item-inactive hover:text-[var(--text-primary)] font-semibold'
               }`}
+              title={item.fullLabel || item.label}
             >
               {isActive && (
                 <motion.div
                   layoutId="activeTab"
-                  className="nav-active-pill absolute inset-0 bg-[var(--nav-active-bg)] rounded-full shadow-md"
+                  className="nav-active-pill absolute inset-0 bg-[var(--nav-active-bg)] rounded-full shadow-sm"
                   transition={{ type: 'spring', stiffness: 420, damping: 32 }}
                 />
               )}
               <motion.div
-                animate={{ scale: isActive ? 1.04 : 1 }}
+                animate={{ scale: isActive ? 1.05 : 1 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                className="z-10 flex flex-col items-center justify-center relative"
+                className="z-10 flex flex-col items-center justify-center relative w-full"
               >
-                <Icon className="w-5 h-5 mb-0.5 stroke-[2]" />
-                <span className="text-[11px] tracking-tight whitespace-nowrap">{item.label}</span>
+                <Icon className="w-5 h-5 mb-0.5 stroke-[2.2]" />
+                <span className="text-[10px] sm:text-[11px] tracking-tight whitespace-nowrap leading-none">
+                  {item.label}
+                </span>
               </motion.div>
             </button>
           );

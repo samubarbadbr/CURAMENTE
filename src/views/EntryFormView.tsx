@@ -426,25 +426,11 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
   });
 
   const handleSwitchTab = (tab: FormTab, e?: React.MouseEvent) => {
-    if (tab === activeTab) return;
-    if (isDirty || hasUnsavedAudio || isRecording || audioSafety.hasPendingChanges()) {
-      if (e) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-      setSafetyModal({
-        isOpen: true,
-        title: isRecording || audioSafety.isCurrentlyRecording()
-          ? 'Registrazione audio in corso'
-          : 'Modifiche non salvate',
-        message: isRecording || audioSafety.isCurrentlyRecording()
-          ? 'Stai registrando un audio vocale. Vuoi salvare la voce prima di cambiare sezione, oppure uscire senza salvare?'
-          : 'Ci sono modifiche non salvate nella scheda corrente. Vuoi salvare la voce prima di cambiare scheda, oppure scartare le modifiche?',
-        actionType: 'switch_tab',
-        targetTab: tab,
-      });
-      return;
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
     }
+    if (tab === activeTab) return;
     setActiveTab(tab);
     scrollToTop();
   };
@@ -703,8 +689,9 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
           }`}
         >
-          <Layers className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
-          <span>Sezione A: Analisi Rapida</span>
+          <Layers className="w-3.5 h-3.5 text-[var(--accent-primary)] shrink-0" />
+          <span className="hidden sm:inline">Sezione A: Analisi Rapida</span>
+          <span className="sm:hidden">Sez. A: Rapida</span>
         </button>
         <button
           type="button"
@@ -715,8 +702,9 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
               : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
           }`}
         >
-          <Activity className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
-          <span>Sezione B: Approfondito</span>
+          <Activity className="w-3.5 h-3.5 text-[var(--accent-primary)] shrink-0" />
+          <span className="hidden sm:inline">Sezione B: Approfondito</span>
+          <span className="sm:hidden">Sez. B: Clinica</span>
         </button>
       </div>
 

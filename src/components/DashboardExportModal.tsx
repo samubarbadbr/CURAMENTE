@@ -6,6 +6,7 @@ import {
   generateDashboardCsv,
   computeDashboardStats,
 } from '../services/dashboardReportGenerator';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { CustomDatePicker } from './CustomDatePicker';
 import {
   X,
@@ -37,6 +38,8 @@ export const DashboardExportModal: React.FC<DashboardExportModalProps> = ({
   dashPeriod,
   onShowToast,
 }) => {
+  useBodyScrollLock(isOpen);
+
   const [patientName, setPatientName] = useState(() => {
     return localStorage.getItem('diariamente_patient_name') || '';
   });
@@ -171,11 +174,11 @@ export const DashboardExportModal: React.FC<DashboardExportModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-2.5 sm:p-4 bg-black/75 backdrop-blur-md animate-fade-in overscroll-contain"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-[24px] bg-[var(--bg-surface)] border border-[var(--border-solid)] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        className="w-full max-w-lg rounded-[24px] bg-[var(--bg-surface)] border border-[var(--border-solid)] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] overscroll-contain"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import {
   KeyRound,
   ShieldCheck,
@@ -24,6 +25,8 @@ export const ResetPinModal: React.FC<ResetPinModalProps> = ({
   recoveryEmail,
   onSaveNewPin,
 }) => {
+  useBodyScrollLock(isOpen);
+
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [showPin, setShowPin] = useState(false);
@@ -70,13 +73,13 @@ export const ResetPinModal: React.FC<ResetPinModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md overscroll-contain">
         <motion.div
           initial={{ opacity: 0, scale: 0.94, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.94, y: 12 }}
           transition={{ duration: 0.22, ease: 'easeOut' }}
-          className="w-full max-w-md bg-zinc-900 border border-white/15 rounded-3xl shadow-2xl p-6 sm:p-7 relative overflow-hidden"
+          className="w-full max-w-md bg-zinc-900 border border-white/15 rounded-3xl shadow-2xl p-5 sm:p-7 relative overflow-hidden overscroll-contain"
         >
           {/* Top Decorative Glow */}
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-emerald-400 to-indigo-500" />

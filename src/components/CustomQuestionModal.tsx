@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import {
   X,
   HelpCircle,
@@ -53,6 +54,8 @@ export const CustomQuestionModal: React.FC<CustomQuestionModalProps> = ({
   onSave,
   onClose,
 }) => {
+  useBodyScrollLock(isOpen);
+
   const [prompt, setPrompt] = useState('');
   const [category, setCategory] = useState<QuestionCategory>('Gratitudine');
   const [responseType, setResponseType] = useState<QuestionResponseType>('text');
@@ -123,9 +126,11 @@ export const CustomQuestionModal: React.FC<CustomQuestionModalProps> = ({
 
   const isScaleSelected = responseType === 'scale_5' || responseType === 'scale_10' || responseType === 'scale_100';
 
+  if (!isOpen) return null;
+
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto overscroll-contain">
         {/* Backdrop overlay */}
         <motion.div
           initial={{ opacity: 0 }}

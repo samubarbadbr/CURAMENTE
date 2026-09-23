@@ -1,5 +1,7 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, X } from 'lucide-react';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -26,13 +28,15 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   onCancel,
   onDismiss,
 }) => {
+  useBodyScrollLock(isOpen);
+
   if (!isOpen) return null;
 
   const handleDismiss = onDismiss || onCancel;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in backdrop-blur-xs">
-      <div className="w-full max-w-sm sm:max-w-md rounded-[20px] bg-[var(--bg-surface)] border border-[var(--border-solid)] shadow-2xl p-5 sm:p-6 space-y-4 text-[var(--text-primary)]">
+  const modalContent = (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/70 animate-fade-in backdrop-blur-xs overscroll-contain">
+      <div className="w-full max-w-sm sm:max-w-md rounded-[20px] bg-[var(--bg-surface)] border border-[var(--border-solid)] shadow-2xl p-5 sm:p-6 space-y-4 text-[var(--text-primary)] overscroll-contain">
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-3">
             <div
@@ -89,4 +93,6 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 };

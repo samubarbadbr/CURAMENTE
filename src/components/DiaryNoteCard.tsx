@@ -15,7 +15,10 @@ import {
   Pause,
   Clock,
   Sparkles,
+  FileDown,
+  Loader2,
 } from 'lucide-react';
+import { exportSingleDiaryNotePdf } from '../services/diaryReportGenerator';
 
 interface DiaryNoteCardProps {
   note: DiaryNote;
@@ -23,6 +26,8 @@ interface DiaryNoteCardProps {
   onEdit: (note: DiaryNote) => void;
   onDelete: (noteId: string) => void;
   onTogglePin: (noteId: string) => void;
+  onExport?: (note: DiaryNote) => void;
+  onShowToast?: (msg: string) => void;
   delayIndex?: number;
 }
 
@@ -51,14 +56,33 @@ export const DiaryNoteCard: React.FC<DiaryNoteCardProps> = ({
   onEdit,
   onDelete,
   onTogglePin,
+  onExport,
+  onShowToast,
   delayIndex = 0,
 }) => {
   const [isRevealed, setIsRevealed] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const shouldBlur = isPrivacyModeEnabled && !isRevealed;
+
+  const handleExportPdf = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onExport) {
+      onExport(note);
+      return;
+    }
+    setIsExportingPdf(true);
+    try {
+      await exportSingleDiaryNotePdf(note, undefined, onShowToast, 'auto');
+    } catch (err) {
+      console.error('Errore export PDF appunto:', err);
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
 
   const formatTime = (iso: string) => {
     try {
@@ -99,29 +123,29 @@ export const DiaryNoteCard: React.FC<DiaryNoteCardProps> = ({
         } ${isRevealed ? 'privacy-revealed' : ''}`}
       >
         {/* Top bar */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-            <span className="text-xs font-black text-[var(--text-primary)] flex items-center space-x-1">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 min-w-0">
+            <span className="text-xs font-black text-[var(--text-primary)] flex items-center space-x-1 shrink-0">
               <Clock className="w-3 h-3 text-[var(--text-secondary)]" />
               <span>{formatTime(note.createdAt)}</span>
             </span>
 
             {note.pinned && (
-              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 shadow-2xs">
+              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 shadow-2xs shrink-0">
                 <Pin className="w-3 h-3 fill-amber-500 stroke-[2.5]" />
                 <span>In evidenza</span>
               </span>
             )}
 
             {note.category && (
-              <span className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-black border ${categoryInfo.style}`}>
+              <span className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-black border shrink-0 ${categoryInfo.style}`}>
                 <span>{categoryInfo.icon}</span>
                 <span>{note.category}</span>
               </span>
             )}
 
             {moodInfo && (
-              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-[var(--bg-subtle)] text-[var(--text-secondary)] border border-[var(--border-solid)]">
+              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-[var(--bg-subtle)] text-[var(--text-secondary)] border border-[var(--border-solid)] shrink-0">
                 <span>{moodInfo.emoji}</span>
                 <span>{moodInfo.label}</span>
               </span>
@@ -129,19 +153,19 @@ export const DiaryNoteCard: React.FC<DiaryNoteCardProps> = ({
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
+          <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0 flex-wrap gap-y-1">
             {isPrivacyModeEnabled && (
               <button
                 type="button"
                 onClick={() => setIsRevealed(!isRevealed)}
-                className="p-1.5 rounded-lg bg-[var(--bg-subtle)] hover:bg-[var(--accent-btn)] text-[var(--text-secondary)] hover:text-[var(--accent-btn-text)] transition-colors cursor-pointer"
+                className="min-h-[44px] min-w-[44px] rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--accent-btn)] text-[var(--text-secondary)] hover:text-[var(--accent-btn-text)] transition-colors cursor-pointer flex items-center justify-center shrink-0"
                 title={isRevealed ? 'Nascondi' : 'Mostra'}
                 aria-label="Privacy toggle"
               >
                 {isRevealed ? (
-                  <Eye className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <Eye className="w-4 h-4 stroke-[2.5]" />
                 ) : (
-                  <EyeOff className="w-3.5 h-3.5 text-[var(--accent-primary)] stroke-[2.5]" />
+                  <EyeOff className="w-4 h-4 text-[var(--accent-primary)] stroke-[2.5]" />
                 )}
               </button>
             )}
@@ -149,21 +173,21 @@ export const DiaryNoteCard: React.FC<DiaryNoteCardProps> = ({
             <button
               type="button"
               onClick={handleCopyText}
-              className="p-1.5 rounded-lg bg-[var(--bg-subtle)] hover:bg-[var(--accent-btn)] text-[var(--text-secondary)] hover:text-[var(--accent-btn-text)] transition-colors cursor-pointer"
+              className="min-h-[44px] min-w-[44px] rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--accent-btn)] text-[var(--text-secondary)] hover:text-[var(--accent-btn-text)] transition-colors cursor-pointer flex items-center justify-center shrink-0"
               title="Copia testo"
               aria-label="Copia testo appunto"
             >
               {isCopied ? (
-                <Check className="w-3.5 h-3.5 text-emerald-500 stroke-[3]" />
+                <Check className="w-4 h-4 text-emerald-500 stroke-[3]" />
               ) : (
-                <Copy className="w-3.5 h-3.5 stroke-[2.2]" />
+                <Copy className="w-4 h-4 stroke-[2.2]" />
               )}
             </button>
 
             <button
               type="button"
               onClick={() => onTogglePin(note.id)}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+              className={`min-h-[44px] min-w-[44px] rounded-xl transition-colors cursor-pointer flex items-center justify-center shrink-0 ${
                 note.pinned
                   ? 'bg-amber-500/20 text-amber-500'
                   : 'bg-[var(--bg-subtle)] hover:bg-[var(--accent-btn)] text-[var(--text-secondary)] hover:text-[var(--accent-btn-text)]'
@@ -171,27 +195,43 @@ export const DiaryNoteCard: React.FC<DiaryNoteCardProps> = ({
               title={note.pinned ? 'Rimuovi dai fissati' : 'Fissa in evidenza'}
               aria-label="Fissa in alto"
             >
-              <Pin className={`w-3.5 h-3.5 stroke-[2.5] ${note.pinned ? 'fill-amber-500' : ''}`} />
+              <Pin className={`w-4 h-4 stroke-[2.5] ${note.pinned ? 'fill-amber-500' : ''}`} />
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              disabled={isExportingPdf}
+              className="min-h-[44px] px-2.5 rounded-xl bg-[var(--bg-subtle)] hover:bg-[#5B67CA] text-[var(--text-secondary)] hover:text-white transition-all duration-150 cursor-pointer flex items-center space-x-1 border border-transparent hover:border-[#5B67CA] shrink-0"
+              title="Esporta appunto in PDF per la psicoterapeuta"
+              aria-label="Esporta PDF appunto"
+            >
+              {isExportingPdf ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileDown className="w-4 h-4 stroke-[2.2]" />
+              )}
+              <span className="text-xs font-bold">PDF</span>
             </button>
 
             <button
               type="button"
               onClick={() => onEdit(note)}
-              className="p-1.5 rounded-lg bg-[var(--bg-subtle)] hover:bg-[var(--accent-btn)] text-[var(--text-primary)] hover:text-[var(--accent-btn-text)] transition-colors cursor-pointer"
+              className="min-h-[44px] min-w-[44px] rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--accent-btn)] text-[var(--text-primary)] hover:text-[var(--accent-btn-text)] transition-colors cursor-pointer flex items-center justify-center shrink-0"
               title="Modifica appunto"
               aria-label="Modifica"
             >
-              <Pencil className="w-3.5 h-3.5 stroke-[2.5]" />
+              <Pencil className="w-4 h-4 stroke-[2.5]" />
             </button>
 
             <button
               type="button"
               onClick={() => onDelete(note.id)}
-              className="p-1.5 rounded-lg bg-[var(--bg-subtle)] hover:bg-rose-500/20 text-rose-500 hover:text-rose-600 transition-colors cursor-pointer"
+              className="min-h-[44px] min-w-[44px] rounded-xl bg-[var(--bg-subtle)] hover:bg-rose-500/20 text-rose-500 hover:text-rose-600 transition-colors cursor-pointer flex items-center justify-center shrink-0"
               title="Elimina appunto"
               aria-label="Elimina"
             >
-              <Trash2 className="w-3.5 h-3.5 stroke-[2.2]" />
+              <Trash2 className="w-4 h-4 stroke-[2.2]" />
             </button>
           </div>
         </div>
