@@ -238,11 +238,11 @@ export const DiaryNoteModal: React.FC<DiaryNoteModalProps> = ({
       style={{ isolation: 'isolate' }}
     >
       <div
-        className="relative w-full sm:max-w-xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col bg-[var(--bg-surface)] sm:rounded-2xl border-0 sm:border border-[var(--border-solid)] shadow-2xl overflow-hidden overscroll-contain"
+        className="relative w-full sm:max-w-xl h-[100dvh] sm:h-auto sm:max-h-[92dvh] flex flex-col bg-[var(--bg-surface)] sm:rounded-2xl border-0 sm:border border-[var(--border-solid)] shadow-2xl overflow-hidden overscroll-contain"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-[var(--border-solid)] bg-[var(--bg-subtle)]/70 shrink-0 gap-2">
+        <div className="flex items-center justify-between px-3.5 sm:px-4 py-3 sm:py-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] sm:pt-4 border-b border-[var(--border-solid)] bg-[var(--bg-subtle)]/70 shrink-0 gap-2">
           <div className="flex items-center space-x-2.5 min-w-0">
             <div className="p-2 rounded-xl bg-[var(--accent-primary)]/15 text-[var(--accent-primary)] shrink-0">
               <BookOpen className="w-5 h-5 stroke-[2.2]" />

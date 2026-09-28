@@ -309,7 +309,7 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-xl max-h-[90vh] sm:max-h-[92vh] flex flex-col bg-[var(--bg-surface)] border border-[var(--border-solid)] rounded-[24px] shadow-2xl overflow-hidden text-[var(--text-primary)] animate-scale-up overscroll-contain"
+        className="relative w-full max-w-xl max-h-[90dvh] sm:max-h-[92dvh] flex flex-col bg-[var(--bg-surface)] border border-[var(--border-solid)] rounded-[24px] shadow-2xl overflow-hidden text-[var(--text-primary)] animate-scale-up overscroll-contain"
         onClick={(e) => e.stopPropagation()}
       >
         {/* MODAL HEADER */}
@@ -603,7 +603,7 @@ export const TherapistExportModal: React.FC<TherapistExportModalProps> = ({
         </div>
 
         {/* MODAL ACTIONS FOOTER: Avvio diretto download PDF, condivisione e download CSV */}
-        <div className="p-3.5 sm:p-4 border-t border-[var(--border-solid)] bg-[var(--bg-subtle)]/70 flex flex-col sm:flex-row items-center justify-between gap-2.5 shrink-0">
+        <div className="p-3.5 sm:p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-4 border-t border-[var(--border-solid)] bg-[var(--bg-subtle)]/70 flex flex-col sm:flex-row items-center justify-between gap-2.5 shrink-0">
           <button
             type="button"
             onClick={handleExportCsvData}

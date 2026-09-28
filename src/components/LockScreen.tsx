@@ -274,7 +274,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({
         transition: { duration: 0.38, ease: [0.32, 0.72, 0, 1] },
       }}
       transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-      className="fixed inset-0 z-50 flex flex-col justify-between items-center bg-[#050508] text-[#EDEDED] px-4 py-6 sm:py-10 select-none overflow-y-auto"
+      className="fixed inset-0 z-50 flex flex-col justify-between items-center bg-[#050508] text-[#EDEDED] px-4 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:py-10 select-none overflow-y-auto h-[100dvh]"
     >
       {/* Top spacer */}
       <div className="w-full h-1" />

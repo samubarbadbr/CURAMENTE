@@ -30,7 +30,6 @@ import {
   Share2,
   Loader2,
   SlidersHorizontal,
-  Filter,
 } from 'lucide-react';
 import { CustomDropdown } from '../components/CustomDropdown';
 import { DiaryNoteCard } from '../components/DiaryNoteCard';
@@ -93,7 +92,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [selectedThoughtIds, setSelectedThoughtIds] = useState<string[]>([]);
   const [selectedCustomTagIds, setSelectedCustomTagIds] = useState<string[]>([]);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [combinationMode, setCombinationMode] = useState<'any' | 'all'>('any');
   const [selectedNoteCategory, setSelectedNoteCategory] = useState<DiaryNoteCategory | 'all'>('all');
 
   // Diary Note modal state
@@ -276,7 +274,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     setSelectedThoughtIds([]);
     setSelectedCustomTagIds([]);
     setSelectedNoteCategory('all');
-    setCombinationMode('any');
   };
 
   const activeFilterCount =
@@ -438,24 +435,15 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         return true;
       }
 
-      if (combinationMode === 'any') {
-        // "Almeno una (OR)": If entry has ANY of the selected tags (symptom, thought, emotion, or custom), SHOW IT!
-        const matched =
-          (hasAnyEmotionSelected && selectedEmotionIds.some(matchesEmotion)) ||
-          (hasAnySymptomSelected && selectedSymptomIds.some(matchesSymptom)) ||
-          (hasAnyThoughtSelected && selectedThoughtIds.some(matchesThought)) ||
-          (hasAnyCustomSelected && selectedCustomTagIds.some(matchesCustomTag));
+      // Se è selezionato almeno un tag tra emozioni, sintomi, pensieri o tag personalizzati,
+      // la registrazione viene mostrata se ne contiene ALMENO UNO (logica inclusiva per impostazione predefinita)
+      const matched =
+        (hasAnyEmotionSelected && selectedEmotionIds.some(matchesEmotion)) ||
+        (hasAnySymptomSelected && selectedSymptomIds.some(matchesSymptom)) ||
+        (hasAnyThoughtSelected && selectedThoughtIds.some(matchesThought)) ||
+        (hasAnyCustomSelected && selectedCustomTagIds.some(matchesCustomTag));
 
-        return matched;
-      } else {
-        // "Tutte (AND)": All selected tags across active categories must be present
-        const hasAllEmotions = !hasAnyEmotionSelected || selectedEmotionIds.every(matchesEmotion);
-        const hasAllSymptoms = !hasAnySymptomSelected || selectedSymptomIds.every(matchesSymptom);
-        const hasAllThoughts = !hasAnyThoughtSelected || selectedThoughtIds.every(matchesThought);
-        const hasAllCustom = !hasAnyCustomSelected || selectedCustomTagIds.every(matchesCustomTag);
-
-        return hasAllEmotions && hasAllSymptoms && hasAllThoughts && hasAllCustom;
-      }
+      return matched;
     });
   }, [
     entries,
@@ -467,7 +455,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     selectedThoughtIds,
     selectedNoteCategory,
     activeSubView,
-    combinationMode,
     allTags,
     customTags,
   ]);
@@ -539,26 +526,16 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         return matchesCategory;
       }
 
-      if (combinationMode === 'any') {
-        const matchesAnyTag =
-          (hasAnyEmotionSelected && selectedEmotionIds.some(noteMatchesTag)) ||
-          (hasAnySymptomSelected && selectedSymptomIds.some(noteMatchesTag)) ||
-          (hasAnyThoughtSelected && selectedThoughtIds.some(noteMatchesTag)) ||
-          (hasAnyCustomSelected && selectedCustomTagIds.some(noteMatchesTag));
+      const matchesAnyTag =
+        (hasAnyEmotionSelected && selectedEmotionIds.some(noteMatchesTag)) ||
+        (hasAnySymptomSelected && selectedSymptomIds.some(noteMatchesTag)) ||
+        (hasAnyThoughtSelected && selectedThoughtIds.some(noteMatchesTag)) ||
+        (hasAnyCustomSelected && selectedCustomTagIds.some(noteMatchesTag));
 
-        if (selectedNoteCategory !== 'all') {
-          return matchesCategory || matchesAnyTag;
-        }
-        return matchesAnyTag;
-      } else {
-        const hasAllTags =
-          (!hasAnyEmotionSelected || selectedEmotionIds.every(noteMatchesTag)) &&
-          (!hasAnySymptomSelected || selectedSymptomIds.every(noteMatchesTag)) &&
-          (!hasAnyThoughtSelected || selectedThoughtIds.every(noteMatchesTag)) &&
-          (!hasAnyCustomSelected || selectedCustomTagIds.every(noteMatchesTag));
-
-        return matchesCategory && hasAllTags;
+      if (selectedNoteCategory !== 'all') {
+        return matchesCategory || matchesAnyTag;
       }
+      return matchesAnyTag;
     });
   }, [
     notes,
@@ -568,7 +545,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     selectedEmotionIds,
     selectedSymptomIds,
     selectedThoughtIds,
-    combinationMode,
     searchQuery,
     customTags,
     allTags,
@@ -975,41 +951,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         {/* Expandable Filter Drawer Panel */}
         {isFilterPanelOpen && (
           <div className="space-y-4 pt-3 border-t border-[var(--border-subtle)] animate-fade-in">
-            {/* Controllo Logica di combinazione filtri */}
-            <div className="flex items-center justify-between pb-2.5 border-b border-[var(--border-subtle)]">
-              <div className="text-xs font-bold text-[var(--text-secondary)] flex items-center space-x-1.5">
-                <Filter className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
-                <span className="font-black text-[var(--text-primary)]">Logica combinazione filtri:</span>
-                <span className="text-[11px] text-[var(--text-muted)] hidden sm:inline">
-                  {combinationMode === 'any' ? '(mostra voci che contengono almeno un filtro)' : '(mostra voci che soddisfano tutti i filtri)'}
-                </span>
-              </div>
-              <div className="inline-flex rounded-lg border border-[var(--border-solid)] p-0.5 bg-[var(--bg-subtle)] text-xs font-bold">
-                <button
-                  type="button"
-                  onClick={() => setCombinationMode('any')}
-                  className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
-                    combinationMode === 'any'
-                      ? 'bg-[var(--accent-btn)] text-[var(--accent-btn-text)] shadow-xs font-black'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  Almeno una (OR)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCombinationMode('all')}
-                  className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
-                    combinationMode === 'all'
-                      ? 'bg-[var(--accent-btn)] text-[var(--accent-btn-text)] shadow-xs font-black'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  Tutte (AND)
-                </button>
-              </div>
-            </div>
-
             {/* 1. SEZIONE TAG PERSONALIZZATI */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -1247,44 +1188,15 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     )}
                   </div>
 
-                  <div className="flex items-center space-x-2">
-                    {(selectedEmotionIds.length + selectedSymptomIds.length + selectedThoughtIds.length) > 1 && (
-                      <div className="inline-flex rounded-lg border border-[var(--border-solid)] p-0.5 bg-[var(--bg-subtle)] text-[11px] font-bold">
-                        <button
-                          type="button"
-                          onClick={() => setCombinationMode('any')}
-                          className={`px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
-                            combinationMode === 'any'
-                              ? 'bg-[var(--accent-btn)] text-[var(--accent-btn-text)] shadow-xs font-black'
-                              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                          }`}
-                        >
-                          Almeno una (OR)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setCombinationMode('all')}
-                          className={`px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
-                            combinationMode === 'all'
-                              ? 'bg-[var(--accent-btn)] text-[var(--accent-btn-text)] shadow-xs font-black'
-                              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                          }`}
-                        >
-                          Tutte (AND)
-                        </button>
-                      </div>
-                    )}
-
-                    {selectedEmotionIds.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedEmotionIds([])}
-                        className="text-[11px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] underline cursor-pointer"
-                      >
-                        Deseleziona emozioni
-                      </button>
-                    )}
-                  </div>
+                  {selectedEmotionIds.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedEmotionIds([])}
+                      className="text-[11px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] underline cursor-pointer"
+                    >
+                      Deseleziona emozioni
+                    </button>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1">

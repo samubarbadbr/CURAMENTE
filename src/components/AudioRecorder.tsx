@@ -123,7 +123,8 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
 
       const recorder = mediaRecorderRef.current;
       recorder.onstop = () => {
-        const mime = recorder.mimeType || 'audio/webm';
+        const isIOS = typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+        const mime = recorder.mimeType || (isIOS ? 'audio/mp4' : 'audio/webm');
         const blob = new Blob(audioChunksRef.current, { type: mime });
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -324,7 +325,8 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
       };
 
       recorder.onstop = () => {
-        const mime = recorder.mimeType || selectedMimeType || 'audio/webm';
+        const isIOS = typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+        const mime = recorder.mimeType || selectedMimeType || (isIOS ? 'audio/mp4' : 'audio/webm');
         const blob = new Blob(audioChunksRef.current, { type: mime });
 
         const reader = new FileReader();

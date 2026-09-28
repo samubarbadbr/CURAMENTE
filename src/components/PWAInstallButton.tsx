@@ -59,16 +59,16 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
           type="button"
           id="header-pwa-install-btn"
           onClick={handleClick}
-          className={`inline-flex items-center space-x-1.5 px-3 py-1.5 min-h-[38px] rounded-full text-xs font-bold border shadow-sm transition-all duration-150 cursor-pointer ${
+          className={`inline-flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3 py-1.5 min-h-[40px] sm:min-h-[44px] rounded-full text-xs font-bold border shadow-xs transition-all duration-150 cursor-pointer active:scale-95 ${
             isIOS
               ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] border-[var(--border-solid)] hover:opacity-80'
               : 'bg-indigo-600 hover:bg-indigo-700 text-white border-transparent'
           } ${className}`}
           title="Installa l'app sulla schermata iniziale"
+          aria-label="Installa l'app"
         >
           <Download className="w-3.5 h-3.5 stroke-[2.5]" />
           <span className="hidden sm:inline">Installa App</span>
-          <span className="sm:hidden">Installa</span>
         </button>
 
         {showIOSGuide && (
@@ -136,7 +136,7 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
 
 const IOSInstallModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/75 backdrop-blur-md p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] animate-fade-in overscroll-contain">
       <div className="w-full max-w-sm rounded-3xl bg-[var(--bg-surface)] border border-[var(--border-solid)] p-6 shadow-2xl text-[var(--text-primary)] space-y-4">
         <div className="flex items-center justify-between pb-2 border-b border-[var(--border-solid)]">
           <div className="flex items-center space-x-2.5">

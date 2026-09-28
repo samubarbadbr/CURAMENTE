@@ -1353,7 +1353,7 @@ export default function App() {
           onShowSplash={() => setShowSplash(true)}
         />
 
-        <main className="flex-1 px-4 sm:px-6 md:px-8 pt-2.5 sm:pt-3 pb-28 sm:pb-24 max-w-4xl mx-auto w-full overflow-x-hidden">
+        <main className="flex-1 px-3 sm:px-6 md:px-8 pt-2 sm:pt-3 pb-[calc(6.75rem+env(safe-area-inset-bottom,0px))] sm:pb-24 max-w-4xl mx-auto w-full overflow-x-hidden">
           <AnimatePresence mode="wait" custom={direction}>
             <motion.div
               key={currentView}

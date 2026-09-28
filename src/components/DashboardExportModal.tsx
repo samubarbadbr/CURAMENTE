@@ -178,7 +178,7 @@ export const DashboardExportModal: React.FC<DashboardExportModalProps> = ({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-[24px] bg-[var(--bg-surface)] border border-[var(--border-solid)] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] overscroll-contain"
+        className="w-full max-w-lg rounded-[24px] bg-[var(--bg-surface)] border border-[var(--border-solid)] shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] overscroll-contain"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -329,7 +329,7 @@ export const DashboardExportModal: React.FC<DashboardExportModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-[var(--border-subtle)] flex flex-col sm:flex-row items-center justify-between gap-2.5 bg-[var(--bg-subtle)]/40">
+        <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-4 border-t border-[var(--border-subtle)] flex flex-col sm:flex-row items-center justify-between gap-2.5 bg-[var(--bg-subtle)]/40">
           <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2">
             <button
               type="button"
