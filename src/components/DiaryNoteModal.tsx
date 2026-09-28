@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { DiaryNote, DiaryNoteCategory, DiaryNoteMood } from '../types';
 import {
@@ -14,7 +14,6 @@ import {
   Share2,
   Loader2,
 } from 'lucide-react';
-import { AudioRecorder } from './AudioRecorder';
 import { CustomDatePicker } from './CustomDatePicker';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { exportSingleDiaryNotePdf } from '../services/diaryReportGenerator';
@@ -71,9 +70,78 @@ export const DiaryNoteModal: React.FC<DiaryNoteModalProps> = ({
   const [photo, setPhoto] = useState<string | undefined>(undefined);
   const [audioNote, setAudioNote] = useState<string | undefined>(undefined);
   const [audioDuration, setAudioDuration] = useState<number | undefined>(undefined);
-  const [showAudioRecorder, setShowAudioRecorder] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  // Dictation state for note content
+  const [isDictating, setIsDictating] = useState(false);
+  const speechRecognitionRef = useRef<any>(null);
+  const dictationBaseContentRef = useRef<string>('');
+
+  useEffect(() => {
+    return () => {
+      try {
+        speechRecognitionRef.current?.stop();
+      } catch {}
+    };
+  }, []);
+
+  const toggleDictation = () => {
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) {
+      setErrorMsg('La dettatura vocale non è supportata da questo browser. Usa Safari su iPhone o Chrome.');
+      return;
+    }
+
+    if (isDictating) {
+      try {
+        speechRecognitionRef.current?.stop();
+      } catch {}
+      setIsDictating(false);
+      return;
+    }
+
+    try {
+      setErrorMsg('');
+      const rec = new SpeechRec();
+      rec.lang = 'it-IT';
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.maxAlternatives = 1;
+
+      dictationBaseContentRef.current = content || '';
+
+      rec.onstart = () => setIsDictating(true);
+      rec.onresult = (event: any) => {
+        let transcript = '';
+        for (let i = 0; i < event.results.length; ++i) {
+          const item = event.results[i];
+          if (item && item[0]) {
+            transcript += item[0].transcript;
+          }
+        }
+        const spoken = transcript.trim();
+        if (spoken) {
+          const base = dictationBaseContentRef.current ? dictationBaseContentRef.current.trim() : '';
+          setContent(base ? `${base} ${spoken}` : spoken);
+        }
+      };
+
+      rec.onerror = (e: any) => {
+        if (e?.error === 'no-speech') return;
+        setIsDictating(false);
+      };
+      rec.onend = () => {
+        setIsDictating(false);
+        dictationBaseContentRef.current = content || '';
+      };
+
+      speechRecognitionRef.current = rec;
+      rec.start();
+    } catch {
+      setIsDictating(false);
+    }
+  };
 
   // Helper to extract local date (YYYY-MM-DD) and time (HH:mm)
   const extractDateAndTimeToState = (isoDateStr?: string) => {
@@ -124,7 +192,6 @@ export const DiaryNoteModal: React.FC<DiaryNoteModalProps> = ({
         setPhoto(initialNote.photo);
         setAudioNote(initialNote.audioNote);
         setAudioDuration(initialNote.audioDuration);
-        setShowAudioRecorder(!!initialNote.audioNote);
 
         const { date, time } = extractDateAndTimeToState(initialNote.createdAt);
         setNoteDate(date);
@@ -138,7 +205,6 @@ export const DiaryNoteModal: React.FC<DiaryNoteModalProps> = ({
         setPhoto(undefined);
         setAudioNote(undefined);
         setAudioDuration(undefined);
-        setShowAudioRecorder(false);
 
         const { date, time } = extractDateAndTimeToState();
         setNoteDate(date);
@@ -408,11 +474,26 @@ export const DiaryNoteModal: React.FC<DiaryNoteModalProps> = ({
             />
           </div>
 
-          {/* Content Field with break-words */}
+          {/* Content Field with break-words and Detta button */}
           <div>
-            <label className="block text-xs font-black text-[var(--text-secondary)] uppercase tracking-wider mb-1">
-              Cosa vuoi appuntarti? <span className="text-rose-500">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-black text-[var(--text-secondary)] uppercase tracking-wider">
+                Cosa vuoi appuntarti? <span className="text-rose-500">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={toggleDictation}
+                className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 border ${
+                  isDictating
+                    ? 'bg-rose-500 text-white border-rose-600 animate-pulse'
+                    : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-[var(--border-solid)]'
+                }`}
+                title={isDictating ? 'Ferma dettatura' : 'Detta a voce nel campo'}
+              >
+                <Mic className="w-3.5 h-3.5 text-rose-500" />
+                <span>{isDictating ? 'Ascolto...' : 'Detta'}</span>
+              </button>
+            </div>
             <textarea
               rows={6}
               value={content}
@@ -421,49 +502,6 @@ export const DiaryNoteModal: React.FC<DiaryNoteModalProps> = ({
               className="w-full text-sm font-medium leading-relaxed p-3.5 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] transition-colors resize-y min-h-[140px] break-words"
               style={{ overflowWrap: 'anywhere' }}
             />
-          </div>
-
-          {/* Audio Note Recorder Section */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setShowAudioRecorder(!showAudioRecorder)}
-                className="inline-flex items-center space-x-1.5 text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors cursor-pointer"
-              >
-                <Mic className="w-3.5 h-3.5 stroke-[2.2]" />
-                <span>{showAudioRecorder ? 'Nascondi registrazione vocale' : 'Aggiungi nota vocale'}</span>
-                {audioNote && (
-                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                )}
-              </button>
-              {audioNote && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAudioNote(undefined);
-                    setAudioDuration(undefined);
-                  }}
-                  className="text-xs font-bold text-rose-500 hover:text-rose-600 flex items-center space-x-1 cursor-pointer"
-                >
-                  <Trash2 className="w-3 h-3" />
-                  <span>Elimina audio</span>
-                </button>
-              )}
-            </div>
-
-            {showAudioRecorder && (
-              <div className="p-3 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-solid)]">
-                <AudioRecorder
-                  audioNote={audioNote}
-                  audioDuration={audioDuration}
-                  onChange={(b64, dur) => {
-                    setAudioNote(b64);
-                    setAudioDuration(dur);
-                  }}
-                />
-              </div>
-            )}
           </div>
 
           {/* Photo Attachment Section */}

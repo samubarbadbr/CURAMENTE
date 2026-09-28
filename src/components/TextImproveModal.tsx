@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Sparkles, Check, X, ArrowRight, RefreshCw, AlertCircle } from 'lucide-react';
+import { CheckCheck, Check, X, ArrowRight, RefreshCw, AlertCircle } from 'lucide-react';
 import { correctDiaryText } from '../services/aiTextCorrection';
 
 interface TextImproveModalProps {
@@ -60,7 +60,7 @@ export const TextImproveModal: React.FC<TextImproveModalProps> = ({
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-150 overflow-y-auto select-none"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-150 overflow-y-auto"
       onClick={(e) => {
         // Block closing during loading
         if (!isLoading && e.target === e.currentTarget) {
@@ -69,18 +69,18 @@ export const TextImproveModal: React.FC<TextImproveModalProps> = ({
       }}
     >
       <div
-        className="w-full max-w-lg rounded-3xl bg-[var(--bg-surface)] border border-[var(--border-solid)] shadow-2xl text-[var(--text-primary)] overflow-hidden flex flex-col max-h-[90vh] my-auto animate-in zoom-in-95 duration-150"
+        className="w-full max-w-lg rounded-3xl bg-[var(--bg-surface)] border border-[var(--border-solid)] shadow-2xl text-[var(--text-primary)] overflow-hidden flex flex-col max-h-[85dvh] sm:max-h-[90dvh] my-auto animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-[var(--border-solid)] flex items-center justify-between shrink-0 bg-[var(--bg-subtle)]">
           <div className="flex items-center space-x-2.5">
             <div className="p-2 rounded-xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/25">
-              <Sparkles className="w-4 h-4 stroke-[2.5]" />
+              <CheckCheck className="w-4 h-4 stroke-[2.5]" />
             </div>
             <div>
               <h3 className="text-sm sm:text-base font-black text-[var(--text-primary)]">
-                Correzione Testo con AI
+                Correzione Testo
               </h3>
               <p className="text-xs text-[var(--text-secondary)] font-medium">
                 {fieldTitle} • Refusi, grammatica e fluidità
@@ -107,11 +107,8 @@ export const TextImproveModal: React.FC<TextImproveModalProps> = ({
         <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
           {isLoading && (
             <div className="py-12 px-4 flex flex-col items-center justify-center text-center space-y-3">
-              <div className="relative">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-                  <RefreshCw className="w-6 h-6 animate-spin" />
-                </div>
-                <Sparkles className="w-4 h-4 text-amber-400 absolute -top-1 -right-1 animate-pulse" />
+              <div className="w-12 h-12 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                <RefreshCw className="w-6 h-6 animate-spin" />
               </div>
               <div>
                 <p className="text-sm font-black text-[var(--text-primary)]">

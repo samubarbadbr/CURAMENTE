@@ -6,7 +6,6 @@ import { TagPicker } from '../components/TagPicker';
 import { GradientSlider } from '../components/GradientSlider';
 import { TextImproveModal } from '../components/TextImproveModal';
 import { CustomDatePicker } from '../components/CustomDatePicker';
-import { AudioRecorder } from '../components/AudioRecorder';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { CollapsibleCard, CollapsibleSubSection } from '../components/CollapsibleField';
 import { audioSafety } from '../services/audioSafety';
@@ -29,13 +28,13 @@ import {
   ChevronLeft,
   ChevronDown,
   Sparkles,
-  Wand2,
   Heart,
   TrendingUp,
   Smile,
   Briefcase,
   Lightbulb,
   Check,
+  CheckCheck,
   AlignLeft,
   Sliders,
   ToggleLeft,
@@ -235,40 +234,91 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
   // Speech dictation state for handwriting / situation textarea
   const [isDictating, setIsDictating] = useState(false);
   const speechRecognitionRef = useRef<any>(null);
+  const dictationBaseTextRef = useRef<string>('');
+  const [fieldNotice, setFieldNotice] = useState<string | null>(null);
+
+  // Stop speech recognition when component unmounts
+  useEffect(() => {
+    return () => {
+      try {
+        speechRecognitionRef.current?.stop();
+      } catch {}
+    };
+  }, []);
 
   const toggleDictation = () => {
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRec) {
-      alert('La dettatura vocale diretta richiede un browser compatibile (es. Google Chrome, Safari, Edge).');
+      setFieldNotice('La dettatura vocale non è supportata da questo browser. Usa Safari su iPhone o Chrome.');
+      setTimeout(() => setFieldNotice(null), 5000);
       return;
     }
 
     if (isDictating) {
-      speechRecognitionRef.current?.stop();
+      try {
+        speechRecognitionRef.current?.stop();
+      } catch {}
       setIsDictating(false);
       return;
     }
 
     try {
+      setFieldNotice(null);
       const rec = new SpeechRec();
       rec.lang = 'it-IT';
-      rec.continuous = false;
-      rec.interimResults = false;
+      // In iOS Safari WebKit, continuous = true and interimResults = true are essential
+      // to receive onresult events before onend
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.maxAlternatives = 1;
 
-      rec.onstart = () => setIsDictating(true);
+      dictationBaseTextRef.current = draftRef.current.situation || '';
+
+      rec.onstart = () => {
+        setIsDictating(true);
+      };
+
       rec.onresult = (event: any) => {
-        const transcript = event.results[0]?.[0]?.transcript || '';
-        if (transcript) {
-          updateDraft('situation', draft.situation ? `${draft.situation} ${transcript}` : transcript);
+        let fullSessionTranscript = '';
+        for (let i = 0; i < event.results.length; ++i) {
+          const item = event.results[i];
+          if (item && item[0]) {
+            fullSessionTranscript += item[0].transcript;
+          }
+        }
+        const spoken = fullSessionTranscript.trim();
+        if (spoken) {
+          const base = dictationBaseTextRef.current ? dictationBaseTextRef.current.trim() : '';
+          const combined = base ? `${base} ${spoken}` : spoken;
+          updateDraft('situation', combined);
         }
       };
-      rec.onerror = () => setIsDictating(false);
-      rec.onend = () => setIsDictating(false);
+
+      rec.onerror = (event: any) => {
+        console.warn('SpeechRecognition event error:', event?.error);
+        if (event?.error === 'no-speech') {
+          // In iOS Safari, pause in speech triggers 'no-speech'; ignore and keep listening
+          return;
+        }
+        if (event?.error === 'not-allowed') {
+          setFieldNotice('Permesso microfono non concesso. Abilita il microfono in Impostazioni > Safari > Microfono.');
+          setTimeout(() => setFieldNotice(null), 6000);
+        }
+        setIsDictating(false);
+      };
+
+      rec.onend = () => {
+        setIsDictating(false);
+        dictationBaseTextRef.current = draftRef.current.situation || '';
+      };
 
       speechRecognitionRef.current = rec;
       rec.start();
-    } catch {
+    } catch (err: any) {
+      console.error('Errore avvio dettatura vocale:', err);
       setIsDictating(false);
+      setFieldNotice('Impossibile attivare il microfono. Riprova tra qualche istante.');
+      setTimeout(() => setFieldNotice(null), 4000);
     }
   };
 
@@ -277,7 +327,12 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
     fieldTitle: string,
     currentText: string
   ) => {
-    if (!currentText.trim()) return;
+    if (!currentText || !currentText.trim()) {
+      setFieldNotice(`Inserisci o detta prima del testo in ${fieldTitle} per poterlo correggere.`);
+      setTimeout(() => setFieldNotice(null), 4000);
+      return;
+    }
+    setFieldNotice(null);
     setImproveModal({
       isOpen: true,
       text: currentText,
@@ -291,7 +346,12 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
     fieldTitle: string,
     currentText: string
   ) => {
-    if (!currentText.trim()) return;
+    if (!currentText || !currentText.trim()) {
+      setFieldNotice(`Inserisci prima una risposta per poterla correggere.`);
+      setTimeout(() => setFieldNotice(null), 4000);
+      return;
+    }
+    setFieldNotice(null);
     setImproveModal({
       isOpen: true,
       text: currentText,
@@ -307,18 +367,6 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
       handleCustomAnswerChange(improveModal.questionId, improvedText);
     } else if (improveModal.fieldName) {
       updateDraft(improveModal.fieldName as keyof CbtEntry, improvedText as any);
-    }
-  };
-
-  const handleQuickImprove = () => {
-    if (draft.negativeThought?.trim()) {
-      handleOpenImproveModal('negativeThought', 'Pensiero Negativo', draft.negativeThought);
-    } else if (draft.situation?.trim()) {
-      handleOpenImproveModal('situation', 'Situazione', draft.situation);
-    } else if (draft.notes?.trim()) {
-      handleOpenImproveModal('notes', 'Note Aggiuntive', draft.notes);
-    } else {
-      alert('Inserisci prima del testo in Situazione o Pensiero Negativo per poterlo correggere.');
     }
   };
 
@@ -651,16 +699,6 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
         <div className="flex items-center space-x-2">
           <button
             type="button"
-            onClick={handleQuickImprove}
-            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 active:scale-95 transition-all cursor-pointer"
-            title="Correggi bozza con AI ✨"
-          >
-            <Wand2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Correggi Testo</span>
-            <span>✨</span>
-          </button>
-          <button
-            type="button"
             onClick={(e) => handleCancelWithSafety(e)}
             className="p-2.5 rounded-full text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] active:scale-95 transition-all cursor-pointer"
             aria-label="Annulla"
@@ -814,15 +852,15 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
 
           {/* Situazione con Caricamento Foto */}
           <div className="glass-panel rounded-[20px] p-4 space-y-3.5 border border-[var(--border-solid)] bg-[var(--bg-surface)] relative z-10">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
                 Situazione (Dove ti trovavi? Con chi?)
               </label>
-              <div className="flex items-center space-x-1.5">
+              <div className="flex items-center space-x-1.5 shrink-0">
                 <button
                   type="button"
                   onClick={toggleDictation}
-                  className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 border ${
+                  className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 border ${
                     isDictating
                       ? 'bg-rose-500 text-white border-rose-600 animate-pulse'
                       : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-[var(--border-solid)]'
@@ -832,19 +870,23 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                   <Mic className="w-3.5 h-3.5 text-rose-500" />
                   <span>{isDictating ? 'Ascolto...' : 'Detta'}</span>
                 </button>
-                {draft.situation?.trim() && (
-                  <button
-                    type="button"
-                    onClick={() => handleOpenImproveModal('situation', 'Situazione', draft.situation)}
-                    className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer shadow-xs active:scale-95"
-                    title="Correggi refusi, grammatica e fluidità"
-                  >
-                    <Wand2 className="w-3.5 h-3.5" />
-                    <span>Correggi testo ✨</span>
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => handleOpenImproveModal('situation', 'Situazione', draft.situation)}
+                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer shadow-xs active:scale-95"
+                  title="Correggi refusi, grammatica e fluidità"
+                >
+                  <CheckCheck className="w-3.5 h-3.5" />
+                  <span>Correggi testo</span>
+                </button>
               </div>
             </div>
+
+            {fieldNotice && (
+              <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/25 text-xs font-medium text-indigo-300 animate-in fade-in">
+                {fieldNotice}
+              </div>
+            )}
             <textarea
               rows={3}
               value={draft.situation}
@@ -1001,37 +1043,6 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                 )}
               </AnimatePresence>
             </CollapsibleSubSection>
-
-            {/* Nota Vocale / Audio Recorder */}
-            <CollapsibleSubSection
-              id="section-audio-optional"
-              title="Nota Vocale / Audio"
-              icon={<Mic className="w-3.5 h-3.5 text-rose-500" />}
-              isOptional={true}
-              isOpen={Boolean(openSections.audio)}
-              onToggle={() => toggleSection('audio')}
-              statusBadge={
-                draft.audioNote ? (
-                  <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                    <span>Audio registrato</span>
-                  </span>
-                ) : null
-              }
-            >
-              <AudioRecorder
-                audioNote={draft.audioNote}
-                audioDuration={draft.audioDuration}
-                initialSavedAudio={initialDraft.audioNote}
-                onChange={(audioBase64, duration) => {
-                  updateDraft('audioNote', audioBase64);
-                  updateDraft('audioDuration', duration);
-                  if (audioBase64) {
-                    setOpenSections((prev) => ({ ...prev, audio: true }));
-                  }
-                }}
-              />
-            </CollapsibleSubSection>
           </div>
 
           {/* Trigger */}
@@ -1089,8 +1100,8 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                     className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer shadow-xs active:scale-95"
                     title="Correggi refusi, grammatica e fluidità"
                   >
-                    <Wand2 className="w-3.5 h-3.5" />
-                    <span>Correggi testo ✨</span>
+                    <CheckCheck className="w-3.5 h-3.5" />
+                    <span>Correggi testo</span>
                   </button>
                 )}
               </div>
@@ -1207,8 +1218,8 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                               className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
                               title="Correggi testo con AI"
                             >
-                              <Wand2 className="w-2.5 h-2.5" />
-                              <span>Correggi ✨</span>
+                              <CheckCheck className="w-2.5 h-2.5" />
+                              <span>Correggi</span>
                             </button>
                           )}
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
@@ -1364,8 +1375,8 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                 }}
                 className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
               >
-                <Wand2 className="w-3.5 h-3.5" />
-                <span>Correggi ✨</span>
+                <CheckCheck className="w-3.5 h-3.5" />
+                <span>Correggi</span>
               </button>
             ) : null
           }
@@ -1415,8 +1426,8 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                 }}
                 className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
               >
-                <Wand2 className="w-3.5 h-3.5" />
-                <span>Correggi ✨</span>
+                <CheckCheck className="w-3.5 h-3.5" />
+                <span>Correggi</span>
               </button>
             ) : null
           }
@@ -1487,8 +1498,8 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                 }}
                 className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
               >
-                <Wand2 className="w-3.5 h-3.5" />
-                <span>Correggi ✨</span>
+                <CheckCheck className="w-3.5 h-3.5" />
+                <span>Correggi</span>
               </button>
             ) : null
           }
@@ -1535,8 +1546,8 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                 }}
                 className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
               >
-                <Wand2 className="w-3.5 h-3.5" />
-                <span>Correggi ✨</span>
+                <CheckCheck className="w-3.5 h-3.5" />
+                <span>Correggi</span>
               </button>
             ) : null
           }
@@ -1583,8 +1594,8 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                 }}
                 className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
               >
-                <Wand2 className="w-3.5 h-3.5" />
-                <span>Correggi ✨</span>
+                <CheckCheck className="w-3.5 h-3.5" />
+                <span>Correggi</span>
               </button>
             ) : null
           }
@@ -1642,8 +1653,8 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
                 }}
                 className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
               >
-                <Wand2 className="w-3.5 h-3.5" />
-                <span>Correggi ✨</span>
+                <CheckCheck className="w-3.5 h-3.5" />
+                <span>Correggi</span>
               </button>
             ) : null
           }
