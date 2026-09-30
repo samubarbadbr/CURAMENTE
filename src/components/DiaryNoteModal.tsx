@@ -77,14 +77,91 @@ export const DiaryNoteModal: React.FC<DiaryNoteModalProps> = ({
   const [isDictating, setIsDictating] = useState(false);
   const speechRecognitionRef = useRef<any>(null);
   const dictationBaseContentRef = useRef<string>('');
+  const finalizedContentRef = useRef<string>('');
+  const isUserListeningRef = useRef<boolean>(false);
+  const restartTimeoutRef = useRef<any>(null);
 
   useEffect(() => {
     return () => {
+      isUserListeningRef.current = false;
+      if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
       try {
         speechRecognitionRef.current?.stop();
       } catch {}
     };
   }, []);
+
+  const startNoteRecognition = () => {
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) return;
+
+    try {
+      const rec = new SpeechRec();
+      rec.lang = 'it-IT';
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.maxAlternatives = 1;
+
+      rec.onstart = () => {
+        setIsDictating(true);
+      };
+
+      rec.onresult = (event: any) => {
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const item = event.results[i];
+          if (!item || !item[0]) continue;
+          if (item.isFinal) {
+            const finalWord = item[0].transcript.trim();
+            if (finalWord) {
+              finalizedContentRef.current += (finalizedContentRef.current ? ' ' : '') + finalWord;
+            }
+          } else {
+            interim += item[0].transcript;
+          }
+        }
+
+        const currentDictated = (finalizedContentRef.current + (interim ? ' ' + interim.trim() : '')).trim();
+        const base = dictationBaseContentRef.current ? dictationBaseContentRef.current.trim() : '';
+        const combined = base ? (currentDictated ? `${base} ${currentDictated}` : base) : currentDictated;
+        setContent(combined);
+      };
+
+      rec.onerror = (e: any) => {
+        if (e?.error === 'no-speech') return;
+        if (e?.error === 'not-allowed') {
+          isUserListeningRef.current = false;
+          setIsDictating(false);
+          setErrorMsg('Permesso microfono non concesso. Abilita il microfono in Impostazioni > Safari > Microfono.');
+        }
+      };
+
+      rec.onend = () => {
+        if (isUserListeningRef.current) {
+          if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
+          restartTimeoutRef.current = setTimeout(() => {
+            if (isUserListeningRef.current) {
+              try {
+                startNoteRecognition();
+              } catch {}
+            }
+          }, 100);
+        } else {
+          setIsDictating(false);
+          dictationBaseContentRef.current = content || '';
+          finalizedContentRef.current = '';
+        }
+      };
+
+      speechRecognitionRef.current = rec;
+      rec.start();
+    } catch {
+      if (isUserListeningRef.current) {
+        setIsDictating(false);
+        isUserListeningRef.current = false;
+      }
+    }
+  };
 
   const toggleDictation = () => {
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -93,53 +170,28 @@ export const DiaryNoteModal: React.FC<DiaryNoteModalProps> = ({
       return;
     }
 
-    if (isDictating) {
+    if (isDictating || isUserListeningRef.current) {
+      isUserListeningRef.current = false;
+      if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
       try {
         speechRecognitionRef.current?.stop();
       } catch {}
       setIsDictating(false);
+      dictationBaseContentRef.current = content || '';
+      finalizedContentRef.current = '';
       return;
     }
 
     try {
       setErrorMsg('');
-      const rec = new SpeechRec();
-      rec.lang = 'it-IT';
-      rec.continuous = true;
-      rec.interimResults = true;
-      rec.maxAlternatives = 1;
-
+      isUserListeningRef.current = true;
       dictationBaseContentRef.current = content || '';
-
-      rec.onstart = () => setIsDictating(true);
-      rec.onresult = (event: any) => {
-        let transcript = '';
-        for (let i = 0; i < event.results.length; ++i) {
-          const item = event.results[i];
-          if (item && item[0]) {
-            transcript += item[0].transcript;
-          }
-        }
-        const spoken = transcript.trim();
-        if (spoken) {
-          const base = dictationBaseContentRef.current ? dictationBaseContentRef.current.trim() : '';
-          setContent(base ? `${base} ${spoken}` : spoken);
-        }
-      };
-
-      rec.onerror = (e: any) => {
-        if (e?.error === 'no-speech') return;
-        setIsDictating(false);
-      };
-      rec.onend = () => {
-        setIsDictating(false);
-        dictationBaseContentRef.current = content || '';
-      };
-
-      speechRecognitionRef.current = rec;
-      rec.start();
+      finalizedContentRef.current = '';
+      startNoteRecognition();
     } catch {
+      isUserListeningRef.current = false;
       setIsDictating(false);
+      setErrorMsg('Impossibile attivare il microfono per la dettatura.');
     }
   };
 

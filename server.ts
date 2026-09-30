@@ -74,15 +74,20 @@ ${text}
 """`;
 
     let corrected = text;
-    // Primary model according to gemini-api skill: 'gemini-3.8-flash' (standard free tier for proofreading)
-    const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest'];
+    // Ultra-fast, highly responsive Gemini models for real AI correction
+    const candidateModels = [
+      'gemini-3.5-flash-lite',
+      'gemini-flash-lite-latest',
+      'gemini-3-flash-preview',
+      'gemini-3.8-flash',
+    ];
     let lastError: any = null;
     let modelSuccess = false;
 
     for (const modelName of candidateModels) {
       try {
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Timeout durante la generazione')), 6000)
+          setTimeout(() => reject(new Error('Timeout durante la generazione')), 8000)
         );
         const generatePromise = ai.models.generateContent({
           model: modelName,
@@ -103,87 +108,26 @@ ${text}
     }
 
     if (!modelSuccess) {
-      console.warn('Gemini momentaneamente non disponibile, applicazione correzione regole italiana di fallback');
-      corrected = applyItalianCorrectionFallback(text);
+      const errDetail = lastError?.message || 'Errore nei modelli AI';
+      return res.status(503).json({
+        success: false,
+        error: `Servizio di correzione AI momentaneamente occupato (${errDetail}). Verifica la connessione e riprova.`,
+      });
     }
 
     return res.json({
       success: true,
       original: text,
       corrected,
-      modelUsed: modelSuccess ? 'gemini' : 'rules_engine',
     });
   } catch (error: any) {
     console.error('Errore durante la correzione del testo:', error);
-    // Even on error, return rules-corrected text instead of failing the user
-    try {
-      const fallback = applyItalianCorrectionFallback(req.body?.text || '');
-      return res.json({
-        success: true,
-        original: req.body?.text || '',
-        corrected: fallback,
-        modelUsed: 'rules_fallback',
-      });
-    } catch {
-      return res.status(500).json({
-        error: 'Impossibile correggere il testo al momento. Riprova più tardi.',
-      });
-    }
+    return res.status(500).json({
+      success: false,
+      error: 'Impossibile correggere il testo con l\'AI. Verifica la connessione Internet e riprova.',
+    });
   }
 });
-
-// Funzione di correzione grammatica, refusi e fluidità in lingua italiana
-function applyItalianCorrectionFallback(text: string): string {
-  if (!text || !text.trim()) return text;
-  let s = text.trim();
-
-  // Correzioni verbi ausiliari avere con acca mancante (es: "o visto" -> "ho visto")
-  const particiPassati = 'visto|fatto|detto|saputo|sentito|preso|messo|pensato|provato|trovato|capito|iniziato|finito|dormito|mangiato|letto|scritto|chiesto|risposto|notato|avuto|stato|andato|uscito|parlato|creduto|sentita|sentiti|sentite|vista|visti|viste|fatta|fatti|fatte';
-  s = s.replace(new RegExp(`\\b([Oo])\\s+(${particiPassati})\\b`, 'g'), (_, p1, p2) => (p1 === 'O' ? 'Ho ' : 'ho ') + p2);
-  s = s.replace(new RegExp(`\\b([Aa])\\s+(${particiPassati})\\b`, 'g'), (_, p1, p2) => (p1 === 'A' ? 'Ha ' : 'ha ') + p2);
-  s = s.replace(new RegExp(`\\b([Aa]nno)\\s+(${particiPassati})\\b`, 'g'), (_, p1, p2) => (p1.startsWith('A') ? 'Hanno ' : 'hanno ') + p2);
-
-  // Errori tipici ortografici italiani
-  s = s.replace(/\bun\s+pò\b/gi, "un po'");
-  s = s.replace(/\bqual'è\b/gi, 'qual è');
-  s = s.replace(/\bqual'e\b/gi, 'qual è');
-  s = s.replace(/\bd'accordo\b/gi, "d'accordo");
-  s = s.replace(/\bd'avanti\b/gi, 'davanti');
-  s = s.replace(/\bfa'\b/gi, 'fa');
-  s = s.replace(/\bfa\s+bene\b/gi, 'fa bene');
-  s = s.replace(/\bfa\s+male\b/gi, 'fa male');
-  s = s.replace(/\bce\s+l'ho\b/gi, "ce l'ho");
-  s = s.replace(/\bce\s+l'ha\b/gi, "ce l'ha");
-  s = s.replace(/\bnon\s+ce\s+la\s+faccio\b/gi, 'non ce la faccio');
-
-  // Correzioni vocali accentate
-  s = s.replace(/\b([Ee])'/g, (_, p1) => (p1 === 'E' ? 'È' : 'è'));
-  s = s.replace(/\bperche'?\b/gi, 'perché');
-  s = s.replace(/\baffinche'?\b/gi, 'affinché');
-  s = s.replace(/\bpiu'?\b/gi, 'più');
-  s = s.replace(/\bgia'?\b/gi, 'già');
-  s = s.replace(/\bcioe'?\b/gi, 'cioè');
-  s = s.replace(/\bpuo'?\b/gi, 'può');
-  s = s.replace(/\bpero'?\b/gi, 'però');
-  s = s.replace(/\bcosi'?\b/gi, 'così');
-  s = s.replace(/\blaggiu'?\b/gi, 'laggiù');
-  s = s.replace(/\blassu'?\b/gi, 'lassù');
-
-  // Punteggiatura e spaziatura corretta
-  s = s.replace(/\s+([.,;:!?])/g, '$1');
-  s = s.replace(/([.,;:!?])(?=[^\s.,;:!?0-9])/g, '$1 ');
-  s = s.replace(/\s{2,}/g, ' ');
-
-  // Maiuscola a inizio frase e dopo punto, punto interrogativo o esclamativo
-  s = s.replace(/(^|[.!?]\s+)([a-zàèéìòù])/g, (_, prefix, letter) => prefix + letter.toUpperCase());
-
-  // Se finisce senza punteggiatura, aggiungi un punto finale
-  if (!/[.!?]$/.test(s)) {
-    s += '.';
-  }
-
-  return s;
-}
 
 // Fallback for any other method on /api/correct-text
 app.all('/api/correct-text', (req, res) => {

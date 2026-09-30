@@ -235,16 +235,102 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
   const [isDictating, setIsDictating] = useState(false);
   const speechRecognitionRef = useRef<any>(null);
   const dictationBaseTextRef = useRef<string>('');
+  const finalizedTranscriptRef = useRef<string>('');
+  const isUserListeningRef = useRef<boolean>(false);
+  const restartTimeoutRef = useRef<any>(null);
   const [fieldNotice, setFieldNotice] = useState<string | null>(null);
 
   // Stop speech recognition when component unmounts
   useEffect(() => {
     return () => {
+      isUserListeningRef.current = false;
+      if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
       try {
         speechRecognitionRef.current?.stop();
       } catch {}
     };
   }, []);
+
+  const startRecognition = () => {
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) return;
+
+    try {
+      const rec = new SpeechRec();
+      rec.lang = 'it-IT';
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.maxAlternatives = 1;
+
+      rec.onstart = () => {
+        setIsDictating(true);
+      };
+
+      rec.onresult = (event: any) => {
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const item = event.results[i];
+          if (!item || !item[0]) continue;
+          if (item.isFinal) {
+            const finalWord = item[0].transcript.trim();
+            if (finalWord) {
+              finalizedTranscriptRef.current += (finalizedTranscriptRef.current ? ' ' : '') + finalWord;
+            }
+          } else {
+            interim += item[0].transcript;
+          }
+        }
+
+        const currentDictated = (finalizedTranscriptRef.current + (interim ? ' ' + interim.trim() : '')).trim();
+        const base = dictationBaseTextRef.current ? dictationBaseTextRef.current.trim() : '';
+        const combined = base ? (currentDictated ? `${base} ${currentDictated}` : base) : currentDictated;
+        updateDraft('situation', combined);
+      };
+
+      rec.onerror = (event: any) => {
+        console.warn('SpeechRecognition event error:', event?.error);
+        if (event?.error === 'no-speech') {
+          // In Safari on iOS, pauses trigger 'no-speech'; ignore and keep listening
+          return;
+        }
+        if (event?.error === 'not-allowed') {
+          isUserListeningRef.current = false;
+          setIsDictating(false);
+          setFieldNotice('Permesso microfono non concesso. Abilita il microfono in Impostazioni > Safari > Microfono.');
+          setTimeout(() => setFieldNotice(null), 6000);
+        }
+      };
+
+      rec.onend = () => {
+        // If user is still dictating (hasn't clicked stop), seamlessly restart to prevent iOS from cutting off
+        if (isUserListeningRef.current) {
+          if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
+          restartTimeoutRef.current = setTimeout(() => {
+            if (isUserListeningRef.current) {
+              try {
+                startRecognition();
+              } catch (e) {
+                console.warn('Restart recognition error:', e);
+              }
+            }
+          }, 100);
+        } else {
+          setIsDictating(false);
+          dictationBaseTextRef.current = draftRef.current.situation || '';
+          finalizedTranscriptRef.current = '';
+        }
+      };
+
+      speechRecognitionRef.current = rec;
+      rec.start();
+    } catch (err) {
+      console.error('Errore avvio SpeechRec:', err);
+      if (isUserListeningRef.current) {
+        setIsDictating(false);
+        isUserListeningRef.current = false;
+      }
+    }
+  };
 
   const toggleDictation = () => {
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -254,68 +340,27 @@ export const EntryFormView: React.FC<EntryFormViewProps> = ({
       return;
     }
 
-    if (isDictating) {
+    if (isDictating || isUserListeningRef.current) {
+      isUserListeningRef.current = false;
+      if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
       try {
         speechRecognitionRef.current?.stop();
       } catch {}
       setIsDictating(false);
+      dictationBaseTextRef.current = draftRef.current.situation || '';
+      finalizedTranscriptRef.current = '';
       return;
     }
 
     try {
       setFieldNotice(null);
-      const rec = new SpeechRec();
-      rec.lang = 'it-IT';
-      // In iOS Safari WebKit, continuous = true and interimResults = true are essential
-      // to receive onresult events before onend
-      rec.continuous = true;
-      rec.interimResults = true;
-      rec.maxAlternatives = 1;
-
+      isUserListeningRef.current = true;
       dictationBaseTextRef.current = draftRef.current.situation || '';
-
-      rec.onstart = () => {
-        setIsDictating(true);
-      };
-
-      rec.onresult = (event: any) => {
-        let fullSessionTranscript = '';
-        for (let i = 0; i < event.results.length; ++i) {
-          const item = event.results[i];
-          if (item && item[0]) {
-            fullSessionTranscript += item[0].transcript;
-          }
-        }
-        const spoken = fullSessionTranscript.trim();
-        if (spoken) {
-          const base = dictationBaseTextRef.current ? dictationBaseTextRef.current.trim() : '';
-          const combined = base ? `${base} ${spoken}` : spoken;
-          updateDraft('situation', combined);
-        }
-      };
-
-      rec.onerror = (event: any) => {
-        console.warn('SpeechRecognition event error:', event?.error);
-        if (event?.error === 'no-speech') {
-          // In iOS Safari, pause in speech triggers 'no-speech'; ignore and keep listening
-          return;
-        }
-        if (event?.error === 'not-allowed') {
-          setFieldNotice('Permesso microfono non concesso. Abilita il microfono in Impostazioni > Safari > Microfono.');
-          setTimeout(() => setFieldNotice(null), 6000);
-        }
-        setIsDictating(false);
-      };
-
-      rec.onend = () => {
-        setIsDictating(false);
-        dictationBaseTextRef.current = draftRef.current.situation || '';
-      };
-
-      speechRecognitionRef.current = rec;
-      rec.start();
+      finalizedTranscriptRef.current = '';
+      startRecognition();
     } catch (err: any) {
       console.error('Errore avvio dettatura vocale:', err);
+      isUserListeningRef.current = false;
       setIsDictating(false);
       setFieldNotice('Impossibile attivare il microfono. Riprova tra qualche istante.');
       setTimeout(() => setFieldNotice(null), 4000);
